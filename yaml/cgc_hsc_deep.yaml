@@ -1,0 +1,37 @@
+# The HSC control-ground-constant GREAT3-like configuration script, adapted for deep fields
+# to provide inputs for Bob.
+
+# First read in everything from cgc_hsc.yaml, and define pixel scale.
+template : 'cgc_hsc.yaml'
+eval_variables:
+    fpixel_scale : &pixel_scale 0.168
+
+# This script uses an HSC-specific set of selection criteria, which is much more lax than
+# the one used for GREAT3.  We use a version for the deep fields, which applies the cuts based
+# on the noise variance the galaxy would have in the corresponding wide field (100x higher
+# noise variance).
+modules:
+    - hsc_reject_deep
+# And change it in the 'stamp' field.
+stamp.reject.type: HSCRejectDeep
+
+# Change the flux rescaling: we're using the same variances, instead of lowering them 
+# by 100 to get a 10x higher S/N.  So instead, make the fluxes 10x higher using the
+# `scale_flux` option.
+gal.scale_flux: 25.87
+
+# Use same image options, but different random seeds for selecting galaxies, noise fields.
+image.random_seed: 271828
+
+# Just put the output items that change here: filenames, number of files.
+# Start with file number 1000, so we get different PSFs and variances.
+output.file_name.format: deepimage-%04d-%1d.fits
+output.file_name.items:
+        - { type: Sequence, nitems: 30 , first: 1000}
+        - 0
+output.nfiles: 30
+
+output.truth.file_name.format: deepepoch_catalog-%04d-%1d.fits
+output.truth.file_name.items:
+            - { type: Sequence, nitems: 30 , first: 1000}
+            - 0

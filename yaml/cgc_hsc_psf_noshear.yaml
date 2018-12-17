@@ -1,0 +1,52 @@
+# The HSC control-ground-constant GREAT3-like configuration script, for making the PSF images
+# for the no-shear case.
+#
+# This is the same as cgc_hsc_psf.yaml (since shear is only relevant for the galaxies).
+# However, I copied it over so the star fields would be auto-generated (easier than copying
+# them, and very fast to do).
+
+# First read in the things we need from cgc_hsc.yaml, and define pixel scale.
+psf:
+    template : 'cgc_hsc.yaml:psf'
+eval_variables:
+    fpixel_scale : &pixel_scale 0.168
+
+image:
+    type: Tiled
+    nx_tiles: 3
+    ny_tiles: 3
+    stamp_size: 64
+    pixel_scale: *pixel_scale
+
+    random_seed: 31415
+
+    # Offset
+    offset:
+        type: List
+        items:
+        -   0,0  # For the first stamp, no offset.
+        -
+            type: XY
+            x: { type: Random, min: -1.0, max: 1.0 }
+            y: { type: Random, min: -1.0, max: 1.0 }
+        index: '$int(bool(obj_num % 9))'  # 0 -> 0, 1-8 -> 1
+
+stamp:
+    draw_method: no_pixel
+
+output:
+    type: Fits
+    dir: control/ground/constant
+    file_name:
+        type: FormattedStr
+        # The numbers in the file_name are subfield and epoch number.  
+        # This branch only has one epoch, so epoch is always 0 here.
+        format: starfield_image-%04d-%1d.fits
+        items:
+        - { type: Sequence, nitems: 800 }
+        - 0
+
+    nfiles: 800
+
+    nproc: -1
+
