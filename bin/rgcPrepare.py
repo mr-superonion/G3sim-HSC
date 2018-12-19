@@ -1,6 +1,6 @@
+#!/usr/bin/env python
+import numpy as np
 import astropy.io.fits as pyfits
-
-
 
 def main():
     nfield  =   800
@@ -13,10 +13,10 @@ def main():
         isp     =   np.random.randint(0,nsample)
         psf     =   psfAll[isp].data
         var     =   varAll[isp]
-        hduOut  =   fits.PrimaryHDU(psf)
+        hduOut  =   pyfits.PrimaryHDU(psf)
         for name in varAll.names:
             nameU   =   name.split('_')[0]
-            hduOut.header[numeU]=   varAll[nameU]
+            hduOut.header[nameU]=   var[name]
         hduOut.writeto('psfPre/psf%04d.fits'%(ifield))
     return
     
