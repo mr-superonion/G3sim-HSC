@@ -80,7 +80,6 @@ def HSCReject(config, base, value_type):
 
     # False here is a "safe" parameter, which tells GalSim not to cache this result to use again
     # for the next object.
-    print(reject)
     return reject, False
 
 

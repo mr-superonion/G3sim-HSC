@@ -55,86 +55,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
     
     def SimulateExposure(self,ifield,outputdir):
-        # Basic parameters
-        ngrid       =   64
-        nx          =   100 
-        ny          =   nx
-        ndata       =   nx*ny
-        scale       =   0.168
-        ngridTot    =   ngrid*nx
-        bigfft      =   galsim.GSParams(maximum_fft_size=10240)
-        gal_image   =   galsim.ImageF((nx+2)*ngrid,(ny+2)*ngrid,scale=scale)
-        g1          =   0.02
-        g2          =   0.
-
-        # Get the noise image
-        ud          =   galsim.UniformDeviate(ifield)
-        varNoi      =   0.008769248618965289
-        corData     =   pyfits.getdata('correlation.fits')
-        corImg      =   galsim.ImageF(corData,scale=scale)
-        #corNoise    =   galsim.CorrelatedNoise(corImg,ud,scale=scale,corImg=True)
-        corNoise    =   galsim.GaussianNoise(ud)
-        corNoise    =   corNoise.withVariance(varNoi)
         
-        # Get the  galaxy image      
-        flux_scaling=   2.587
-        # Load data
-        catName     =   'real_galaxy_catalog_25.2.fits'
-        dir         =   '../galsim_train/COSMOS_25.2_training_sample/'
-        cosmos_cat  =   galsim.COSMOSCatalog(catName, dir=dir)
-        # index
-        index_use   =   cosmos_cat.orig_index
-        # parametric catalog
-        param_cat   =   cosmos_cat.param_cat[index_use]
-        index       =   ifield%81400
-        record      =   param_cat[index]
-        # prepare the galaxies        
-        gal0        =   cosmos_cat.makeGalaxy(gal_type='parametric',index=index,gsparams=bigfft)
-        gal0        *=  flux_scaling
-        use_bulgefit=   record['use_bulgefit']
-        if use_bulgefit:
-            bparams = record['bulgefit']
-            gal_q   = bparams[3]
-            gal_beta= bparams[7]*galsim.radians
-            hlr     = record['hlr'][2]
-            bulge_flux= record['flux'][1]
-            disk_flux= record['flux'][2]
-            flux    = (bulge_flux+disk_flux)*flux_scaling
-        else:
-            sparams =   record['sersicfit']
-            gal_q   =   sparams[3]
-            gal_beta=   sparams[7]*galsim.radians
-            hlr     =   record['hlr'][0]
-            flux    =   record['flux'][0]*flux_scaling
-        # Get the SNR
-        fluxRadius  =   record['flux_radius']
-        snr         =   flux/fluxRadius/np.sqrt(np.pi)/np.sqrt(varNoi)
-        for i in range(ndata):
-            # Prepare the subimage
-            ix      =   i%nx
-            iy      =   i/nx
-            b       =   galsim.BoundsI(ix*ngrid+1, (ix+1)*ngrid,iy*ngrid+1,(iy+1)*ngrid)
-            sub_gal_image = gal_image[b]
-            # rotate the galaxy
-            ud      =   galsim.UniformDeviate(ifield*1000+i)
-            ang     =   ud()*2.*np.pi * galsim.radians
-            gal     =   gal.rotate(ang)
-            # Shear the galaxy
-            gal     =   gal.shear(g1=g1,g2=g2)
-            gal     =   galsim.Convolve([psf,gal],gsparams=bigfft)
-            # Draw the galaxy image
-            gal.drawImage(sub_gal_image)
-        corNoise.applyTo(gal_image)
-        exposure    =   afwImg.ExposureF((nx+2)*ngrid,(ny+2)*ngrid)
-        exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=varNoi
-        logging.info('finish making exposure')
-        psfImg      =   afwImg.ImageF(45,45)
-        psfImg.getArray()[:,:]= psfGalsim.array
-        psfImg      =   psfImg.convertD()
-        kernel      =   afwMath.FixedKernel(psfImg)
-        kernelPSF   =   meaAlg.KernelPsf(kernel)
-        exposure.setPsf(kernelPSF)
         return exposure
 
     
@@ -145,8 +66,74 @@ class rgcSimTask(pipeBase.CmdLineTask):
         if not os.path.exists(outputdir):
             os.popen('mkdir %s' %(outputdir) )
         logging.info('simulating field %s' %(ifield))
-        #Get PSF
-        self.SimulateExposure(ifield,outputdir)
+        np.random.seed(ifield)
+        # Basic parameters
+        ngrid       =   64
+        nx          =   100 
+        ny          =   nx
+        ndata       =   nx*ny
+        scale       =   0.168
+        ngridTot    =   ngrid*nx
+        bigfft      =   galsim.GSParams(maximum_fft_size=10240)
+        gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
+        g1          =   np.random.rand()*0.06-0.03
+        g2          =   np.random.rand()*0.06-0.03
+        
+        # Get the psf and nosie information 
+        psfImg      =   galsim.fit.read('psfPre/psf%04d.fits'%(ifield))
+        psfInt      =   galsim.InterpolatedImage(psfImg,scale = scale, flux = 1.) 
+        # Get the noise image
+        noiseHead   =   pyfits.getheader()
+        variance    =   noiseHead['var']
+        tract       =   noiseHead['tract']
+        patch       =   noiseHead['patch']
+        ud          =   galsim.UniformDeviate(ifield)
+        corNoise    =   galsim.getCOSMOSNoise(file_name='correlation.fits',rng=ud,cosmos_scale=scale,variance=variance)       
+        
+        # Get the  galaxy image      
+        flux_scaling=   2.587
+        # Load data
+        Xnames      =   ['best','median','worst']
+        iXn         =   ifile%(len(Xnames))
+        Xname       =   Xnames[iXn]
+        catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
+        directory   =   '/gpfs02/work/xiangchong.li/galsim_train/parent_%s_processed' %(Xname)
+        rgc         =   galsim.RealGalaxyCatalog(catName, dir=directory)
+        catalog     =   rgc.cat
+        ncatGal     =   len(catalog)
+        for i in range(ndata):
+            # Prepare the subimage
+            ix      =   i%nx
+            iy      =   i//nx
+            b       =   galsim.BoundsI(ix*ngrid, (ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
+            sub_gal_image = gal_image[b]
+            #simulate the galaxy
+            index   =   np.random.randint(0,ncatGal)
+            gal     =   galsim.RealGalaxy(real_galaxy_catalog, index=index)
+            gal     *=  flux_scaling
+            # rotate the galaxy
+            ud      =   galsim.UniformDeviate(ifield*10000+i)
+            ang     =   ud()*2.*np.pi * galsim.radians
+            gal     =   gal.rotate(ang)
+            # Shear the galaxy
+            gal     =   gal.shear(g1=g1,g2=g2)
+            gal     =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
+            # Draw the galaxy image
+            gal.drawImage(sub_gal_image)
+        corNoise.applyTo(gal_image)
+        exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
+        exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
+        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
+        logging.info('finish making exposure')
+        """
+        psfImg      =   afwImg.ImageF(45,45)
+        psfImg.getArray()[:,:]= psfGalsim.array
+        psfImg      =   psfImg.convertD()
+        kernel      =   afwMath.FixedKernel(psfImg)
+        kernelPSF   =   meaAlg.KernelPsf(kernel)
+        exposure.setPsf(kernelPSF)
+        """
+        exposure.writeFits(os.path.join(outputdir,'exposure%04d.fits' %(ifile)))
         return
 
     @classmethod
