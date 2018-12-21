@@ -12,8 +12,15 @@ def main():
         np.random.seed(ifield)
         isp     =   np.random.randint(0,nsample)
         psf     =   psfAll[isp].data
+        nx      =   psf.shape[1]
+        ny      =   psf.shape[0]
+        nxy     =   min(nx,ny)
+        shiftx  =   (nx-nxy)//2
+        shifty  =   (ny-nxy)//2
+        psfU    =   np.zeros((nxy,nxy))
+        psfU    =   psf[shifty:shifty+nxy,shiftx:shiftx+nxy]
         var     =   varAll[isp]
-        hduOut  =   pyfits.PrimaryHDU(psf)
+        hduOut  =   pyfits.PrimaryHDU(psfU)
         for name in varAll.names:
             nameU   =   name.split('_')[0]
             hduOut.header[nameU]=   var[name]
