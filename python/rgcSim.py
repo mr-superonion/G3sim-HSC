@@ -57,7 +57,8 @@ class rgcSimTask(pipeBase.CmdLineTask):
     
     
     @pipeBase.timeMethod
-    def run(self,ifield):
+    def run(self,ifield,cache):
+        self.log.info('beging for field %04d' %(ifield))
         #Output 
         outputdir=  './expSim/' 
         if not os.path.exists(outputdir):
@@ -66,74 +67,73 @@ class rgcSimTask(pipeBase.CmdLineTask):
         np.random.seed(ifield)
         # Basic parameters
         ngrid       =   64
-        nx          =   4 
+        nx          =   2 
         ny          =   nx
         ndata       =   nx*ny
+        nrot        =   2
         scale       =   0.168
         ngridTot    =   ngrid*nx
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
         gal_image.setOrigin(0,0)
-        noi_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
-        noi_image.setOrigin(0,0)
         flux_scaling=   2.587
-        g1          =   np.random.rand()*0.06-0.03
-        g2          =   np.random.rand()*0.06-0.03
         
         # Get the psf and nosie information 
         psfFname    =   'psfPre/psf%04d.fits'%(ifield)
         psfImg      =   galsim.fits.read(psfFname)
-        psfInt      =   galsim.InterpolatedImage(psfImg,scale = scale, flux = 1.) 
-        # Get the noise image
         noiseHead   =   pyfits.getheader(psfFname)
+        psfInt      =   galsim.InterpolatedImage(psfImg,scale = scale, flux = 1.) 
+        # Get the shear information
+        g1          =   noiseHead['g1']
+        g2          =   noiseHead['g2']
+        
+        # Get the noise image
         variance    =   noiseHead['var']
         tract       =   noiseHead['tract']
         patch       =   noiseHead['patch']
-        ud          =   galsim.UniformDeviate(ifield)
-        corNoise    =   galsim.getCOSMOSNoise(file_name='correlation.fits',rng=ud,cosmos_scale=scale,variance=variance)       
-        
         # Get the  galaxy image      
         # Load data
         Xnames      =   ['best','median','worst']
         iXn         =   ifield%(len(Xnames))
         Xname       =   Xnames[iXn]
+        self.log.info('using %s resolution sample' %(Xname))
         catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
         directory   =   '/gpfs02/work/xiangchong.li/galsim_train/parent_%s_processed' %(Xname)
         rgc         =   galsim.RealGalaxyCatalog(catName, dir=directory)
-        catalog     =   rgc.cat
-        ncatGal     =   len(catalog)
+        ncatGal     =   rgc.getNObjects() 
         for i in range(ndata):
             # Prepare the subimage
             ix      =   i%nx
             iy      =   i//nx
             b       =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
             sub_gal_image = gal_image[b]
-            sub_noi_image = noi_image[b]
             #simulate the galaxy
-            if i%2==0:
-                index   =   np.random.randint(0,ncatGal)
-                print(index)
+            if i%nrot==0:
+                index   =   np.random.randint(0,ncatGal-1)
+                self.log.info('galaxy %d' %(index))
                 gal0    =   galsim.RealGalaxy(rgc, index=index)
                 gal0    *=  flux_scaling
                 # rotate the galaxy
-                ud      =   galsim.UniformDeviate(ifield*10000+i)
+                ud      =   galsim.UniformDeviate(ifield*10000+i+1)
                 ang     =   ud()*2.*np.pi * galsim.radians
                 gal0    =   gal0.rotate(ang)
             else:
-                gal0    =   gal0.rotate(0.5*np.pi*galsim.radians)
+                gal0    =   gal0.rotate(1./nrot*np.pi*galsim.radians)
             # Shear the galaxy
             gal     =   gal0.shear(g1=g1,g2=g2)
             final   =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
-            # Draw the galaxy image)
+            # Draw the galaxy image
             final.drawImage(sub_gal_image)
-            galNoiVar    =  sub_gal_image.whitenNoise(final.noise)
-            sub_noi_image+= galNoiVar
-        corNoise.applyTo(gal_image)
+            #whiten the noise
+            galNoiVar   =   sub_gal_image.whitenNoise(final.noise)
+            corNoise    =   galsim.getCOSMOSNoise(file_name='correlation.fits',rng=ud,cosmos_scale=scale,variance=variance)       
+            unCorNoise  =   galsim.UncorrelatedNoise(galNoiVar,rng=ud,scale=scale)
+            corNoise2   =   corNoise-unCorNoise
+            corNoise2.applyTo(sub_gal_image)
         exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
         exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=noi_image.array#variance
-        exposure.writeFits(os.path.join(outputdir,'exposure%04d.fits' %(ifield)))
-        self.log.info('finish making exposure')
+        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
+        del gal_image
         #Set the PSF
         psfArray    =   psfImg.array
         ngridPsf    =   psfArray.shape[0]
@@ -143,6 +143,17 @@ class rgcSimTask(pipeBase.CmdLineTask):
         kernel      =   afwMath.FixedKernel(psfLsst)
         kernelPSF   =   meaAlg.KernelPsf(kernel)
         exposure.setPsf(kernelPSF)
+        while True:
+            if cache.writing==False:
+                cache.writing=True
+                self.log.info('writing exposure')
+                exposure.writeFits(os.path.join(outputdir,'exposure%04d.fits' %(ifield)))
+                cache.writing=False
+                break
+            else:
+                self.log.info('waiting for other processor to complete writing')
+                time.sleep(10)
+        self.log.info('finish field %04d' %(ifield))
         return
 
     @classmethod
@@ -206,11 +217,12 @@ class rgcSimBatchTask(BatchPoolTask):
         pool    =   Pool("rgcSim")
         pool.cacheClear()
         fieldList=  range(fMin,fMax)
+        pool.storeSet(writing=False)
         pool.map(self.process,fieldList)
         return
         
     def process(self,cache,ifield):
-        return self.rgcSim.run(ifield)
+        return self.rgcSim.run(ifield,cache)
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
