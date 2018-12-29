@@ -150,7 +150,6 @@ class rgcSimTask(pipeBase.CmdLineTask):
         exposure.setPsf(kernelPSF)
         self.log.info('writing exposure')
         exposure.writeFits(outFname)
-        self.log.info('finish field %04d' %(ifield))
         return
 
     @classmethod
@@ -213,7 +212,7 @@ class rgcSimBatchTask(BatchPoolTask):
         for iXn in range(3):
             Xname       =   Xnames[iXn]
             catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
-            directory   =   '/data2b/work/xiangchong.li/galsim_train/parent_%s_processed' %(Xname)
+            directory   =   '/work/xiangchong.li/work/galsim_train/parent_%s_processed' %(Xname)
             rgcs.append(galsim.RealGalaxyCatalog(catName,dir=directory))
         minField=   self.config.minField
         maxField=   self.config.maxField
@@ -231,8 +230,10 @@ class rgcSimBatchTask(BatchPoolTask):
         rgc =   cache.rgcs[ifield%3]
         try:
             self.rgcSim.run(ifield,rgc)
+            self.log.info('finish field %04d' %(ifield))
         except:
-            return 
+            self.log.info('fail to finish field %04d' %(ifield))
+        return 
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
