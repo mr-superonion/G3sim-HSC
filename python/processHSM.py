@@ -46,6 +46,10 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class processHSMConfig(pexConfig.Config):
     "config"
+    detection = pexConfig.ConfigurableField(
+        target = SourceDetectionTask,
+        doc = "Detect sources"
+    )
     deblend = pexConfig.ConfigurableField(
         target = SourceDeblendTask,
         doc = "Split blended source into their components"
@@ -60,6 +64,9 @@ class processHSMConfig(pexConfig.Config):
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
+        self.detection.thresholdValue = 5.0
+        self.detection.isotropicGrow  = True
+        self.detection.reEstimateBackground=False
         self.deblend.propagateAllPeaks  =   True 
         self.deblend.maxFootprintArea   =   64*64
         self.deblend.maxFootprintSize   =   64
@@ -77,18 +84,30 @@ class processHSMTask(pipeBase.CmdLineTask):
         self.schemaMapper = afwTable.SchemaMapper(schema)
         self.schemaMapper.addMinimalSchema(schema)
         self.schema= self.schemaMapper.getOutputSchema()
-    
+        self.algMetadata = dafBase.PropertyList()
+        self.makeSubtask('detection', schema=self.schema)
+        self.makeSubtask("deblend", schema=self.schema)
+        self.makeSubtask('measurement', schema=self.schema, algMetadata=self.algMetadata)
+        self.makeSubtask('catalogCalculation', schema=self.schema)
+        
     @pipeBase.timeMethod
     def run(self,ifield,rgc):
         self.log.info('begining for field %04d' %(ifield))
+        outputdir   =  './outcome/' %(sName)
+        outFname    =   'measHSM%04d.fits'  %(ifield)
+        outFname    =   os.path.join(outputdir,outFname)
         table = afwTable.SourceTable.make(self.schema)
         sources = afwTable.SourceCatalog(table)
+        table.setMetadata(self.algMetadata)
+        detRes  = self.detection.run(table=table, exposure=exposure, doSmooth=True)
+        sources = detRes.sources
         # do deblending
         self.deblend.run(exposure=exposure,sources=sources)
         # do measurement
         self.measurement.run(measCat=sources,exposure=exposure)
         # measurement on the catalog level
         self.catalogCalculation.run(sources)
+        sources.writeFits(outFname)
         return
     
     
