@@ -22,7 +22,6 @@
 #
 # python lib
 import os
-import logging
 import galsim
 import numpy as np
 import astropy.io.fits as pyfits
@@ -37,12 +36,16 @@ import lsst.afw.image as afwImg
 import lsst.afw.detection as afwDet
 import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
-import lsst.meas.algorithms as meaAlg
 
 from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
+from lsst.utils import getPackageDir
+from lsst.meas.algorithms import SourceDetectionTask
+from lsst.meas.deblender import SourceDeblendTask
+from lsst.meas.base import SingleFrameMeasurementTask,CatalogCalculationTask
+import lsst.obs.subaru.filterFraction
 
 class processHSMConfig(pexConfig.Config):
     "config"
@@ -70,32 +73,51 @@ class processHSMConfig(pexConfig.Config):
         self.deblend.propagateAllPeaks  =   True 
         self.deblend.maxFootprintArea   =   64*64
         self.deblend.maxFootprintSize   =   64
+        self.load(os.path.join(getPackageDir("obs_subaru"), "config", "cmodel.py"))
         self.measurement.load(os.path.join(getPackageDir("obs_subaru"), "config", "hsm.py"))
-        self.measurement.slots.apFlux       =   None
-        self.measurement.slots.instFlux     =   None
-        self.measurement.slots.calibFlux    =   None
-
 class processHSMTask(pipeBase.CmdLineTask):
+
     _DefaultName = "processHSM"
     ConfigClass = processHSMConfig
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
-        schema     =   afwTable.SourceTable.makeMinimalSchema()
-        self.schemaMapper = afwTable.SchemaMapper(schema)
-        self.schemaMapper.addMinimalSchema(schema)
-        self.schema= self.schemaMapper.getOutputSchema()
         self.algMetadata = dafBase.PropertyList()
+        self.schema =   afwTable.SourceTable.makeMinimalSchema()
         self.makeSubtask('detection', schema=self.schema)
         self.makeSubtask("deblend", schema=self.schema)
         self.makeSubtask('measurement', schema=self.schema, algMetadata=self.algMetadata)
         self.makeSubtask('catalogCalculation', schema=self.schema)
         
     @pipeBase.timeMethod
-    def run(self,ifield,rgc):
+    def run(self,ifield):
         self.log.info('begining for field %04d' %(ifield))
-        outputdir   =  './outcome/' %(sName)
-        outFname    =   'measHSM%04d.fits'  %(ifield)
+        inputdir=  './expSim/' 
+        inFname    =   os.path.join(inputdir,'exposure%04d.fits' %(ifield))
+        if not os.path.exists(inFname):
+            self.log.info('Cannot find the input exposure')
+            return
+        outputdir   =  './outcomeHSM/' 
+        if not os.path.exists(outputdir):
+            os.mkdir(outputdir)
+        outFname    =   'meas%04d.fits'  %(ifield)
         outFname    =   os.path.join(outputdir,outFname)
+        if os.path.exists(outFname):
+            self.log.info('Already have the output file')
+            return
+        exposure    =   afwImg.ExposureF.readFits(inFname)
+        #prepare the wcs
+        #Rotation
+        cdelt   =   (0.168*afwGeom.arcseconds)
+        CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
+        #wcs
+        crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees)
+        crpix   =   afwGeom.Point2D(0.0, 0.0)
+        dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
+        exposure.setWcs(dataWcs)
+        #prepare the frc
+        dataCalib = afwImg.Calib()
+        dataCalib.setFluxMag0(63095734448.0194)
+        exposure.setCalib(dataCalib)
         table = afwTable.SourceTable.make(self.schema)
         sources = afwTable.SourceCatalog(table)
         table.setMetadata(self.algMetadata)
@@ -109,35 +131,16 @@ class processHSMTask(pipeBase.CmdLineTask):
         self.catalogCalculation.run(sources)
         sources.writeFits(outFname)
         return
-    
-    
-    @classmethod
-    def _makeArgumentParser(cls):
-        """Create an argument parser
-        """
-        doBatch = kwargs.pop("doBatch", False)
-        parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        return parser
 
-    def writeConfig(self, butler, clobber=False, doBackup=False):
-        pass
-
-    def writeSchemas(self, butler, clobber=False, doBackup=False):
-        pass
-
-    def writeMetadata(self, dataRef):
-        pass
-
-    def writeEupsVersions(self, butler, clobber=False, doBackup=False):
-        pass
-
-class processHSMBatchConfig(pexConfig.Config):
+class processHSMDriverConfig(pexConfig.Config):
     minField =   pexConfig.Field(dtype=int, default=0, doc = 'minField')
     maxField =   pexConfig.Field(dtype=int, default=800, doc = 'minField')
     processHSM = pexConfig.ConfigurableField(
         target = processHSMTask,
         doc = "processHSM task to run on multiple cores"
     )
+    def setDefaults(self):
+        pexConfig.Config.setDefaults(self)
     
 class processHSMRunner(TaskRunner):
     @staticmethod
@@ -148,11 +151,11 @@ def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
 
-class processHSMBatchTask(BatchPoolTask):
-    ConfigClass = processHSMBatchConfig
+class processHSMDriverTask(BatchPoolTask):
+    ConfigClass = processHSMDriverConfig
     RunnerClass = processHSMRunner
-    _DefaultName = "processHSMBatch"
-
+    _DefaultName = "processHSMDriver"
+    
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
@@ -166,32 +169,16 @@ class processHSMBatchTask(BatchPoolTask):
     def run(self,Id):
         # Get the  galaxy generator      
         # Load data
-        Xnames      =   ['best','median','worst']
-        rgcs        =   []
-        for iXn in range(3):
-            Xname       =   Xnames[iXn]
-            catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
-            directory   =   '/work/xiangchong.li/work/galsim_train/parent_%s_processed' %(Xname)
-            rgcs.append(galsim.RealGalaxyCatalog(catName,dir=directory))
-        minField=   self.config.minField
-        maxField=   self.config.maxField
-        fMin    =   minField
-        fMax    =   maxField
         #Prepare the pool
         pool    =   Pool("processHSM")
         pool.cacheClear()
-        pool.storeSet(rgcs=rgcs)
-        fieldList=  range(fMin,fMax)
+        fieldList=  range(self.config.minField,self.config.maxField)
         pool.map(self.process,fieldList)
         return
         
     def process(self,cache,ifield):
-        rgc =   cache.rgcs[ifield%3]
-        try:
-            self.processHSM.run(ifield,rgc)
-            self.log.info('finish field %04d' %(ifield))
-        except:
-            self.log.info('fail to finish field %04d' %(ifield))
+        self.processHSM.run(ifield)
+        self.log.info('finish field %04d' %(ifield))
         return 
 
     @classmethod
@@ -201,6 +188,9 @@ class processHSMBatchTask(BatchPoolTask):
         return parser
     
     @classmethod
+    def batchWallTime(cls, time, parsedCmd, numCpus):
+        return None
+
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
 

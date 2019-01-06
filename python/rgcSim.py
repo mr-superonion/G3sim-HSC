@@ -61,9 +61,10 @@ class rgcSimTask(pipeBase.CmdLineTask):
         #Output 
         outputdir=  './expSim/' 
         if not os.path.exists(outputdir):
-            os.popen('mkdir %s' %(outputdir) )
+           os.mkdir(outputdir)
         outFname    =   os.path.join(outputdir,'exposure%04d.fits' %(ifield))
         if os.path.exists(outFname):
+            self.log.info('Already have the outcome')
             return
         self.log.info('simulating field %s' %(ifield))
         # Basic parameters
