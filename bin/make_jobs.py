@@ -8,20 +8,10 @@ import os
 
 # Settings go up here.
 njobs = 10 # Submit this many PBS scripts.
-output_dir = '/gpfs02/work/xiangchong.li/s18SimHSC/s16Repeat/output'
 script_dir = 'pbs_scripts'
 script_pref = 'job_'
 bash_file = 'submit_all.x'
 
-# Make sure we have the right version of GalSim installed.  If not, throw an exception.
-# Note Add 1.5.1
-if galsim.__version__ not in ['1.4.3']:
-    raise RuntimeError("Wrong version of GalSim installed: %s"%(galsim.__version__))
-
-# Check for the files needed to analyze the sims:
-# - the COSMOS 25.2 sample
-# - the variance file
-# - the PSF file
 
 # Generate the PBS files in a subdirectory, for both Wide and Deep.
 if not os.path.exists(script_dir):

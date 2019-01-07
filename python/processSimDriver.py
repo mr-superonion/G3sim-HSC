@@ -41,52 +41,31 @@ from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
-from lsst.utils import getPackageDir
-from lsst.meas.algorithms import SourceDetectionTask
-from lsst.meas.deblender import SourceDeblendTask
-from lsst.meas.base import SingleFrameMeasurementTask,CatalogCalculationTask
 import lsst.obs.subaru.filterFraction
+from fpfsBase import fpfsBaseTask
+from readDataSim import readDataSimTask
 
-class processHSMConfig(pexConfig.Config):
+class processSimConfig(pexConfig.Config):
     "config"
-    detection = pexConfig.ConfigurableField(
-        target = SourceDetectionTask,
-        doc = "Detect sources"
+    readDataSim= pexConfig.ConfigurableField(
+        target  = readDataSimTask,
+        doc     = "Subtask to run measurement of fpfs method"
     )
-    deblend = pexConfig.ConfigurableField(
-        target = SourceDeblendTask,
-        doc = "Split blended source into their components"
-    )
-    measurement = pexConfig.ConfigurableField(
-        target = SingleFrameMeasurementTask,
-        doc = "Measure sources"
-    )
-    catalogCalculation = pexConfig.ConfigurableField(
-        target = CatalogCalculationTask,
-        doc = "Subtask to run catalogCalculation plugins on catalog"
+    fpfsBase = pexConfig.ConfigurableField(
+        target = fpfsBaseTask,
+        doc = "Subtask to run measurement of fpfs method"
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-        self.detection.thresholdValue = 5.0
-        self.detection.isotropicGrow  = True
-        self.detection.reEstimateBackground=False
-        self.deblend.propagateAllPeaks  =   True 
-        self.deblend.maxFootprintArea   =   64*64
-        self.deblend.maxFootprintSize   =   64
-        self.load(os.path.join(getPackageDir("obs_subaru"), "config", "cmodel.py"))
-        self.measurement.load(os.path.join(getPackageDir("obs_subaru"), "config", "hsm.py"))
-class processHSMTask(pipeBase.CmdLineTask):
 
-    _DefaultName = "processHSM"
-    ConfigClass = processHSMConfig
+class processSimTask(pipeBase.CmdLineTask):
+    _DefaultName = "processSim"
+    ConfigClass = processSimConfig
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
-        self.algMetadata = dafBase.PropertyList()
-        self.schema =   afwTable.SourceTable.makeMinimalSchema()
-        self.makeSubtask('detection', schema=self.schema)
-        self.makeSubtask("deblend", schema=self.schema)
-        self.makeSubtask('measurement', schema=self.schema, algMetadata=self.algMetadata)
-        self.makeSubtask('catalogCalculation', schema=self.schema)
+        self.schema     =   afwTable.SourceTable.makeMinimalSchema()
+        self.makeSubtask('fpfsBase', schema=self.schema)
+        self.makeSubtask("readDataSim",schema=self.schema)
         
     @pipeBase.timeMethod
     def run(self,ifield):
@@ -96,53 +75,53 @@ class processHSMTask(pipeBase.CmdLineTask):
         if not os.path.exists(inFname):
             self.log.info('Cannot find the input exposure')
             return
-        outputdir   =  './outcomeHSM/' 
-        if not os.path.exists(outputdir):
-            os.mkdir(outputdir)
+        outputdir   =  './outcomeFPFS/' 
         outFname    =   'meas%04d.fits'  %(ifield)
         outFname    =   os.path.join(outputdir,outFname)
         if os.path.exists(outFname):
             self.log.info('Already have the output file')
             return
-        exposure    =   afwImg.ExposureF.readFits(inFname)
-        #prepare the wcs
-        #Rotation
-        cdelt   =   (0.168*afwGeom.arcseconds)
-        CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
-        #wcs
-        crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees)
-        crpix   =   afwGeom.Point2D(0.0, 0.0)
-        dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
-        exposure.setWcs(dataWcs)
-        #prepare the frc
-        dataCalib = afwImg.Calib()
-        dataCalib.setFluxMag0(63095734448.0194)
-        exposure.setCalib(dataCalib)
-        table = afwTable.SourceTable.make(self.schema)
-        sources = afwTable.SourceCatalog(table)
-        table.setMetadata(self.algMetadata)
-        detRes  = self.detection.run(table=table, exposure=exposure, doSmooth=True)
-        sources = detRes.sources
-        # do deblending
-        self.deblend.run(exposure=exposure,sources=sources)
-        # do measurement
-        self.measurement.run(measCat=sources,exposure=exposure)
-        # measurement on the catalog level
-        self.catalogCalculation.run(sources)
-        sources.writeFits(outFname)
+        dataStruct  =  self.readDataSim.readData(ifield)
+        if dataStruct is None:
+            self.log.info('failed to read data')
+            return
+        else:
+            self.log.info('successed in reading data')
+        self.fpfsBase.run(dataStruct)
+        dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
         return
+    
+    @classmethod
+    def _makeArgumentParser(cls):
+        """Create an argument parser
+        """
+        parser = pipeBase.ArgumentParser(name=cls._DefaultName)
+        return parser
 
-class processHSMDriverConfig(pexConfig.Config):
+    def writeConfig(self, butler, clobber=False, doBackup=False):
+        pass
+
+    def writeSchemas(self, butler, clobber=False, doBackup=False):
+        pass
+
+    def writeMetadata(self, ifield):
+        pass
+
+    def writeEupsVersions(self, butler, clobber=False, doBackup=False):
+        pass
+        
+
+class processSimDriverConfig(pexConfig.Config):
     minField =   pexConfig.Field(dtype=int, default=0, doc = 'minField')
     maxField =   pexConfig.Field(dtype=int, default=800, doc = 'minField')
-    processHSM = pexConfig.ConfigurableField(
-        target = processHSMTask,
-        doc = "processHSM task to run on multiple cores"
+    processSim = pexConfig.ConfigurableField(
+        target = processSimTask,
+        doc = "processSim task to run on multiple cores"
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-    
-class processHSMRunner(TaskRunner):
+
+class processSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         return [(ref, kwargs) for ref in range(1)] 
@@ -151,10 +130,10 @@ def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
 
-class processHSMDriverTask(BatchPoolTask):
-    ConfigClass = processHSMDriverConfig
-    RunnerClass = processHSMRunner
-    _DefaultName = "processHSMDriver"
+class processSimDriverTask(BatchPoolTask):
+    ConfigClass = processSimDriverConfig
+    RunnerClass = processSimRunner
+    _DefaultName = "processSimDriver"
     
     def __reduce__(self):
         """Pickler"""
@@ -163,21 +142,21 @@ class processHSMDriverTask(BatchPoolTask):
 
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-        self.makeSubtask("processHSM")
+        self.makeSubtask("processSim")
     
     @abortOnError
     def run(self,Id):
         # Get the  galaxy generator      
         # Load data
         #Prepare the pool
-        pool    =   Pool("processHSM")
+        pool    =   Pool("processSim")
         pool.cacheClear()
         fieldList=  range(self.config.minField,self.config.maxField)
         pool.map(self.process,fieldList)
         return
         
     def process(self,cache,ifield):
-        self.processHSM.run(ifield)
+        self.processSim.run(ifield)
         self.log.info('finish field %04d' %(ifield))
         return 
 
@@ -197,7 +176,7 @@ class processHSMDriverTask(BatchPoolTask):
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
     
-    def writeMetadata(self, dataRef):
+    def writeMetadata(self, ifield):
         pass
     
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
