@@ -1,13 +1,9 @@
-"""
-This script generates a load of PBS scripts that can be submitted on the Coma cluster at CMU, for
-the purpose of mass simulation production.  It also writes a bash script that can be run to submit
-all the PBS scripts.
-"""
+#!/usr/bin/env python
 import galsim
 import os
 
 # Settings go up here.
-njobs = 10 # Submit this many PBS scripts.
+njobs = 1 # Submit this many PBS scripts.
 script_dir = 'pbs_scripts'
 script_pref = 'job_'
 bash_file = 'submit_all.x'
@@ -25,7 +21,7 @@ for jobnum in range(njobs):
     f_bash.write("qsub %s\n"%script_file)
     with open(script_file, "w") as f:
         f.write("#!/bin/sh\n")
-        f.write("#PBS -l nodes=1:ppn=20\n")
+        f.write("#PBS -l nodes=2:ppn=20\n")
         f.write("#PBS -q small\n")
         f.write("#PBS -j oe\n")
         f.write("#PBS -N "+jobname+"\n")
@@ -33,7 +29,6 @@ for jobnum in range(njobs):
         f.write("\n")
         f.write("source ~/.setupHSC6.sh\n")
         f.write("cd %s\n"%os.getcwd())
-        f.write("galsim -v 1 -n %d -j %d rgc_hsc.yaml output.noclobber=True output.dir=%s\n"%(njobs,jobnum+1,output_dir))
     f.close()
 
 # Finally, write a bash script that just submits all the PBS files.
