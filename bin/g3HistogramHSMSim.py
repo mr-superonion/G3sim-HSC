@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import logging
 import itertools
 import numpy as np
 import astropy.io.fits as pyfits
@@ -7,28 +8,26 @@ import astropy.io.ascii as ascii
 from multiprocessing import Pool
 from astropy.table import Table
 
-def histoGramWap(arg):
-    return histoGram(*arg)
-
 def histoGram(ifile):
     dataOut =   np.zeros((4,59))
-    rescat =   './outcomeFPFS/meas%04d.fits'%(ifile)
+    rescat =   './outcomeFPFS/src-%04d.fits'%(ifile)
     if not os.path.exists(rescat):
-        return dataOut 
-    data    =   pyfits.getdata(rescat)
-    r2PSF   =   (data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])
-    r2Gal   =   (data['ext_shapeHSM_HsmSourceMoments_xx']+data['ext_shapeHSM_HsmSourceMoments_yy'])
-    Res     =   1.-r2PSF/r2Gal
-    mask0   =   r2Gal>0
-    data    =   data[mask0]
-    Res     =   Res[mask0]
+        logging.info('cannot find input file')
+        return None 
+    try:
+        data    =   pyfits.getdata(rescat)
+    except:
+        logging.info('cannot open file %d' %(ifile))
+        return None
+        
+    Res     =   data['ext_shapeHSM_HsmShapeRegauss_resolution']
     snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
     mask    =   np.ones(len(data)).astype(bool)
-    #mask    =   mask&(np.all(~np.isnan(data['fpfs_moments']),axis=1))
     mask    =   mask&(data['deblend_nChild']==0)
+    #mask    =   mask&(np.all(~np.isnan(data['fpfs_moments']),axis=1))
     #mask    =   mask&(data['fpfs_moments'][:,0]>600)
     mask    =   mask&(data['Mag']<24.5)
-    #mask    =   mask&(data['base_ClassificationExtendedness_value']>0)
+    mask    =   mask&(data['base_ClassificationExtendedness_value']>0)
     mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmSourceMoments_xx']))
     mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmSourceMoments_yy']))
     mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xx']))
@@ -38,12 +37,15 @@ def histoGram(ifile):
     mask    =   mask&(~np.isnan(data['Mag']))
     mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmShapeRegauss_e1']))
     mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmShapeRegauss_e2']))
-    #mask    =   mask&(data['base_Blendedness_abs_flux']<10**(-0.375))
+    mask    =   mask&(~np.isnan(data['base_Variance_value']))
+    mask    =   mask&(data['base_Variance_value']<0.01)
+    mask    =   mask&(data['base_Blendedness_abs_flux']<10**(-0.375))
     mask    =   mask&(Res>=0.3)
     mask    =   mask&(snr>=10.)
     dx      =   abs(data['base_SdssCentroid_x']%64-32)
     dy      =   abs(data['base_SdssCentroid_y']%64-32)
-    mask    =   mask&(dx**2.+dy**2.<400)
+    mask    =   mask&(dx**2.+dy**2.<100)
+    mask    =   mask&(data['detected']!=0)
     data    =   data[mask]
     Res     =   Res[mask]
     snr     =   snr[mask]
@@ -59,7 +61,8 @@ def histoGram(ifile):
     # get response factor 
     R1      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight+np.sqrt(2)*(e1**2.)
     R2      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight+np.sqrt(2)*(e2**2.)
-    mask2   =   abs((R1+R2)/2.)<5.
+    RA      =   (R1+R2)/2.
+    mask2   =   (RA>0.)&(RA<5.)
     data    =   data[mask2]
     """
     absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
@@ -77,7 +80,7 @@ if __name__ == '__main__':
     p       =   Pool(8)
     ngrid   =   60
     gFname  =   './histGridsHSM.npy' 
-    hgFname =   './histGramHSMS18a.npy' 
+    hgFname =   './histGramHSMSim1.npy' 
     mGrids  =   []
     mGrids.append(np.linspace(0.1,1.,ngrid))
     mGrids.append(np.linspace(0.,80.,ngrid))
@@ -89,9 +92,11 @@ if __name__ == '__main__':
     outDat  =   p.map(histoGram,files)
     hg      =   np.zeros((4,ngrid-1))
     outDat  =   [x for x in outDat if x is not None]
-    weiFname=   'reweight_s16a_v4.txt'
+    print(len(outDat))
+    weiFname=   'noiVar_rPsf_s18a.csv'
     if os.path.exists(weiFname):
-        weights =   ascii.read()['weight']
+        info    =   ascii.read(weiFname)
+        weights =   info['weightNoi']*info['weightPsf']
     else:
         weights  =   np.ones(len(outDat))
 

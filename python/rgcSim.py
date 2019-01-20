@@ -61,8 +61,9 @@ class rgcSimTask(pipeBase.CmdLineTask):
     @pipeBase.timeMethod
     def run(self,ifield,rgc):
         self.log.info('begining for field %04d' %(ifield))
+        badIdList   =  [148999,152315,100999] 
         #Output 
-        outputdir=  './expSim/' 
+        outputdir   =  './expSim/' 
         if not os.path.exists(outputdir):
            os.mkdir(outputdir)
         outFname    =   os.path.join(outputdir,'image-%04d.fits' %(ifield))
@@ -115,8 +116,9 @@ class rgcSimTask(pipeBase.CmdLineTask):
             if i%nrot==0:
                 while True:
                     index   =   np.random.randint(0,nrgcDat)
-                    if index!=152315:
+                    if index not in badIdList:
                         break
+                self.log.info('%d %d'%(ifield,index))
                 gal0    =   galsim.RealGalaxy(rgc,index=index,gsparams=bigfft)
                 gal0    *=  flux_scaling
                 # rotate the galaxy
@@ -138,7 +140,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
             i   +=  1
         self.log.info('Adding correlated noise')
         rng = galsim.BaseDeviate(ifield)
-        max_variance= np.max(var_image.array)
+        max_variance=   np.max(var_image.array)
         var_image   =   max_variance - var_image
         vn          =   galsim.VariableGaussianNoise(rng,var_image)
         gal_image.addNoise(vn)
@@ -177,7 +179,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         exposure.writeFits(outFname)
         del exposure
         t = Table(rows=data_rows, names=('ipos','IDENT','RA','DEC','MAG','BAND'))
-        t.write('./catPre/catalog-%04d.fits' %(ifield))
+        t.write('./catPre/catalog-%04d.fits' %(ifield),overwrite=True)
         return
 
     @classmethod
@@ -258,8 +260,8 @@ class rgcSimBatchTask(BatchPoolTask):
         
     def process(self,cache,ifield):
         rgc =   cache.rgcs[ifield%3]
+        self.rgcSim.run(ifield,rgc)
         try:
-            self.rgcSim.run(ifield,rgc)
             self.log.info('finish field %04d' %(ifield))
         except:
             self.log.info('fail to finish field %04d'%(ifield) )
