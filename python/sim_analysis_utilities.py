@@ -49,7 +49,7 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     catalog['g1']=  psfInfo['g1']
     catalog['g2']=  psfInfo['g2']
     # Add a gridIndex column instead of using the index column, for compatibility
-    catalog['ipos']     =   (catalog['base_SdssCentroid_y']//64)*50. +(catalog['base_SdssCentroid_x']//64)
+    catalog['ipos']     =   np.int((catalog['base_SdssCentroid_y']//64)*50 +(catalog['base_SdssCentroid_x']//64))
     catalog['centDist']  =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
                             (catalog['base_SdssCentroid_x']%64-32)**2.)
     catalog['centDist']  =   np.sqrt(catalog['centDist'])
@@ -59,6 +59,21 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     inds        =   np.lexsort([catalog['centDist'], catalog['ipos']])
     inds_unique =   np.unique(catalog['ipos'][inds], return_index=True)[1]
     catalog     =   catalog[inds[inds_unique]]
+    
+    # Then, apply mask for permissive cuts
+    mask =  (~(catalog['base_SdssCentroid_flag'])) & \
+            (~catalog['ext_shapeHSM_HsmShapeRegauss_flag']) & \
+            (catalog['base_ClassificationExtendedness_value'] != 0) & \
+            (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_sigma']))
+    catalog = catalog[mask]
+
+
+    # Load information from catPre
+    catFname    =   os.path.join(dir, 'catPre/catalog-%04d.fits' % subfield)
+    catInfo     =   Table.read(catFname)
+    # Join catalogs on grid index
+    catalog = join(catalog, catInfo, 'ipos')
+    
     
     return catalog
 
