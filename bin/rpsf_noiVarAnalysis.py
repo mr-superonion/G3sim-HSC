@@ -241,7 +241,7 @@ def plotNoiPsf(histInfo):
 if __name__ == '__main__':
     outFname=   'noiVar_rPsf_s18a.csv'
     if not os.path.exists(outFname):
-        ndat    =   1600
+        ndat    =   3200
         files   =   range(ndat)
         p       =   Pool(20)
         datarows=   p.map(getData,files)
