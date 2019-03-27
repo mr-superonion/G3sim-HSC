@@ -18,6 +18,7 @@ matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
 def getData(ifile):
+    #Get the table describing the noise variance and psf information
     srcFname=   './outcomeFPFS/src-%04d.fits' %(ifile)
     if not os.path.exists(srcFname):
         return
@@ -39,6 +40,7 @@ def getData(ifile):
 
 
 def plotVarRatio(t):
+    #Plot the ratio between noise variance after inserting objects and that before inserting objects
     ratio   =   np.array(t['var_meas']/t['var_target'])
     psf_fwhm=   np.array(t['rpsf_det']*0.168*2.355)
     var_target= np.array(t['var_target'])
@@ -100,7 +102,51 @@ def prepareHistInfo(data):
     np.save('noi_psf_histGram.npy',histInfo)
     return histInfo
 
+def getHistObs(histInfo):
+    #get the distribtion on noise variance and psf radius for Observations
+    pool    =   Pool(6)
+    fields  =   np.load('./dr1FieldTract.npy').item().keys() 
+    outDat  =   pool.map(getHistObsSub,fields)
+    outDat  =   [x for x in outDat if x is not None]
+    ngrid   =   20
+    if len(outDat)<2:
+        return
+    hg      =   np.zeros((2,ngrid-1))
+    for dat in outDat:
+        hg+=dat
+    for i in range(2):
+        hg[i,:]/= sum(hg[i,:])
+    histNoi =   hg[0]
+    histPsf =   hg[1]
+    histInfo=   np.load('noi_psf_histGram.npy').item()
+    histInfo['histNoiObs']=histNoi
+    histInfo['histPsfObs']=histPsf
+    return histInfo
+
+def getHistObsSub(ifield):
+    if ifield=='AEGIS':
+        return
+    ngrid   =   20
+    #Do mask
+    directory= '/work/xiangchong.li/work/S16AFPFS/final/noBg/field'
+    data    =   fitsio.read(os.path.join(directory,'%s.fits'%(ifield)))
+    mask    =   np.ones(len(data)).astype(bool)
+    mask    =   mask&(~np.isnan(data['noiVar']))
+    mask    =   mask&(~np.isnan(data['psfMxx']))
+    mask    =   mask&(~np.isnan(data['psfMyy']))
+    mask    =   mask&(~np.isnan(data['psfMxy']))
+    data    =   data[mask]
+    fwhms   =   (data['psfMxx']*data['psfMyy'])**(0.25)*0.168*2.355
+    varNois =   data['noiVar']
+    histInfo=   np.load('noi_psf_histGram.npy').item()
+    gridNoi =   histInfo['gridNoi']
+    gridPsf =   histInfo['gridPsf']
+    histPsf =   np.histogram(fwhms,bins=gridPsf,density=True)[0]
+    histNoi =   np.histogram(varNois,bins=gridNoi,density=True)[0]
+    return np.vstack([histNoi,histPsf])
+
 def getHistSim(t,histInfo):
+    #get the distribtion on noise variance and psf radius for simulations
     ngrid   =   20
     fwhms   =   t['rpsf_det']*0.168*2.355
     varNois =   t['var_meas']
@@ -110,6 +156,7 @@ def getHistSim(t,histInfo):
     histNoi =   histNoi/sum(histNoi)
     histPsf =   np.histogram(fwhms,bins=gridPsf,density=True)[0]
     histPsf =   histPsf/sum(histPsf)
+    #the original histogram of simulations
     histInfo['histNoiSim0']=histNoi
     histInfo['histPsfSim0']=histPsf
     #do reweight for noise
@@ -157,47 +204,7 @@ def getHistSim(t,histInfo):
     histInfo['histPsfSim2']=histPsf
     return histInfo
 
-def getHistObs(histInfo):
-    pool    =   Pool(6)
-    fields  =   np.load('./dr1FieldTract.npy').item().keys() 
-    outDat  =   pool.map(getHistObsSub,fields)
-    outDat  =   [x for x in outDat if x is not None]
-    ngrid   =   20
-    if len(outDat)<2:
-        return
-    hg      =   np.zeros((2,ngrid-1))
-    for dat in outDat:
-        hg+=dat
-    for i in range(2):
-        hg[i,:]/= sum(hg[i,:])
-    histNoi =   hg[0]
-    histPsf =   hg[1]
-    histInfo=   np.load('noi_psf_histGram.npy').item()
-    histInfo['histNoiObs']=histNoi
-    histInfo['histPsfObs']=histPsf
-    return histInfo
 
-def getHistObsSub(ifield):
-    if ifield=='AEGIS':
-        return
-    ngrid   =   20
-    #Do mask
-    directory= '/work/xiangchong.li/work/S16AFPFS/final/noBg/field'
-    data    =   fitsio.read(os.path.join(directory,'%s.fits'%(ifield)))
-    mask    =   np.ones(len(data)).astype(bool)
-    mask    =   mask&(~np.isnan(data['noiVar']))
-    mask    =   mask&(~np.isnan(data['psfMxx']))
-    mask    =   mask&(~np.isnan(data['psfMyy']))
-    mask    =   mask&(~np.isnan(data['psfMxy']))
-    data    =   data[mask]
-    fwhms   =   (data['psfMxx']*data['psfMyy'])**(0.25)*0.168*2.355
-    varNois =   data['noiVar']
-    histInfo=   np.load('noi_psf_histGram.npy').item()
-    gridNoi =   histInfo['gridNoi']
-    gridPsf =   histInfo['gridPsf']
-    histPsf =   np.histogram(fwhms,bins=gridPsf,density=True)[0]
-    histNoi =   np.histogram(varNois,bins=gridNoi,density=True)[0]
-    return np.vstack([histNoi,histPsf])
 
 def plotNoiPsf(histInfo):
     gridNoi =   histInfo['gridNoi']
