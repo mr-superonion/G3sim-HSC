@@ -43,14 +43,19 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     inoiPsf     =   noiPsf[subfield]
     catalog['est_over_true_var'] = inoiPsf['var_meas'] / inoiPsf['var_target']
     catalog['reweight_s18a']     = inoiPsf['weightNoi']*inoiPsf['weightNoi']
+    # Load information from psfPre
+    psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % subfield)
+    psfInfo     =   pyfits.getheader(psfFname)
+    catalog['g1']=  psfInfo['g1']
+    catalog['g2']=  psfInfo['g2']
     # Add a gridIndex column instead of using the index column, for compatibility
-    catalog['ipos']     =   ((catalog['base_SdssCentroid_y']//64)*100 +
-                            (catalog['base_SdssCentroid_x']//64))
-    catalog['cenDist']  =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
+    catalog['ipos']     =   (catalog['base_SdssCentroid_y']//64)*50. +(catalog['base_SdssCentroid_x']//64)
+    catalog['centDist']  =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
                             (catalog['base_SdssCentroid_x']%64-32)**2.)
-    catalog['cenDist']  =   np.sqrt(catalog['cenDist'])
+    catalog['centDist']  =   np.sqrt(catalog['centDist'])
     # First, keep only detections that are the closest to the grid point
     # Get sorted index by grid index and grid distance
+    catalog     =   catalog[catalog['deblend_nChild']==0]
     inds        =   np.lexsort([catalog['centDist'], catalog['ipos']])
     inds_unique =   np.unique(catalog['ipos'][inds], return_index=True)[1]
     catalog     =   catalog[inds[inds_unique]]
