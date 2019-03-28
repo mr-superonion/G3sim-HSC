@@ -22,7 +22,23 @@ default_data_dir = './'
 default_sims_version = 'v4-rgc-nr'
 default_data_version = 'S16A_2.0'
 
-
+# Field keys used in the noise variance file for simulations
+field_keys = {'aegis': 'AEGIS',
+              'gama9': 'GAMA09H',
+              'gama15': 'GAMA15H',
+              'hect': 'HECTOMAP',
+              'vvds': 'VVDS',
+              'wide12': 'WIDE12H',
+              'xmm': 'XMM'}
+# Hex keys for the color scheme for shear catalog paper
+plot_colors = {
+    'GAMA09H' : '#d73027',
+    'GAMA15H' : '#fc8d59',
+    'HECTOMAP' : '#fee090',
+    'VVDS' : '#000000',
+    'WIDE12H' : '#91bfdb',
+    'XMM' : '#4575b4'
+    }
 
 def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     # Load the catalog from fits file
@@ -137,6 +153,129 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     
     
     return catalog
+
+
+def prepare_data_catalog(dir=None, subfield=None):
+    """
+    Loads a data catalog of specified name from specified directory
+
+    Parameters
+    ----------
+
+    dir: string
+        Path to the directory storing the HSC data
+
+    subfield: string
+        Name of the subfield to load
+
+    Returns
+    -------
+
+    catalog : np.recarrays
+        Catalog loaded from fits file without any additional cuts applied.
+    """
+    filename = os.path.join(dir, subfield + ".fits")
+    catalog = Table.read(filename)
+    return catalog
+
+
+def load_sims_catalog_HDF5(dir=None, sims_version=None, subfield=None,
+                           rescale_est_variance=False):
+    if rescale_est_variance and 'v4' in sims_version:
+        filename = os.path.join(dir, sims_version, 'src_by_fields_rescale.hdf5')
+    else:
+        filename = os.path.join(dir, sims_version, 'src_by_fields.hdf5')
+    catalog = Table.read(filename, path='/%s'%subfield)
+    return catalog
+
+
+
+
+
+def load_data_catalog_HDF5(dir=None, data_version=None, subfield=None,
+                           columns=['ishape_hsm_regauss_e1',
+                                    'ishape_hsm_regauss_e2',
+                                    'ishape_hsm_regauss_sigma',
+                                    'ishape_hsm_regauss_resolution',
+                                    'imag_cmodel_err',
+                                    'imag_cmodel',
+                                    'a_i',
+                                    'iflux_cmodel',
+                                    'iflux_cmodel_err',
+                                    'ishape_sdss_psf_ixx',
+                                    'ishape_sdss_psf_iyy',
+                                    'ishape_sdss_psf_ixy',
+                                    'gmag_forced_cmodel_err',
+                                    'rmag_forced_cmodel_err',
+                                    'ymag_forced_cmodel_err',
+                                    'zmag_forced_cmodel_err',
+                                    'ira', 'idec', 'icountinputs',
+                                    'rcountinputs',
+                                    'zcountinputs', 'ycountinputs',
+                                    'gcountinputs',
+                                    'iflags_pixel_bright_object_center',
+                                    'weak_lensing_flag',
+                                    'iblendedness_abs_flux']):
+    """
+    Loads the data catalog of specified subfield name from HDF5 file stored
+    in the specified directory. Only loads requested columns specified in
+    argument. Columns are added to enable reweighting of simulations and data
+    so their observing conditions are matched; the exact details of those cuts
+    depend on both the S16A catalogs and the simulation versions, and need
+    to be modified if either is changed.
+
+    The file storing the data is expected to be found in
+    dir+"/"+data_version+"/"+data_version+".hdf5"
+
+    Parameters
+    ----------
+
+    dir: string
+        Path to the directory storing the HSC data
+
+    data_version: string
+        Version of the HSC data.
+
+    subfield: string
+        Name of the subfield to load, in ['AEGIS', 'GAMA09H', 'GAMA15H',
+        'HECTOMAP', 'VVDS', 'WIDE12H', 'XMM']
+
+    columns: list of string
+        List of the column names to load from the HDF5 file.
+
+    Returns
+    -------
+
+    catalog : np.recarrays
+        Catalog loaded without any additional cuts applied.
+    """
+    import h5py
+    # Open HDF5 file
+    f = h5py.File( os.path.join(dir, data_version, 'HSC_'+data_version+'.hdf5'), 'r')
+
+    cols = []
+    psf_cols = []
+
+    for c in columns:
+        dset = f['/'+subfield+'/'+c]
+        cols.append(dset[...])
+
+    # Creates table
+    catalog = Table(cols, names=columns)
+    f.close()
+
+    # Add a column for reweighting
+    catalog['reweight_s16a'] = 1.0
+
+    if (subfield in ['HECTOMAP', 'GAMA09H' ]):
+        psf_size = get_psf_size(catalog)
+        if (subfield == 'HECTOMAP'):
+            catalog['reweight_s16a'][psf_size > 3.7] = 0.
+        if (subfield == 'GAMA09H'):
+            catalog['reweight_s16a'][psf_size < 3.7] = 0.
+
+    return catalog
+
 
 
 def galaxy_selector(catalog, min_snr=None, max_snr=None,
