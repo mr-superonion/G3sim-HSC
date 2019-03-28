@@ -92,7 +92,7 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     extinction_table = Table.read(filename_extinction)
     
     # Join tables on cosmos_index
-    catalog     =   join(catalog, extinction_table,'IDENT')
+    #catalog     =   join(catalog, extinction_table,'IDENT')
     catalog.sort(['paired', 'ipos'])
     
     # Add column to make a WL flag for the simulation data:
@@ -138,8 +138,7 @@ def get_snr(catalog):
     In the case of GREAT3-like simulations, the noise rescaling factor is applied
     to match the data.
     """
-
-    snr = catalog['modelfit_CModel_flux'] / (catalog['modelfit_CModel_fluxSigma']
+    snr = catalog['modelfit_CModel_flux'] / catalog['modelfit_CModel_fluxSigma']
     return snr
 
 
