@@ -16,7 +16,7 @@ import math
 import warnings
 
 # Default path to simulations and data directories
-default_sim_dir = './outcomeFPFS/'
+default_sim_dir = './'
 default_data_dir = './'
 # Default data and simulation versions
 default_sims_version = 'v4-rgc-nr'
@@ -49,8 +49,9 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     noiPsfFname =   './noiVar_rPsf_s18a.csv'
     noiPsf      =   Table.read(noiPsfFname)
     inoiPsf     =   noiPsf[subfield]
-    catalog['est_over_true_var'] = inoiPsf['var_meas'] / inoiPsf['var_target']
-    catalog['reweight_s18a']     = inoiPsf['weightNoi']*inoiPsf['weightNoi']
+    catalog['est_over_true_var']= inoiPsf['var_meas'] / inoiPsf['var_target']
+    catalog['reweight_s18a']    = inoiPsf['weightNoi']*inoiPsf['weightNoi']
+    catalog['field_name']       = inoiPsf['field']
     # Load information from psfPre
     psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % subfield)
     psfInfo     =   pyfits.getheader(psfFname)
@@ -356,20 +357,20 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
                 if min_res is None and use_wl_flag:
                     min_res = 0.3
                 if min_res is not None:
-                    print 'Applying resolution cut to both objects in pair!'
+                    print('Applying resolution cut to both objects in pair!')
                     mask[mask] &= (get_res(catalog[mask]) >= min_res)
             if 'snr' in applyboth:
                 if min_snr is None and use_wl_flag:
                     min_snr = 10.0
                 if min_snr is not None:
-                    print 'Applying SNR cut to both objects in pair!'
+                    print('Applying SNR cut to both objects in pair!')
                     snr = get_snr(catalog[mask])
                     mask[mask] &= snr >= min_snr
             if 'mag' in applyboth:
                 if max_mag is None and use_wl_flag:
                     max_mag = 24.5
                 if max_mag is not None:
-                    print 'Applying magnitude cut to both objects in pair!'
+                    print('Applying magnitude cut to both objects in pair!')
                     mag = get_imag(catalog[mask]) - catalog['a_i'][mask]
                     mask[mask] &= mag < 24.5
 
