@@ -49,7 +49,8 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     catalog['g1']=  psfInfo['g1']
     catalog['g2']=  psfInfo['g2']
     # Add a gridIndex column instead of using the index column, for compatibility
-    catalog['ipos']     =   np.int((catalog['base_SdssCentroid_y']//64)*50 +(catalog['base_SdssCentroid_x']//64))
+    catalog['ipos']     =   (catalog['base_SdssCentroid_y']//64)*50 +(catalog['base_SdssCentroid_x']//64)
+    catalog['ipos']     =   catalog['ipos'].astype(np.int)
     catalog['centDist']  =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
                             (catalog['base_SdssCentroid_x']%64-32)**2.)
     catalog['centDist']  =   np.sqrt(catalog['centDist'])
@@ -73,8 +74,18 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     catInfo     =   Table.read(catFname)
     # Join catalogs on grid index
     catalog = join(catalog, catInfo, 'ipos')
-    
-    
+    # Now, identify pairs based on their input ipos values
+    n = 50*50 # Number of grid points
+    mask_even = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int'), assume_unique=True)
+    mask_odd  = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int')+1, assume_unique=True)
+
+    # Find index of broken pairs
+    broken_pairs = np.setxor1d(catalog['ipos'][mask_even] % n,
+                               catalog['ipos'][mask_odd] % n - 1)
+    mask_pairs = ~np.in1d(catalog['ipos'] % n,
+                              np.concatenate([broken_pairs, broken_pairs+1]), assume_unique=True)
+    catalog['paired'] = mask_pairs
+    catalog.sort(['paired', 'ipos'])
     return catalog
 
 
