@@ -42,7 +42,7 @@ plot_colors = {
 
 def prepare_sim_catalog(dir=None,isim=None, rescale_est_variance=False):
     # Load the catalog from fits file
-    filename = os.path.join(dir, 'outcomeFPFS/src-%04d.fits' % isim)
+    filename = os.path.join(dir, 'src-%04d.fits' % isim)
     # If the file does not exist, an IOError will be raised
     catalog = Table.read(filename)
     
@@ -67,7 +67,7 @@ def prepare_sim_catalog(dir=None,isim=None, rescale_est_variance=False):
     inoiPsf     =   noiPsf[isim]
     catalog['est_over_true_var']= inoiPsf['var_meas'] / inoiPsf['var_target']
     catalog['reweight_s16a']    = inoiPsf['weightNoi']*inoiPsf['weightNoi']
-    catalog['field_name']       = np.string_(inoiPsf['field'])
+    catalog['field_name']       = np.string_(field_keys[inoiPsf['field']])
     # Load information from psfPre
     psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % isim)
     psfInfo     =   pyfits.getheader(psfFname)
