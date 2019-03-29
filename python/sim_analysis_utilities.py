@@ -40,9 +40,9 @@ plot_colors = {
     'XMM' : '#4575b4'
     }
 
-def prepare_sim_catalog(dir=None,isim=None, rescale_est_variance=False):
+def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     # Load the catalog from fits file
-    filename = os.path.join(dir, 'src-%04d.fits' % isim)
+    filename = os.path.join( dir,simDir,'src-%04d.fits' % isim)
     # If the file does not exist, an IOError will be raised
     catalog = Table.read(filename)
     
