@@ -37,9 +37,9 @@ def main(argv):
     catalogs = {}
 
     if opt.rescale_noise==0:
-        filename = os.path.join(opt.sims_dir,opt.sims_version, 'src_by_fields.hdf5')
+        filename = os.path.join('src_by_fields.hdf5')
     else:
-        filename = os.path.join(opt.sims_dir,opt.sims_version, 'src_by_fields_rescale.hdf5')
+        filename = os.path.join('src_by_fields_rescale.hdf5')
     if os.path.exists(filename):
         raise RuntimeError("File you are trying to write already exists: %s"%filename)
 
@@ -62,7 +62,7 @@ def main(argv):
         catalogs[fieldname].append(catalog)
     print("Data loaded, exporting to hdf5")
     for fieldname in catalogs:
-        catalog = vstack(catalogs[fieldname])
-        catalog.write(filename, path='/%s'%fieldname, append=True)
+        catalog =   vstack(catalogs[fieldname])
+        catalog.write(filename,path='/%s'%(fieldname),append=True)
 if __name__ == "__main__":
     main(sys.argv)

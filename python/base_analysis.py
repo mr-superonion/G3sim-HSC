@@ -107,7 +107,7 @@ def get_analysis_arguments(analysis_class):
     Returns list of argument names, default values and description
     """
     # Get list of arguments and default values
-    args = analysis_class.__init__.func_code.co_varnames[1:-1] # Expects  the last entry to be additional keyword arguments
+    args = analysis_class.__init__.__code__.co_varnames[1:-1] # Expects  the last entry to be additional keyword arguments
     vals = analysis_class.__init__.__defaults__
     doc = analysis_class.__init__.__doc__
 

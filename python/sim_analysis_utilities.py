@@ -40,9 +40,9 @@ plot_colors = {
     'XMM' : '#4575b4'
     }
 
-def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
+def prepare_sim_catalog(dir=None,isim=None, rescale_est_variance=False):
     # Load the catalog from fits file
-    filename = os.path.join(dir, 'outcomeFPFS/src-%04d.fits' % subfield)
+    filename = os.path.join(dir, 'outcomeFPFS/src-%04d.fits' % isim)
     # If the file does not exist, an IOError will be raised
     catalog = Table.read(filename)
     
@@ -64,12 +64,12 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     # Load information from noiVarPsf
     noiPsfFname =   './noiVar_rPsf_s18a.csv'
     noiPsf      =   Table.read(noiPsfFname)
-    inoiPsf     =   noiPsf[subfield]
+    inoiPsf     =   noiPsf[isim]
     catalog['est_over_true_var']= inoiPsf['var_meas'] / inoiPsf['var_target']
-    catalog['reweight_s18a']    = inoiPsf['weightNoi']*inoiPsf['weightNoi']
-    catalog['field_name']       = inoiPsf['field']
+    catalog['reweight_s16a']    = inoiPsf['weightNoi']*inoiPsf['weightNoi']
+    catalog['field_name']       = np.string_(inoiPsf['field'])
     # Load information from psfPre
-    psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % subfield)
+    psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % isim)
     psfInfo     =   pyfits.getheader(psfFname)
     catalog['g1']=  psfInfo['g1']
     catalog['g2']=  psfInfo['g2']
@@ -95,7 +95,7 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
 
 
     # Load information from catPre
-    catFname    =   os.path.join(dir, 'catPre/catalog-%04d.fits' % subfield)
+    catFname    =   os.path.join(dir, 'catPre/catalog-%04d.fits' % isim)
     catInfo     =   Table.read(catFname)
     # Join catalogs on grid index
     catalog = join(catalog, catInfo, 'ipos')
@@ -150,8 +150,7 @@ def prepare_sim_catalog(dir=None,subfield=None, rescale_est_variance=False):
     catalog['ishape_hsm_regauss_derived_shear_bias_m'] = 0.
     catalog['ishape_hsm_regauss_derived_shear_bias_c1'] = 0.
     catalog['ishape_hsm_regauss_derived_shear_bias_c2'] = 0.
-    
-    
+    catalog['BAND'].dtype   =   'S20'
     return catalog
 
 
@@ -182,9 +181,9 @@ def prepare_data_catalog(dir=None, subfield=None):
 def load_sims_catalog_HDF5(dir=None, sims_version=None, subfield=None,
                            rescale_est_variance=False):
     if rescale_est_variance and 'v4' in sims_version:
-        filename = os.path.join(dir, sims_version, 'src_by_fields_rescale.hdf5')
+        filename = os.path.join(dir, 'src_by_fields_rescale.hdf5')
     else:
-        filename = os.path.join(dir, sims_version, 'src_by_fields.hdf5')
+        filename = os.path.join(dir, 'src_by_fields.hdf5')
     catalog = Table.read(filename, path='/%s'%subfield)
     return catalog
 
@@ -615,7 +614,6 @@ def get_true_shear(catalog):
     """
     return catalog['g1'], catalog['g2']
     
-    
 def get_psf_size(catalog, type='trace'):
     """
     This utility gets the PSF size from a data or sims catalog using the
@@ -645,4 +643,3 @@ def get_psf_size(catalog, type='trace'):
     else:
         raise ValueError("Unknown PSF size type: %s"%type)
     return size
-

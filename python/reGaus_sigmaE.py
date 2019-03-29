@@ -296,15 +296,16 @@ class sigmae_analysis(base_analysis):
 
                 # Compute RMS e values per component, including:
                 # 1) Observed
-                # 2) Estimated intrinsic, using (a) the catalog sigma_e values, and
-                #    (b) the one from these distributions.
+                # 2) Estimated intrinsic, using 
+                #   (a) the catalog sigma_e values, and
+                #   (b) the one from these distributions.
                 #
                 # (1) Observed
                 rms_observed = np.sqrt(0.5*np.sum(
                         master_weight[global_bin_mask]* \
                             (master_e1[global_bin_mask]**2+master_e2[global_bin_mask]**2)) / \
                                            np.sum(master_weight[global_bin_mask]))
-                # (2) Estimated intrinsic using catalog sigma_e values.
+                # (2a) Estimated intrinsic using catalog sigma_e values.
                 est_true_cat = np.sqrt(
                     0.5*np.sum(
                         master_weight[global_bin_mask]*\
@@ -312,6 +313,7 @@ class sigmae_analysis(base_analysis):
                                     master_e2[global_bin_mask]**2- \
                                     2.*master_sigma_e[global_bin_mask]**2)) / \
                         np.sum(master_weight[global_bin_mask]))
+                # (2b) Estimate intrinsic using the estimated sigma_e values
                 est_true_dist = np.sqrt(
                     0.5*np.sum(
                         master_weight[global_bin_mask]*\

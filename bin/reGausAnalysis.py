@@ -1,15 +1,17 @@
+#!/usr/bin/env python
+
 import os
 import sys
 import optparse
-import utilities
+import sim_analysis_utilities as utilities
 import numpy as np
-from utilities import default_sim_dir, default_data_dir
-from utilities import default_sims_version, default_data_version
+from sim_analysis_utilities import default_sim_dir, default_data_dir
+from  sim_analysis_utilities import default_sims_version, default_data_version
 from base_analysis import get_analysis_arguments, get_analysis_description
 from reGaus_sigmaE import sigmae_analysis
 
 # Removed AEGIS since the simulations do not contain this field anyway
-data_fields = ['GAMA09H', 'GAMA15H', 'HECTOMAP', 'VVDS', 'WIDE12H', 'XMM']
+data_fields = ['gama9', 'gama15', 'HECTOMAP', 'VVDS', 'wide12', 'XMM']
 
 # Put each one on separate line so we can quickly comment out ones we don't want
 # when we are testing.
@@ -20,13 +22,14 @@ analyses_list = [
 default_n_subfields = 6
 default_plot_dir = "plots/"
 default_plot_pref = ""
-default_plot_type = "pdf"
+default_plot_type = "eps"
 
 # Default lensing cuts
 default_use_wl_flag = 1
 default_bright_star_mask = 1
 default_reweight_s16a = 1
-default_rescale_est_variance = 1
+default_rescale_est_variance = 0
+#default_rescale_est_variance = 1
 default_use_calib = 0
 
 def replace_calibs(catalog, data_version, sims_version, data_dir):
@@ -190,7 +193,7 @@ def main(argv):
         # If only some specific analysis has been requested, only run these ones
         if (len(args) == 0) or (len(args) > 0 and name.split(' ')[0] in args):
             prefix = name.split(' ')[0] + "_"
-            print 'Initializing analysis: ',name.split(' ')[0]
+            print('Initializing analysis: ',name.split(' ')[0])
             inst_args, vals, desc = get_analysis_arguments(a)
             inst_a = a(plot_pref=plot_pref,
                        data_version=opts.data_version,
@@ -220,7 +223,7 @@ def main(argv):
                                                        sims_version=opts.sims_version,
                                                        subfield=data_fields[i],
                                                        rescale_est_variance=opts.rescale_est_variance)
-            print "Processing sims fields for %s" % fieldname
+            print("Processing sims fields for %s" % fieldname)
 
             # use calibrations?
             if bool(opts.use_calib):
@@ -234,7 +237,7 @@ def main(argv):
             catalog = utilities.load_data_catalog_HDF5(dir=opts.data_dir,
                                                        data_version=opts.data_version,
                                                        subfield=data_fields[i])
-            print "Processing data field " + data_fields[i]
+            print("Processing data field " + data_fields[i])
 
             # use calibrations?
             if bool(opts.use_calib):
