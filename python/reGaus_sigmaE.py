@@ -1,75 +1,100 @@
+#!/usr/bin/env python
+#
+# LSST Data Management System
+# Copyright 20082014 LSST Corporation.
+#
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.    See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
+# see <http://www.lsstcorp.org/LegalNotices/>.
+
+
 """
 This script is for tests of the catalog sigma_e values.
 """
 
-import galsim
-import sim_analysis_utilities as utilities
-from base_analysis import base_analysis
+import math
 import numpy as np
 import scipy.stats as stats
-import math
+import sim_analysis_utilities as utilities
 import matplotlib.pyplot as plt
 import matplotlib
+
+
+import lsst.daf.base as dafBase
+import lsst.pex.config as pexConfig
+import lsst.pipe.base as pipeBase
+
+from lsst.pipe.base import TaskRunner
+from lsst.ctrl.pool.parallel import BatchPoolTask
+from lsst.ctrl.pool.pool import Pool, abortOnError
+
+
 matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
 
-default_n_bin_1d = 20
+
 
 def do_ks_test(x,y,sample_names="two samples"):
     """Routine to do a 2-sample KS test and report on consistency of distributions"""
 
     (ks_d, ks_p) = stats.ks_2samp(x,y)
     if ks_p >= 0.05:
-        print('Distributions for %s are consistent!'%sample_names)
+        self.log.info('Distributions for %s are consistent!'%sample_names)
     else:
-        print('Distributions for %s differ!'%sample_names)
-    print('(d, p)=(%f, %f)'%(ks_d, ks_p))
+        self.log.info('Distributions for %s differ!'%sample_names)
+    self.log.info('(d, p)=(%f, %f)'%(ks_d, ks_p))
 
-class sigmae_analysis(base_analysis):
+class reGaus_sigmaE_Config(pexConfig.Config):
+    nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
+    max_snr =   pexConfig.Field(dtype=float, default=80., doc = 'Maximum value of signal to noise ratio')
+    max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
+    max_sigma_e =   pexConfig.Field(dtype=float, default=0.4, doc = 'Maximum value of sigmaE')
+    lower_psf_size  =   pexConfig.Field(dtype=float, default=0., doc = 'Minimum of PSF size')
+    upper_psf_size  =   pexConfig.Field(dtype=float, default=100., doc = 'Maximum of PSF size')
+    def setDefaults(self):
+        pexConfig.Config.setDefaults(self)
+
+    def validate(self):
+        pexConfig.Config.validate(self)
+
+
+class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
+    
     """
     Infer shape measurement error distribution from 90 degree rotated pairs; compare with the one
     that is implied from the catalog; and build up a model for the effective sigma_e as a function
     of galaxy parameters.
     """
-    def __init__(self, max_snr=80., max_e=2., max_sigma_e=0.4,
-                 param_cat_dir="/home/rmandelb/git/faint-data",
-                 lower_psf_size=0., upper_psf_size=100.,
-                 **kwargs):
+    _DefaultName = "reGaus_sigmaE"
+    ConfigClass = reGaus_sigmaE_Config
+    
+    def __init__(self,**kwargs):
+        pipeBase.CmdLineTask.__init__(self, **kwargs)
+    
         """
         Infer shape measurement error distribution (at least initially over all subfields) and
         compare with catalog information.
-
-        Parameters
-        ----------
-
-        max_snr: float (optional)
-            Maximum cmodel SNR to use when dividing up the sample and inferring sigma_e
-
-        max_e: float (optional)
-            Maximum |e| to use for the sample.
-
-        max_sigma_e: float (optional)
-            Maximum catalog sigma_e to use for the sample.
-
-        param_cat_dir: string (optional)
-            Directory containing the GalSim parametric catalog for the I<25.2 sample
-
-        lower_psf_size: float (optional)
-            Lower percentile to use for PSF size (i.e., use 50 to get everything above the median).
-
-        upper_psf_size: float (optional)
-            Upper percentile to use for PSF size (i.e., use 50 to get everything below the median).
-
         """
-        super(sigmae_analysis, self).__init__(**kwargs)
 
-        self.max_snr = max_snr
-        self.max_e = max_e
-        self.max_sigma_e = max_sigma_e
-        self.param_cat_dir = param_cat_dir
-        self.lower_psf_size = lower_psf_size
-        self.upper_psf_size = upper_psf_size
+        self.max_snr = self.config.max_snr
+        self.max_e = self.config.max_e
+        self.max_sigma_e = self.config.max_sigma_e
+        self.lower_psf_size = self.config.lower_psf_size
+        self.upper_psf_size = self.config.upper_psf_size
 
         # Initialise lists to store data
         self.e1 = []
@@ -81,37 +106,25 @@ class sigmae_analysis(base_analysis):
         self.snr = []
         self.weight = []
         # Initialize array to store effective sigma_e values and associated quantities.
-        self.cat_est_sigma_e = np.zeros((default_n_bin_1d, default_n_bin_1d))
-        self.est_sigma_e = np.zeros((default_n_bin_1d, default_n_bin_1d))
-        self.higherorder_var_e = np.zeros((default_n_bin_1d, default_n_bin_1d))
-        self.mean_res = np.zeros((default_n_bin_1d, default_n_bin_1d))
-        self.mean_snr = np.zeros((default_n_bin_1d, default_n_bin_1d))
-        self.true_rms = np.zeros((default_n_bin_1d, default_n_bin_1d))
-        self.est_rms = np.zeros((default_n_bin_1d, default_n_bin_1d))
-        self.cat_est_rms = np.zeros((default_n_bin_1d, default_n_bin_1d))
-        self.corr_coeff = np.zeros((default_n_bin_1d, default_n_bin_1d))
+        self.cat_est_sigma_e = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
+        self.est_sigma_e = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
+        self.higherorder_var_e = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
+        self.mean_res = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
+        self.mean_snr = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
+        self.true_rms = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
+        self.est_rms = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
+        self.cat_est_rms = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
+        self.corr_coeff = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.psf_size = []
 
-        print('Beginning sigma_e analysis for the following scenario:')
-        print('   %d bins in both SNR and resolution'%default_n_bin_1d)
-        print('   Percentile ranges for PSF size: %.2f-%.2f'%\
+        self.log.info('Beginning sigma_e analysis for the following scenario:')
+        self.log.info('   %d bins in both SNR and resolution'%self.config.nbin_1d)
+        self.log.info('   Percentile ranges for PSF size: %.2f-%.2f'%\
             (self.lower_psf_size, self.upper_psf_size))
-        print('')
+        self.log.info('')
 
-    def select_data_sims(self):
-        """
-        Decide whether the analysis is going to use sims, data, or both.
-        """
-        self.use_data = False
-        self.use_sims = True
-
-    def process_data(self, data, fieldname):
-        """
-        This analysis does not apply to real data, do nothing
-        """
-        pass
-
-    def process_sims(self, data, fieldname):
+    @pipeBase.timeMethod
+    def run(self,ifield,fieldname,reweight_s16a=False):
         """
         Get estimated and true shape information, lensing shear, and other information.
         """
@@ -121,7 +134,8 @@ class sigmae_analysis(base_analysis):
         #    can change, because the 90 degree rotated pairs are required.
         # 2) bright_star_mask is set to False (instead of
         #    self.bright_star_mask) because we are running on sims.
-        mask = utilities.galaxy_selector(catalog=data,
+        data    =   
+        mask    =   utilities.galaxy_selector(catalog=data,
                                          use_wl_flag=self.use_wl_flag,
                                          bright_star_mask=False,
                                          max_snr=self.max_snr,
@@ -137,7 +151,7 @@ class sigmae_analysis(base_analysis):
         self.sigma_e.append(utilities.get_sigma_e(data[mask])) # applies noise rescaling
         self.resolution.append(data[mask]['ishape_hsm_regauss_resolution'])
         self.snr.append(utilities.get_snr(data[mask]))
-        if self.reweight_s16a:
+        if reweight_s16a:
             self.weight.append(data[mask]['reweight_s16a'])
         else:
             self.weight.append(np.ones_like(true_e1).astype(float))
@@ -145,8 +159,9 @@ class sigmae_analysis(base_analysis):
         # Store subfield true shears.
         self.g1_true.append(g1_true)
         self.g2_true.append(g2_true)
+        return
 
-    def finalise(self):
+    def finalise(self,pltDir,pltType):
         """
         Make distributions of the quantities that we need to calculate
         in order to estimate the distribution of shape measurement
@@ -226,24 +241,24 @@ class sigmae_analysis(base_analysis):
         # auto-convolution but the original one, hence the 0.5 inside
         # the sqrt.
         rms = np.sqrt(0.5*np.sum(weight_input*e_input**2)/np.sum(weight_input))
-        print('Overall N, <w>, RMS: ',len(weight_input), np.mean(weight_input), rms)
+        self.log.info('Overall N, <w>, RMS: ',len(weight_input), np.mean(weight_input), rms)
 
         # Get implied RMS from catalog.
         input_rms = np.sqrt(np.sum(weight_input*expected_sigma**2)/np.sum(weight_input))
-        print('Implied from catalog: ',input_rms)
+        self.log.info('Implied from catalog: ',input_rms)
 
         # Now set up sliding window definition
         # Only use the first in pair
         snr_lower, snr_upper, res_lower, res_upper = \
             utilities.sliding_window_def(master_snr[0::2][cond_mask],
                                          master_resolution[0::2][cond_mask],
-                                         n_bin_1d=default_n_bin_1d)
+                                         n_bin_1d=self.config.nbin_1d)
 
         # Now loop over SNR and resolution bins, using the first
         # galaxy in a pair to stick them in a bin.
         for i in range(len(snr_lower)):
             for j in range(len(snr_lower)):
-                print('Beginning bin: SNR in [%.3f, %.3f], resolution in [%.3f, %.3f]'%\
+                self.log.info('Beginning bin: SNR in [%.3f, %.3f], resolution in [%.3f, %.3f]'%\
                     (snr_lower[i], snr_upper[i], res_lower[i,j], res_upper[i,j]))
                 bin_mask = \
                     (master_snr[0::2] >= snr_lower[i]) & \
@@ -257,7 +272,7 @@ class sigmae_analysis(base_analysis):
                     (master_resolution >= res_lower[i,j]) & \
                     (master_resolution < res_upper[i,j]) & \
                     global_cond_mask
-                print('Using %d pairs'%bin_mask.astype(int).sum())
+                self.log.info('Using %d pairs'%bin_mask.astype(int).sum())
                 self.mean_snr[i,j] = \
                     np.sum(master_weight[0::2][bin_mask]*master_snr[0::2][bin_mask])/ \
                     np.sum(master_weight[0::2][bin_mask])
@@ -282,14 +297,14 @@ class sigmae_analysis(base_analysis):
                         master_weight[0::2][bin_mask]))
                 # Get RMS of underlying distribution, i.e., not the auto-convolution but the original one
                 bin_rms = np.sqrt(0.5*np.sum(weight_input*e_input**2)/np.sum(weight_input))
-                print('N, <w>, RMS in bin: ',len(weight_input), np.mean(weight_input), bin_rms)
+                self.log.info('N, <w>, RMS in bin: ',len(weight_input), np.mean(weight_input), bin_rms)
 
                 # Get implied RMS from catalog.
                 expected_sigma = np.concatenate((master_sigma_e[0::2][bin_mask],
                                                  master_sigma_e[1::2][bin_mask]))
                 input_bin_rms = np.sqrt(
                     np.sum(weight_input*expected_sigma**2)/np.sum(weight_input))
-                print('RMS in bin implied from catalog: ',input_bin_rms)
+                self.log.info('RMS in bin implied from catalog: ',input_bin_rms)
 
                 self.est_sigma_e[i,j] = bin_rms
                 self.cat_est_sigma_e[i,j] = input_bin_rms
@@ -324,14 +339,14 @@ class sigmae_analysis(base_analysis):
 
                 self.cat_est_rms[i,j] = est_true_cat
                 self.est_rms[i,j] = est_true_dist
-                print('RMS values and responsivities per component in this bin:')
-                print('  observed, including shape measurement error: %.4f, %.4f'%\
+                self.log.info('RMS values and responsivities per component in this bin:')
+                self.log.info('  observed, including shape measurement error: %.4f, %.4f'%\
                     (rms_observed, 2.*(1.-rms_observed**2)))
-                print('  estimated using distribution to remove measurement error: %.4f, %.4f'%\
+                self.log.info('  estimated using distribution to remove measurement error: %.4f, %.4f'%\
                     (est_true_dist, 2.*(1.-est_true_dist**2)))
 
-        print('')
-        print('')
+        self.log.info('')
+        self.log.info('')
         x_vals = np.vstack([np.log(self.mean_snr/20.).flatten(),
                             np.log(self.mean_res/0.5).flatten(),
                             np.ones(len(self.mean_res.flatten()))]).transpose()
@@ -340,7 +355,7 @@ class sigmae_analysis(base_analysis):
         #Eq.(18)
         model_sigma_e = np.exp(result[0][2])*((self.mean_snr/20.)**result[0][0])*\
             ((self.mean_res/0.5)**result[0][1])
-        print('model sigma_e = %.3f (SNR/20)^%.3f (res/0.5)^%.3f'%\
+        self.log.info('model sigma_e = %.3f (SNR/20)^%.3f (res/0.5)^%.3f'%\
             (np.exp(result[0][2]), result[0][0], result[0][1]))
 
         # Plot estimated sigma_e as a function of SNR, resolution.
@@ -356,7 +371,7 @@ class sigmae_analysis(base_analysis):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(self.plot_pref+'sigmae_estimated.'+self.plot_type)
+        plt.savefig(os.path.join(pltDir,'sigmae_estimated.%s'%(pltType)))
 
 
         # Plot catalog sigma_e as a function of SNR, resolution.
@@ -369,7 +384,7 @@ class sigmae_analysis(base_analysis):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(self.plot_pref+'sigmae_cat.'+self.plot_type)
+        plt.savefig(os.path.join(pltDir,'sigmae_cat.%s'%(pltType)) )
 
         # Plot ratio of catalog to estimated sigma_e.
         fig = plt.figure()
@@ -380,7 +395,7 @@ class sigmae_analysis(base_analysis):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(self.plot_pref+'sigmae_cat_estimated_ratio.'+self.plot_type)
+        plt.savefig(os.path.join(pltDir,'sigmae_cat_estimated_ratio.%s' %(pltType)))
 
 
         # Model sigma_e as a function of SNR, resolution (including
@@ -394,7 +409,7 @@ class sigmae_analysis(base_analysis):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(self.plot_pref+'sigmae_model.'+self.plot_type)
+        plt.savefig(os.path.join(pltDir,'sigmae_model.%s'%(pltType)))
         # model / estimated sigma_e as a function of SNR, resolution.  Should be close to 1.
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -404,10 +419,30 @@ class sigmae_analysis(base_analysis):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(self.plot_pref+'sigmae_ratio.'+self.plot_type)
+        plt.savefig(os.path.join(pltDir,'sigmae_ratio.%s' %(pltType)))
 
         # save data table for model/actual
         out_data = (self.mean_snr.flatten(), self.mean_res.flatten(),
                     (self.est_sigma_e/model_sigma_e).flatten())
         out_data = np.column_stack(out_data)
-        np.savetxt(self.plot_pref+'sigmae_ratio.dat', out_data)
+        np.savetxt(os.path.join(pltDir,'sigmae_ratio.dat'), out_data)
+        return
+        
+    @classmethod
+    def _makeArgumentParser(cls):
+        """Create an argument parser
+        """
+        parser = pipeBase.ArgumentParser(name=cls._DefaultName)
+        return parser
+
+    def writeConfig(self, butler, clobber=False, doBackup=False):
+        pass
+
+    def writeSchemas(self, butler, clobber=False, doBackup=False):
+        pass
+
+    def writeMetadata(self, ifield):
+        pass
+
+    def writeEupsVersions(self, butler, clobber=False, doBackup=False):
+        pass

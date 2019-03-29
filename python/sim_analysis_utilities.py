@@ -15,13 +15,6 @@ matplotlib.use('Agg')
 import math
 import warnings
 
-# Default path to simulations and data directories
-default_sim_dir = './'
-default_data_dir = './'
-# Default data and simulation versions
-default_sims_version = 'v4-rgc-nr'
-default_data_version = 'S16A_2.0'
-
 # Field keys used in the noise variance file for simulations
 field_keys = {'aegis': 'AEGIS',
               'gama9': 'GAMA09H',
@@ -643,3 +636,5 @@ def get_psf_size(catalog, type='trace'):
     else:
         raise ValueError("Unknown PSF size type: %s"%type)
     return size
+    
+    

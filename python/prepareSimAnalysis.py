@@ -19,10 +19,12 @@
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
-#
-# This script converts the HSC fits data files into one HDF-5 file for faster
-# access where only columns of interest can be selectively loaded
-# Plus, it now also aggregate the noise rescaling factors for each (tract, patch)
+"""
+ This script converts the HSC fits data files into one HDF-5 file for faster
+ access where only columns of interest can be selectively loaded
+ Plus, it now also aggregate the noise rescaling factors for each (tract, patch)
+"""
+
 import sys
 import os
 from astropy.table import Table, vstack
@@ -41,7 +43,7 @@ class prepareSimAnalysisConfig(pexConfig.Config):
     simDir  =   pexConfig.Field(dtype=str, default='outcomeFPFS', doc = 'input catalogs')
     version =   pexConfig.Field(dtype=str, default='v1', doc = 'input catalogs')
     nSims   =   pexConfig.Field(dtype=int, default=3200, doc = 'number of simulations')
-    rescale_noise  =   pexConfig.Field(dtype=bool, default=False, doc = 'output catalogs')
+    rescale_noise  =   pexConfig.Field(dtype=bool, default=False, doc = 'rescale measrued noise variance to the target noise variance')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
