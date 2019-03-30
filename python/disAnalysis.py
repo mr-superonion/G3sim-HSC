@@ -93,6 +93,7 @@ class disAnalysisTask(BatchPoolTask):
         self.log.info('Processing field: %s' %(fieldname))
         anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
         outFname    =   os.path.join(anaFieldDir,'varPSF.csv')
+        self.log.info('Achieving the distriutions for simulations')
         if not os.path.exists(outFname):
             anafnames   =   glob.glob('%s/*.fits' %(anaFieldDir)) 
             #Prepare the pool
@@ -116,9 +117,13 @@ class disAnalysisTask(BatchPoolTask):
                     names=self.disnames)
         t_dis.write(outDname,overwrite=True)
         outDnameObs=    os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
-        obsFame =   os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
-        t_dis_obs=  self.getObsHist(obsFname)
-        t_dis_obs.write(outDnameObs,overwrite=True)
+        self.log.info('Achieving the distriutions for observations')
+        if not os.path.exists(outDnameObs):
+            obsFname =   os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
+            t_dis_obs=  self.getObsHist(obsFname)
+            t_dis_obs.write(outDnameObs,overwrite=True)
+        else:
+            t_dis_obs=  Table.read(outDnameObs)
         self.plotNoiPsf(t_dis,t_dis_obs,anaFieldDir)
         return
     
@@ -156,9 +161,7 @@ class disAnalysisTask(BatchPoolTask):
         return Table(data=[gridNoi,histNoi,gridPsf,histPsf],\
                     names=self.disnames)
     
-    
     def plotNoiPsf(self,t_dis,t_dis_obs,anaFieldDir):
-        
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.plot(t_dis['gridNoi'],t_dis['histNoi'],'--',label='sim',c='r')
