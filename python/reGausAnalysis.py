@@ -75,8 +75,9 @@ class reGausAnalysisTask(BatchPoolTask):
         rows    =   Table.read('noiVar_rPsf_s18a.csv')
         pool    =   Pool("reGausAnalysis")
         pool.cacheClear()
-        pool.map(self.process,rows)
-        self.reGaus_sigmaE.finalise(self.config.pltDir,self.config.pltType)
+        outcomes=   pool.map(self.process,rows)
+        outtable=   stack(outcomes)
+        self.reGaus_sigmaE.finalise(outtable,self.config.pltDir,self.config.pltType)
         return
         
     def process(self,cache,row):

@@ -44,7 +44,7 @@ import lsst.pipe.base as pipeBase
 from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
-
+from astropy.table import Table
 
 
 
@@ -88,25 +88,16 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
         self.upper_psf_size = self.config.upper_psf_size
 
         # Initialise lists to store data
-        self.e1 = []
-        self.e2 = []
-        self.sigma_e = []
-        self.g1_true = []
-        self.g2_true = []
-        self.resolution = []
-        self.snr = []
-        self.weight = []
+        self.names  =   ('e1','e2','sigma_e','g1_true','g2_true','resolution','snr','weight','psf_size')
         # Initialize array to store effective sigma_e values and associated quantities.
         self.cat_est_sigma_e = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.est_sigma_e = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
-        self.higherorder_var_e = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.mean_res = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.mean_snr = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.true_rms = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.est_rms = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.cat_est_rms = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.corr_coeff = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
-        self.psf_size = []
 
         self.log.info('Beginning sigma_e analysis for the following scenario:')
         self.log.info('   %d bins in both SNR and resolution'%self.config.nbin_1d)
@@ -132,24 +123,26 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
                                          cancel_shape_noise=True,
                                          max_e=self.max_e,
                                          max_sigma_e=self.max_sigma_e)
-
+                                         
+        dataTab =   []
         # Get true shear for the subfield.
         g1_true, g2_true = utilities.get_true_shear(data[mask])
         # Store NumPy arrays for observed and true e1, e2 for each subfield, and sigma_e
-        self.e1.append(data[mask]['ishape_hsm_regauss_e1'])
-        self.e2.append(data[mask]['ishape_hsm_regauss_e2'])
-        self.sigma_e.append(utilities.get_sigma_e(data[mask])) # applies noise rescaling
-        self.resolution.append(data[mask]['ishape_hsm_regauss_resolution'])
-        self.snr.append(utilities.get_snr(data[mask]))
+        dataTab.append(data[mask]['ishape_hsm_regauss_e1'])
+        dataTab.append(data[mask]['ishape_hsm_regauss_e2'])
+        dataTab.append(utilities.get_sigma_e(data[mask])) # applies noise rescaling?
+        dataTab.append(g1_true)
+        dataTab.append(g2_true)
+        dataTab.append(data[mask]['ishape_hsm_regauss_resolution'])
+        dataTab.append(utilities.get_snr(data[mask]))
         if reweight_s16a:
-            self.weight.append(data[mask]['reweight_s16a'])
+            dataTab.append(data[mask]['reweight_s16a'])
         else:
-            self.weight.append(np.ones_like(true_e1).astype(float))
-        self.psf_size.append(utilities.get_psf_size(data[mask]))
+            dataTab.append(np.ones_like(true_e1).astype(float))
+        dataTab.append(utilities.get_psf_size(data[mask]))
         # Store subfield true shears.
-        self.g1_true.append(g1_true)
-        self.g2_true.append(g2_true)
-        return
+        
+        return Table(data=dataTab,names=self.names)
 
     def do_ks_test(self,x,y,sample_names="two samples"):
         """routine to do a 2-sample ks test and report on consistency of distributions"""
@@ -163,7 +156,7 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
         return
     
     
-    def finalise(self,pltDir0,pltType):
+    def finalise(self,inTable,pltDir0,pltType):
         """
         Make distributions of the quantities that we need to calculate
         in order to estimate the distribution of shape measurement
@@ -175,16 +168,16 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
             os.mkdir(pltDir)
         # First: assemble the arrays for individual subfields into one big master catalog.
         n_subfields = len(self.e1)
-        master_e1 = np.concatenate(self.e1)
-        master_e2 = np.concatenate(self.e2)
-        master_sigma_e = np.concatenate(self.sigma_e)
-        master_resolution = np.concatenate(self.resolution)
-        master_snr = np.concatenate(self.snr)
-        master_weight = np.concatenate(self.weight)
+        master_e1 = inTable['e1']
+        master_e2 = inTable['e2']
         tmp_e = np.sqrt(master_e1**2 + master_e2**2)
-        master_g1_true = np.concatenate(self.g1_true)
-        master_g2_true = np.concatenate(self.g2_true)
-        master_psf_size = np.concatenate(self.psf_size)
+        master_sigma_e = inTable['sigma_e']
+        master_g1_true = inTable['g1_true']
+        master_g2_true = inTable['g2_true']
+        master_resolution = inTable['resolution']
+        master_snr = inTable['snr']
+        master_weight = inTable['weight']
+        master_psf_size = inTable['psf_size']
 
 
         # Figure out any other mask to apply for observing conditions.
