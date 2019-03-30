@@ -86,7 +86,7 @@ class prepareSimAnalysisTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        fieldList=  range(self.config.nSims)
+        fieldList=  range(18,19)
         pool.map(self.process,fieldList)
         return
         

@@ -6,12 +6,12 @@ except:
 from astropy.table import Table, join
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
 matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import math
 import warnings
 

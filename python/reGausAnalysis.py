@@ -17,17 +17,6 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
-# Default lensing cuts
-default_use_wl_flag = 1
-default_bright_star_mask = 1
-default_reweight_s16a = 1
-default_rescale_est_variance = 0
-#default_rescale_est_variance = 1
-
-
-
-
-
 class reGausAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
     obsDir  =   pexConfig.Field(dtype=str, default='./', doc = 'observed catalogs')
@@ -39,7 +28,7 @@ class reGausAnalysisConfig(pexConfig.Config):
     useCalib=   pexConfig.Field(dtype=bool, default=False, doc = 'apply calibration?')
     reGaus_sigmaE= pexConfig.ConfigurableField(
         target  = reGaus_sigmaE_Task,
-        doc     = "Subtask to determine sigmae
+        doc     = "Subtask to determine sigmae"
     )
     
     def setDefaults(self):
@@ -48,14 +37,14 @@ class reGausAnalysisConfig(pexConfig.Config):
     def validate(self):
         pexConfig.Config.validate(self)
        # Checks that the paths provided are valid
-        if not os.path.isdir(self.config.anaDir):
+        if not os.path.isdir(self.anaDir):
             raise RuntimeError("Simulation catalog directory %s does not exist "
-                         "or is not a directory" % (self.config.anaDir))
-        if not os.path.isdir(self.config.obsDir):
+                         "or is not a directory" % (self.anaDir))
+        if not os.path.isdir(self.obsDir):
             raise RuntimeError("Data catalog directory %s does not exist "
-                         "or is not a directory" % (self.config.anaDir))
-        if not os.path.exists(self.config.pltDir):
-            os.mkdir(self.config.plotDir)
+                         "or is not a directory" % (self.anaDir))
+        if not os.path.exists(self.pltDir):
+            os.mkdir(self.plotDir)
 
 class reGausAnalysisRunner(TaskRunner):
     @staticmethod
@@ -87,16 +76,20 @@ class reGausAnalysisTask(BatchPoolTask):
         pool    =   Pool("reGausAnalysis")
         pool.cacheClear()
         pool.map(self.process,rows)
-        reGaus_sigmaE.finalise(self.config.pltDir,self.config.pltType)
+        self.reGaus_sigmaE.finalise(self.config.pltDir,self.config.pltType)
         return
         
     def process(self,cache,row):
         ifield  =   row['num']
         self.log.info('Processing subfield %s' %(ifield))
-        fieldname=  field_keys[row['field']]
+        fieldname=  utilities.field_keys[row['field']]
         fname   =   os.path.join(self.config.anaDir,fieldname,'src-%04d.fits'%(ifield))
-        catalog =   Table.read(fname)   
-        reGaus_sigmaE.run(catalog, fieldname=fieldname)
+        try:
+            catalog =   Table.read(fname)   
+        except:
+            self.log.info(fname)
+            return
+        self.reGaus_sigmaE.run(catalog)
         return 
 
     @classmethod

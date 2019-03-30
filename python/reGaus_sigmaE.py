@@ -25,13 +25,17 @@
 This script is for tests of the catalog sigma_e values.
 """
 
+import matplotlib
+matplotlib.use('agg')
+matplotlib.rcParams['ps.useafm'] = True
+matplotlib.rcParams['pdf.use14corefonts'] = True
+matplotlib.rcParams['text.usetex'] = True
+import matplotlib.pyplot as plt
+import os
 import math
 import numpy as np
 import scipy.stats as stats
 import sim_analysis_utilities as utilities
-import matplotlib.pyplot as plt
-import matplotlib
-
 
 import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
@@ -42,21 +46,8 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
-matplotlib.rcParams['ps.useafm'] = True
-matplotlib.rcParams['pdf.use14corefonts'] = True
-matplotlib.rcParams['text.usetex'] = True
 
 
-
-def do_ks_test(x,y,sample_names="two samples"):
-    """Routine to do a 2-sample KS test and report on consistency of distributions"""
-
-    (ks_d, ks_p) = stats.ks_2samp(x,y)
-    if ks_p >= 0.05:
-        self.log.info('Distributions for %s are consistent!'%sample_names)
-    else:
-        self.log.info('Distributions for %s differ!'%sample_names)
-    self.log.info('(d, p)=(%f, %f)'%(ks_d, ks_p))
 
 class reGaus_sigmaE_Config(pexConfig.Config):
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
@@ -124,7 +115,7 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
         self.log.info('')
 
     @pipeBase.timeMethod
-    def run(self,ifield,fieldname,reweight_s16a=False):
+    def run(self,data,reweight_s16a=True,use_wl_flag=True):
         """
         Get estimated and true shape information, lensing shear, and other information.
         """
@@ -134,9 +125,8 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
         #    can change, because the 90 degree rotated pairs are required.
         # 2) bright_star_mask is set to False (instead of
         #    self.bright_star_mask) because we are running on sims.
-        data    =   
         mask    =   utilities.galaxy_selector(catalog=data,
-                                         use_wl_flag=self.use_wl_flag,
+                                         use_wl_flag=use_wl_flag,
                                          bright_star_mask=False,
                                          max_snr=self.max_snr,
                                          cancel_shape_noise=True,
@@ -161,13 +151,28 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
         self.g2_true.append(g2_true)
         return
 
-    def finalise(self,pltDir,pltType):
+    def do_ks_test(self,x,y,sample_names="two samples"):
+        """routine to do a 2-sample ks test and report on consistency of distributions"""
+
+        (ks_d, ks_p) = stats.ks_2samp(x,y)
+        if ks_p >= 0.05:
+            self.log.info('Distributions for %s are consistent!'%sample_names)
+        else:
+            self.log.info('Distributions for %s differ!'%sample_names)
+        self.log.info('(d, p)=(%f, %f)'%(ks_d, ks_p))
+        return
+    
+    
+    def finalise(self,pltDir0,pltType):
         """
         Make distributions of the quantities that we need to calculate
         in order to estimate the distribution of shape measurement
         errors.  Everything here is unweighted; the only exception is
         weighting to account for the S16A conditions.
         """
+        pltDir  =   os.path.join(pltDir0,'sigmae')
+        if not os.path.exists(pltDir):
+            os.mkdir(pltDir)
         # First: assemble the arrays for individual subfields into one big master catalog.
         n_subfields = len(self.e1)
         master_e1 = np.concatenate(self.e1)
@@ -224,7 +229,7 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
                                          master_sigma_e[1::2][cond_mask]))
 
         # Do K-S test for consistency of distributions for the two components.
-        do_ks_test(sum_e_erot_1_corr[cond_mask], sum_e_erot_2_corr[cond_mask],
+        self.do_ks_test(sum_e_erot_1_corr[cond_mask], sum_e_erot_2_corr[cond_mask],
                    sample_names="two shape components")
 
         # Do calculation overall.
@@ -241,11 +246,11 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
         # auto-convolution but the original one, hence the 0.5 inside
         # the sqrt.
         rms = np.sqrt(0.5*np.sum(weight_input*e_input**2)/np.sum(weight_input))
-        self.log.info('Overall N, <w>, RMS: ',len(weight_input), np.mean(weight_input), rms)
+        self.log.info('Overall N, <w>, RMS: %s,%s,%s '%(len(weight_input), np.mean(weight_input), rms))
 
         # Get implied RMS from catalog.
         input_rms = np.sqrt(np.sum(weight_input*expected_sigma**2)/np.sum(weight_input))
-        self.log.info('Implied from catalog: ',input_rms)
+        self.log.info('Implied from catalog: %s' %(input_rms))
 
         # Now set up sliding window definition
         # Only use the first in pair
@@ -283,7 +288,7 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
                 assert np.all(master_weight[0::2][bin_mask]==master_weight[1::2][bin_mask])
 
                 # Check for consistency between components.
-                do_ks_test(sum_e_erot_1_corr[bin_mask], sum_e_erot_2_corr[bin_mask],
+                self.do_ks_test(sum_e_erot_1_corr[bin_mask], sum_e_erot_2_corr[bin_mask],
                            sample_names="two shape components")
                 
                 e_uncorr_input = np.concatenate((
@@ -297,14 +302,14 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
                         master_weight[0::2][bin_mask]))
                 # Get RMS of underlying distribution, i.e., not the auto-convolution but the original one
                 bin_rms = np.sqrt(0.5*np.sum(weight_input*e_input**2)/np.sum(weight_input))
-                self.log.info('N, <w>, RMS in bin: ',len(weight_input), np.mean(weight_input), bin_rms)
+                self.log.info('N, <w>, RMS in bin: %s,%s,%s '%(len(weight_input), np.mean(weight_input), bin_rms))
 
                 # Get implied RMS from catalog.
                 expected_sigma = np.concatenate((master_sigma_e[0::2][bin_mask],
                                                  master_sigma_e[1::2][bin_mask]))
                 input_bin_rms = np.sqrt(
                     np.sum(weight_input*expected_sigma**2)/np.sum(weight_input))
-                self.log.info('RMS in bin implied from catalog: ',input_bin_rms)
+                self.log.info('RMS in bin implied from catalog: %s' %input_bin_rms)
 
                 self.est_sigma_e[i,j] = bin_rms
                 self.cat_est_sigma_e[i,j] = input_bin_rms
@@ -359,8 +364,8 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
             (np.exp(result[0][2]), result[0][0], result[0][1]))
 
         # Plot estimated sigma_e as a function of SNR, resolution.
-        cm = plt.cm.get_cmap('RdYlBu')
         fig = plt.figure()
+        cm  = plt.cm.get_cmap('RdYlBu')
         ax = fig.add_subplot(111)
         vmin = min(np.min(self.est_sigma_e), np.min(model_sigma_e), np.min(self.cat_est_sigma_e))
         vmax = max(np.max(self.est_sigma_e), np.max(model_sigma_e), np.max(self.cat_est_sigma_e))
