@@ -47,8 +47,6 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 from astropy.table import Table
 
 
-
-
 class reGaus_sigmaE_Config(pexConfig.Config):
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
     max_snr =   pexConfig.Field(dtype=float, default=80., doc = 'Maximum value of signal to noise ratio')

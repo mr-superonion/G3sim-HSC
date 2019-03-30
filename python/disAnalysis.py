@@ -2,13 +2,20 @@
 
 import os
 import sys
+import glob
 import optparse
+import astropy.io.fits as pyfits
 import sim_analysis_utilities as utilities
 import numpy as np
-import glob
-from reGaus_sigmaE import reGaus_sigmaE_Task
 from astropy.table import Table, vstack
 
+import matplotlib
+matplotlib.use('agg')
+matplotlib.rcParams['ps.useafm'] = True
+matplotlib.rcParams['pdf.use14corefonts'] = True
+matplotlib.rcParams['text.usetex'] = True
+
+import matplotlib.pyplot as plt
 import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -42,7 +49,7 @@ class disAnalysisConfig(pexConfig.Config):
 class disAnalysisRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in field_keys.keys()] 
+        return [(ref, kwargs) for ref in utilities.field_keys.keys()] 
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -58,10 +65,10 @@ class disAnalysisTask(BatchPoolTask):
         self.nbin1      =   20
         self.nbin2      =   60
         self.varPsfnames=   ('ifield','rpsf_trace','rpsf_det','epsf1','epsf2','var_meas')
-        self.fwhm_bin   =   np.linspace(0.001,1.,self.nbin1)
+        self.fwhm_bin   =   np.linspace(0.3,0.9,self.nbin1)
         self.fwhm_bin_0 =   self.fwhm_bin[:-1]
         self.fwhm_bin_1 =   self.fwhm_bin[1:]
-        self.var_bin    =   np.linspace(0.3,0.9,self.nbin1)
+        self.var_bin    =   np.linspace(0.001,0.01,self.nbin1)
         self.var_bin_0  =   self.var_bin[:-1]
         self.var_bin_1  =   self.var_bin[1:]
         self.resolution_bin=np.linspace(0.1,1.,self.nbin2)
@@ -81,34 +88,39 @@ class disAnalysisTask(BatchPoolTask):
     def run(self,fieldKey):
         if fieldKey=='aegis':
             return
-        fieldname   =   field_keys[fieldKey]
+        fieldname   =   utilities.field_keys[fieldKey]
+        self.log.info('Processing field: %s' %(fieldname))
         anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
         outFname    =   os.path.join(anaFieldDir,'varPSF.csv')
-        anafnames   =   glob.glob('%s/*.fits' %(anaFieldDir)) 
-        #Prepare the pool
-        pool        =   Pool("disAnalysis")
-        pool.cacheClear()
-        rows        =   pool.map(self.getSimVarPsf,anafnames)
-        rows        =   [x for x in rows if x is not None]
-        t           =   Table(rows=rows, names=self.varPsfnames)
-        t.sort('ifield')
-        t.write(outFname)
+        if not os.path.exists(outFname):
+            anafnames   =   glob.glob('%s/*.fits' %(anaFieldDir)) 
+            #Prepare the pool
+            pool        =   Pool("disAnalysis")
+            pool.cacheClear()
+            rows        =   pool.map(self.getSimVarPsf,anafnames)
+            rows        =   [x for x in rows if x is not None]
+            t           =   Table(rows=rows, names=self.varPsfnames)
+            t.sort('ifield')
+            t.write(outFname,overwrite=True)
+        else:
+            t   =   Table.read(outFname)
         fwhms   =   t['rpsf_det']*0.168*2.355
         varNois =   t['var_meas']
         histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
         histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0]
-        gridNoi =   (self.var_bin0+self.var_bin1)/2.
-        gridPsf =   (self.fwhm_bin0+self.fwhm_bin1)/2.
+        gridNoi =   (self.var_bin_0+self.var_bin_1)/2.
+        gridPsf =   (self.fwhm_bin_0+self.fwhm_bin_1)/2.
         outDname=   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
-        t_dis   =   Table(data=[gridNoi,histNoi,gridPsf,histPsf],/
+        t_dis   =   Table(data=[gridNoi,histNoi,gridPsf,histPsf],\
                     names=['gridNoi','histNoi','gridPsf','histPsf'])
-        t_dis.write(outDname)
+        t_dis.write(outDname,overwrite=True)
+        self.plotNoiPsf(t_dis,anaFieldDir)
         return
     
-    def getSimVarPsf(self,anafname):
+    def getSimVarPsf(self,cache,anafname):
         #Get the noise variance and psf information
         ifield  =   anafname.split('-')[1].split('.')[0]
-        datta   =   pyfits.getdata(anafname)
+        data    =   pyfits.getdata(anafname)
         mask    =   np.ones(len(data)).astype(bool)
         mask    =   mask&(~np.isnan(data['base_SdssShape_psf_xx']))
         mask    =   mask&(~np.isnan(data['base_SdssShape_psf_yy']))
@@ -122,7 +134,7 @@ class disAnalysisTask(BatchPoolTask):
         var_meas=   ss['base_Variance_value']
         return (ifield,rpsf_trace,rpsf_det,epsf1,epsf2,var_meas)
       
-    def plotNoiPsf(self,t_dis):
+    def plotNoiPsf(self,t_dis,anaFieldDir):
         
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -130,18 +142,16 @@ class disAnalysisTask(BatchPoolTask):
         ax.legend()
         plt.xlabel('noise variance')
         plt.ylabel('prob')
-        plt.savefig('noiHist.png')
-        
-        
+        plt.savefig(os.path.join(anaFieldDir,'noiHist.png'))
+
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.plot(t_dis['gridPsf'],t_dis['histPsf'],'--',label='sim',c='r')
         ax.legend()
         plt.xlabel('PSF FWHM [arcsec]')
         plt.ylabel('prob')
-        plt.savefig('psfHist.png')
+        plt.savefig(os.path.join(anaFieldDir,'psfHist.png'))
         return
-    
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
