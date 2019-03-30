@@ -65,6 +65,7 @@ class disAnalysisTask(BatchPoolTask):
         self.nbin1      =   20
         self.nbin2      =   60
         self.varPsfnames=   ('ifield','rpsf_trace','rpsf_det','epsf1','epsf2','var_meas')
+        self.disnames   =   ('gridNoi','histNoi','gridPsf','histPsf')
         self.fwhm_bin   =   np.linspace(0.3,0.9,self.nbin1)
         self.fwhm_bin_0 =   self.fwhm_bin[:-1]
         self.fwhm_bin_1 =   self.fwhm_bin[1:]
@@ -112,9 +113,13 @@ class disAnalysisTask(BatchPoolTask):
         gridPsf =   (self.fwhm_bin_0+self.fwhm_bin_1)/2.
         outDname=   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
         t_dis   =   Table(data=[gridNoi,histNoi,gridPsf,histPsf],\
-                    names=['gridNoi','histNoi','gridPsf','histPsf'])
+                    names=self.disnames)
         t_dis.write(outDname,overwrite=True)
-        self.plotNoiPsf(t_dis,anaFieldDir)
+        outDnameObs=    os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
+        obsFame =   os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
+        t_dis_obs=  self.getObsHist(obsFname)
+        t_dis_obs.write(outDnameObs,overwrite=True)
+        self.plotNoiPsf(t_dis,t_dis_obs,anaFieldDir)
         return
     
     def getSimVarPsf(self,cache,anafname):
@@ -134,11 +139,30 @@ class disAnalysisTask(BatchPoolTask):
         var_meas=   ss['base_Variance_value']
         return (ifield,rpsf_trace,rpsf_det,epsf1,epsf2,var_meas)
       
-    def plotNoiPsf(self,t_dis,anaFieldDir):
+    def getObsHist(self,obsFname):
+        data    =   pyfits.getdata(obsFname)
+        mask    =   np.ones(len(data)).astype(bool)
+        mask    =   mask&(~np.isnan(data['noiVar']))
+        mask    =   mask&(~np.isnan(data['psfMxx']))
+        mask    =   mask&(~np.isnan(data['psfMyy']))
+        mask    =   mask&(~np.isnan(data['psfMxy']))
+        data    =   data[mask]
+        fwhms   =   (data['psfMxx']*data['psfMyy']-data['psfMxy']**2)**(0.25)*0.168*2.355
+        varNois =   data['noiVar']
+        gridNoi =   (self.var_bin_0+self.var_bin_1)/2.
+        gridPsf =   (self.fwhm_bin_0+self.fwhm_bin_1)/2.
+        histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
+        histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0] 
+        return Table(data=[gridNoi,histNoi,gridPsf,histPsf],\
+                    names=self.disnames)
+    
+    
+    def plotNoiPsf(self,t_dis,t_dis_obs,anaFieldDir):
         
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.plot(t_dis['gridNoi'],t_dis['histNoi'],'--',label='sim',c='r')
+        ax.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'--',label='obs',c='b')
         ax.legend()
         plt.xlabel('noise variance')
         plt.ylabel('prob')
@@ -147,6 +171,7 @@ class disAnalysisTask(BatchPoolTask):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.plot(t_dis['gridPsf'],t_dis['histPsf'],'--',label='sim',c='r')
+        ax.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'--',label='obs',c='b')
         ax.legend()
         plt.xlabel('PSF FWHM [arcsec]')
         plt.ylabel('prob')
