@@ -167,7 +167,6 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
         if not os.path.exists(pltDir):
             os.mkdir(pltDir)
         # First: assemble the arrays for individual subfields into one big master catalog.
-        n_subfields = len(self.e1)
         master_e1 = inTable['e1']
         master_e2 = inTable['e2']
         tmp_e = np.sqrt(master_e1**2 + master_e2**2)
@@ -178,6 +177,7 @@ class reGaus_sigmaE_Task(pipeBase.CmdLineTask):
         master_snr = inTable['snr']
         master_weight = inTable['weight']
         master_psf_size = inTable['psf_size']
+        n_subfields = len(inTable)
 
 
         # Figure out any other mask to apply for observing conditions.

@@ -76,7 +76,7 @@ class reGausAnalysisTask(BatchPoolTask):
         pool    =   Pool("reGausAnalysis")
         pool.cacheClear()
         outcomes=   pool.map(self.process,rows)
-        outtable=   stack(outcomes)
+        outtable=   vstack(outcomes)
         self.reGaus_sigmaE.finalise(outtable,self.config.pltDir,self.config.pltType)
         return
         
@@ -90,8 +90,7 @@ class reGausAnalysisTask(BatchPoolTask):
         except:
             self.log.info(fname)
             return
-        self.reGaus_sigmaE.run(catalog)
-        return 
+        return self.reGaus_sigmaE.run(catalog)
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
