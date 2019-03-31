@@ -125,7 +125,8 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
             
         outDnameRw  =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
         t_dis_rw    =   self.reWeight(t,t_dis,t_dis_obs)
-        t_dis_obs.write(outDnameRw,overwrite=True)
+        t_dis_rw.write(outDnameRw,overwrite=True)
+        t.write(outFname,overwrite=True)
         self.plotNoiPsf(t_dis,t_dis_obs,t_dis_rw,anaFieldDir)
         return
     

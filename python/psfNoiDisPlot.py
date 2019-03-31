@@ -28,7 +28,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 class psfNoiDisPlotConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs directory')
     obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field-matched/', doc = 'observed catalogs directory')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot', doc = 'plot directory')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot/psfNoi', doc = 'plot directory')
     pltType =   pexConfig.Field(dtype=str, default='eps', doc = 'plot directory')
     version =   pexConfig.Field(dtype=str, default='v1', doc = 'input catalogs')
     def setDefaults(self):
@@ -44,7 +44,7 @@ class psfNoiDisPlotConfig(pexConfig.Config):
             raise RuntimeError("Data catalog directory %s does not exist "
                          "or is not a directory" % (self.anaDir))
         if not os.path.exists(self.pltDir):
-            os.mkdir(self.plotDir)
+            os.mkdir(self.pltDir)
 
 class psfNoiDisPlotRunner(TaskRunner):
     @staticmethod
@@ -96,14 +96,18 @@ class psfNoiDisPlotTask(BatchPoolTask):
         figN=   plt.figure()
         figP=   plt.figure()
         for ii,fieldKey in enumerate(utilities.field_keys):
-            if fieldKey==aegis:
+            if fieldKey=='aegis':
                 continue
             
             fieldname   =   utilities.field_keys[fieldKey]
             anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
             tablename   =   os.path.join(anaFieldDir,'varPSF.csv')
             t           =   Table.read(tablename)
-            disnameOri  =   os.path.join(anaFieldDir,'varPSF_dis.csv')
+            t['field_name']=    [fieldname]*len(t)
+            t.sort('ifield')
+            tableF.append(t)
+            
+            disnameOri  =   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
             t_dis       =   Table.read(disnameOri)
             simDis_var  +=  t_dis['histNoi']*t_dis['num']
             simDis_fwhm +=  t_dis['histPsf']*t_dis['num']
@@ -122,46 +126,64 @@ class psfNoiDisPlotTask(BatchPoolTask):
             simRNum     +=  t_dis_rw['num']
             
             
-            axN =   figN.add_subplot(3,3,ii+1)
+            axN =   figN.add_subplot(3,3,ii)
             axN.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'-',label='obs',c='b')
             axN.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'--',label='reweight',c='r')
             axN.set_xlabel('noise variance')
-            axN.set_ylabel('prob')
+            axN.set_title(fieldname)
             
-            axP =   figP.add_subplot(3,3,ii+1)
+            axP =   figP.add_subplot(3,3,ii)
             axP.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'-',label='obs',c='b')
             axP.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'--',label='reweight',c='r')
             axP.set_xlabel('PSF FWHM [arcsec]')
-            axP.set_ylabel('prob')
+            axP.set_title(fieldname)
             
         obsDis_var /=obsNum
         obsDis_fwhm/=obsNum
         
-        simDis_var /=obsNum
-        simDis_fwhm/=obsNum
+        simDis_var /=simNum
+        simDis_fwhm/=simNum
         
-        simRDis_var /=obsNum
-        simRDis_fwhm/=obsNum
+        simRDis_var /=simRNum
+        simRDis_fwhm/=simRNum
         
         axN =   figN.add_subplot(3,3,7)
         axN.plot(self.gridNoi,obsDis_var,'-',label='obs',c='b')
         axN.plot(self.gridNoi,simRDis_var,'--',label='reweight',c='r')
         axN.set_xlabel('noise variance')
-        axN.set_ylabel('prob')
+        axN.set_title('All')
+        axN.legend(loc='center left', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        figN.tight_layout()
+        figN.savefig(os.path.join(self.config.pltDir,'noiVar.eps'))
             
         axP =   figP.add_subplot(3,3,7)
         axP.plot(self.gridPsf,obsDis_fwhm,'-',label='obs',c='b')
-        axP.plot(self.gridPsf,obsDis_fwhm,'--',label='reweight',c='r')
+        axP.plot(self.gridPsf,simRDis_fwhm,'--',label='reweight',c='r')
         axP.set_xlabel('PSF FWHM [arcsec]')
-        axP.set_ylabel('prob')
-        figN.savefig('noiVar.esp')
-        figN.savefig('psfFWHM.esp')
+        axP.set_title('All')
+        axP.legend(loc='center left', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        figP.tight_layout()
+        figP.savefig(os.path.join(self.config.pltDir,'psfFWHM.eps'))
         
+        tableF =    vstack(tableF)
+        tableF.sort('ifield')
+        tableF.write('noiVar_rPsf_sim.csv',overwrite=True)
         #Prepare the pool
         pool        =   Pool("psfNoiDisPlot")
         pool.cacheClear()
-        #pool.map(self.getSimVarPsf,anafnames)
+        pool.map(self.writeWeight,tableF)
         return
+    
+    def writeWeight(self,cache,row):
+        ifield  =   row['ifield']
+        self.log.info('writing weight to catalog %04d' %(ifield))
+        fieldName=  row['field_name']
+        anaFname    =   os.path.join(self.config.anaDir,fieldName,'src-%04d.fits'%(ifield))
+        catalog     =   Table.read(anaFname)
+        catalog['reweight_s16a']=row['weight']
+        catalog.write(anaFname,overwrite=True)
+        return
+        
     
     
     @classmethod
