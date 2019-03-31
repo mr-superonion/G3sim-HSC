@@ -124,7 +124,11 @@ class disAnalysisTask(BatchPoolTask):
             t_dis_obs.write(outDnameObs,overwrite=True)
         else:
             t_dis_obs=  Table.read(outDnameObs)
-        self.plotNoiPsf(t_dis,t_dis_obs,anaFieldDir)
+            
+        outDnameRw  =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
+        t_dis_rw    =   self.reWeight(t,t_dis,t_dis_obs)
+        t_dis_obs.write(outDnameRw,overwrite=True)
+        self.plotNoiPsf(t_dis,t_dis_obs,t_dis_rw,anaFieldDir)
         return
     
     def getSimVarPsf(self,cache,anafname):
@@ -161,11 +165,50 @@ class disAnalysisTask(BatchPoolTask):
         return Table(data=[gridNoi,histNoi,gridPsf,histPsf],\
                     names=self.disnames)
     
-    def plotNoiPsf(self,t_dis,t_dis_obs,anaFieldDir):
+    
+    def reWeight(self,t,t_dis,t_dis_obs):
+        #reweight for noise
+        ratios  =   np.array(t_dis_obs['histNoi']/t_dis['histNoi'])
+        weightNoi=  np.zeros(len(t))
+        for ii,ts in enumerate(t):
+            if ts['var_meas']<=self.var_bin[0] or ts['var_meas']>self.var_bin[-1]:
+                weightNoi[ii]   =   0.
+            else:
+                ind             =   np.where((ts['var_meas']>self.var_bin_0) & (ts['var_meas']<self.var_bin[1]))[0][0]
+                weightNoi[ii]   =   ratios[ind]
+        t['weightNoi']  =   weightNoi
+        #apply the noise weight
+        histNoi_rn  =   np.histogram(varNois,bins=gridNoi,weights=weightNoi,density=True)[0]
+        histPsf_rn  =   np.histogram(fwhms,bins=gridPsf,weights=weightNoi,density=True)[0]
+        #reweight for PSF
+        ratios  =   np.array(t_dis_obs['histPsf']/histPsf_rn)
+        weightPsf=  np.zeros(len(t))
+        for ii,ts in enumerate(t):
+            fwhm = ts['rpsf_det']*0.168*2.355
+            if fwhm<=self.fwhm_bin[0] or fwhm>self.fwhm_bin[-1]:
+                weightPsf['ii'] =   0.
+            else:
+                ind     =   np.where((fwhm>self.fwhm_bin_0) & (fwhm<self.fwhm_bin_1))[0][0]
+                ratio   =   ratios[ind]
+                if np.isnan(ratio) or abs(ratio)==np.inf:
+                    weightPsf[ii]=10
+                else:
+                    weightPsf[ii]=ratio
+        #apply the noise weight
+        weight  =   weightNoi*weightPsf 
+        histNoi_rp =   np.histogram(varNois,bins=gridNoi,weights=weight,density=True)[0]
+        histPsf_rp =   np.histogram(fwhms,bins=gridPsf,weights=weight,density=True)[0]
+        gridNoi =   (self.var_bin_0+self.var_bin_1)/2.
+        gridPsf =   (self.fwhm_bin_0+self.fwhm_bin_1)/2.
+        return Table(data=[gridNoi,histNoi_rp,gridPsf,histPsf_rp],\
+                    names=self.disnames)
+    
+    def plotNoiPsf(self,t_dis,t_dis_obs,t_dis_rw,anaFieldDir):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.plot(t_dis['gridNoi'],t_dis['histNoi'],'--',label='sim',c='r')
         ax.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'--',label='obs',c='b')
+        ax.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'-',label='reweight',c='r')
         ax.legend()
         plt.xlabel('noise variance')
         plt.ylabel('prob')
@@ -175,12 +218,17 @@ class disAnalysisTask(BatchPoolTask):
         ax = fig.add_subplot(111)
         ax.plot(t_dis['gridPsf'],t_dis['histPsf'],'--',label='sim',c='r')
         ax.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'--',label='obs',c='b')
+        ax.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'-',label='reweight',c='r')
         ax.legend()
         plt.xlabel('PSF FWHM [arcsec]')
         plt.ylabel('prob')
         plt.savefig(os.path.join(anaFieldDir,'psfHist.png'))
         return
 
+    
+    
+    
+    
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
