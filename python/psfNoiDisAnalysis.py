@@ -25,7 +25,7 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
-class disAnalysisConfig(pexConfig.Config):
+class psfNoiDisAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs directory')
     obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field-matched/', doc = 'observed catalogs directory')
     pltDir  =   pexConfig.Field(dtype=str, default='plot', doc = 'plot directory')
@@ -46,7 +46,7 @@ class disAnalysisConfig(pexConfig.Config):
         if not os.path.exists(self.pltDir):
             os.mkdir(self.plotDir)
 
-class disAnalysisRunner(TaskRunner):
+class psfNoiDisAnalysisRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         return [(ref, kwargs) for ref in utilities.field_keys.keys()] 
@@ -55,10 +55,10 @@ def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
 
-class disAnalysisTask(BatchPoolTask):
-    ConfigClass     =   disAnalysisConfig
-    RunnerClass     =   disAnalysisRunner
-    _DefaultName    =   "disAnalysis"
+class psfNoiDisAnalysisTask(BatchPoolTask):
+    ConfigClass     =   psfNoiDisAnalysisConfig
+    RunnerClass     =   psfNoiDisAnalysisRunner
+    _DefaultName    =   "psfNoiDisAnalysis"
     
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
@@ -99,7 +99,7 @@ class disAnalysisTask(BatchPoolTask):
         if not os.path.exists(outFname):
             anafnames   =   glob.glob('%s/*.fits' %(anaFieldDir)) 
             #Prepare the pool
-            pool        =   Pool("disAnalysis")
+            pool        =   Pool("psfNoiDisAnalysis")
             pool.cacheClear()
             rows        =   pool.map(self.getSimVarPsf,anafnames)
             rows        =   [x for x in rows if x is not None]
@@ -184,14 +184,14 @@ class disAnalysisTask(BatchPoolTask):
         for ii,ts in enumerate(t):
             fwhm = ts['rpsf_det']*0.168*2.355
             if fwhm<=self.fwhm_bin[0] or fwhm>self.fwhm_bin[-1]:
-                weightPsf['ii'] =   0.
+                weightPsf[ii] =   0.
             else:
                 ind     =   np.where((fwhm>self.fwhm_bin_0) & (fwhm<self.fwhm_bin_1))[0][0]
                 ratio   =   ratios[ind]
                 if np.isnan(ratio) or abs(ratio)==np.inf:
-                    weightPsf[ii]=10
+                    weightPsf[ii]   =   0.
                 else:
-                    weightPsf[ii]=ratio
+                    weightPsf[ii]   =   ratio
         t['weightPsf']  =   weightPsf
         #apply the noise weight
         weight  =   weightNoi*weightPsf 
