@@ -65,13 +65,15 @@ class disAnalysisTask(BatchPoolTask):
         self.nbin1      =   20
         self.nbin2      =   60
         self.varPsfnames=   ('ifield','rpsf_trace','rpsf_det','epsf1','epsf2','var_meas')
-        self.disnames   =   ('gridNoi','histNoi','gridPsf','histPsf')
+        self.disnames   =   ('gridNoi','histNoi','gridPsf','histPsf','num')
         self.fwhm_bin   =   np.linspace(0.3,0.9,self.nbin1)
         self.fwhm_bin_0 =   self.fwhm_bin[:-1]
         self.fwhm_bin_1 =   self.fwhm_bin[1:]
+        self.gridPsf    =   (self.fwhm_bin_0+self.fwhm_bin_1)/2.
         self.var_bin    =   np.linspace(0.001,0.01,self.nbin1)
         self.var_bin_0  =   self.var_bin[:-1]
         self.var_bin_1  =   self.var_bin[1:]
+        self.gridNoi    =   (self.var_bin_0+self.var_bin_1)/2.
         self.resolution_bin=np.linspace(0.1,1.,self.nbin2)
         self.resolution_bin_0  =   self.resolution_bin[:-1]
         self.resolution_bin_1  =   self.resolution_bin[1:]
@@ -110,20 +112,16 @@ class disAnalysisTask(BatchPoolTask):
         varNois =   t['var_meas']
         histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
         histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0]
-        gridNoi =   (self.var_bin_0+self.var_bin_1)/2.
-        gridPsf =   (self.fwhm_bin_0+self.fwhm_bin_1)/2.
         outDname=   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
-        t_dis   =   Table(data=[gridNoi,histNoi,gridPsf,histPsf],\
+        t_dis   =   Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(t)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
         t_dis.write(outDname,overwrite=True)
+        
         outDnameObs=    os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
         self.log.info('Achieving the distriutions for observations')
-        if not os.path.exists(outDnameObs):
-            obsFname =   os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
-            t_dis_obs=  self.getObsHist(obsFname)
-            t_dis_obs.write(outDnameObs,overwrite=True)
-        else:
-            t_dis_obs=  Table.read(outDnameObs)
+        obsFname =   os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
+        t_dis_obs=  self.getObsHist(obsFname)
+        t_dis_obs.write(outDnameObs,overwrite=True)
             
         outDnameRw  =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
         t_dis_rw    =   self.reWeight(t,t_dis,t_dis_obs)
@@ -158,11 +156,9 @@ class disAnalysisTask(BatchPoolTask):
         data    =   data[mask]
         fwhms   =   (data['psfMxx']*data['psfMyy']-data['psfMxy']**2)**(0.25)*0.168*2.355
         varNois =   data['noiVar']
-        gridNoi =   (self.var_bin_0+self.var_bin_1)/2.
-        gridPsf =   (self.fwhm_bin_0+self.fwhm_bin_1)/2.
         histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
         histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0] 
-        return Table(data=[gridNoi,histNoi,gridPsf,histPsf],\
+        return Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(data)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
     
     
@@ -174,12 +170,14 @@ class disAnalysisTask(BatchPoolTask):
             if ts['var_meas']<=self.var_bin[0] or ts['var_meas']>self.var_bin[-1]:
                 weightNoi[ii]   =   0.
             else:
-                ind             =   np.where((ts['var_meas']>self.var_bin_0) & (ts['var_meas']<self.var_bin[1]))[0][0]
+                ind             =   np.where((ts['var_meas']>self.var_bin_0) & (ts['var_meas']<self.var_bin_1))[0][0]
                 weightNoi[ii]   =   ratios[ind]
         t['weightNoi']  =   weightNoi
         #apply the noise weight
-        histNoi_rn  =   np.histogram(varNois,bins=gridNoi,weights=weightNoi,density=True)[0]
-        histPsf_rn  =   np.histogram(fwhms,bins=gridPsf,weights=weightNoi,density=True)[0]
+        fwhms       =   t['rpsf_det']*0.168*2.355
+        varNois     =   t['var_meas']
+        histNoi_rn  =   np.histogram(varNois,bins=self.var_bin,weights=weightNoi,density=True)[0]
+        histPsf_rn  =   np.histogram(fwhms,bins=self.fwhm_bin,weights=weightNoi,density=True)[0]
         #reweight for PSF
         ratios  =   np.array(t_dis_obs['histPsf']/histPsf_rn)
         weightPsf=  np.zeros(len(t))
@@ -194,21 +192,21 @@ class disAnalysisTask(BatchPoolTask):
                     weightPsf[ii]=10
                 else:
                     weightPsf[ii]=ratio
+        t['weightPsf']  =   weightPsf
         #apply the noise weight
         weight  =   weightNoi*weightPsf 
-        histNoi_rp =   np.histogram(varNois,bins=gridNoi,weights=weight,density=True)[0]
-        histPsf_rp =   np.histogram(fwhms,bins=gridPsf,weights=weight,density=True)[0]
-        gridNoi =   (self.var_bin_0+self.var_bin_1)/2.
-        gridPsf =   (self.fwhm_bin_0+self.fwhm_bin_1)/2.
-        return Table(data=[gridNoi,histNoi_rp,gridPsf,histPsf_rp],\
+        t['weight'] =   weight
+        histNoi_rp =   np.histogram(varNois,bins=self.var_bin,weights=weight,density=True)[0]
+        histPsf_rp =   np.histogram(fwhms,bins=self.fwhm_bin,weights=weight,density=True)[0]
+        return Table(data=[self.gridNoi,histNoi_rp,self.gridPsf,histPsf_rp,len(t)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
     
     def plotNoiPsf(self,t_dis,t_dis_obs,t_dis_rw,anaFieldDir):
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(t_dis['gridNoi'],t_dis['histNoi'],'--',label='sim',c='r')
-        ax.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'--',label='obs',c='b')
-        ax.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'-',label='reweight',c='r')
+        #ax.plot(t_dis['gridNoi'],t_dis['histNoi'],'--',label='sim',c='r')
+        ax.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'-',label='obs',c='b')
+        ax.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'--',label='reweight',c='r')
         ax.legend()
         plt.xlabel('noise variance')
         plt.ylabel('prob')
@@ -216,18 +214,14 @@ class disAnalysisTask(BatchPoolTask):
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(t_dis['gridPsf'],t_dis['histPsf'],'--',label='sim',c='r')
-        ax.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'--',label='obs',c='b')
-        ax.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'-',label='reweight',c='r')
+        #ax.plot(t_dis['gridPsf'],t_dis['histPsf'],'--',label='sim',c='r')
+        ax.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'-',label='obs',c='b')
+        ax.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'--',label='reweight',c='r')
         ax.legend()
         plt.xlabel('PSF FWHM [arcsec]')
         plt.ylabel('prob')
         plt.savefig(os.path.join(anaFieldDir,'psfHist.png'))
         return
-
-    
-    
-    
     
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
