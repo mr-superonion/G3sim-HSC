@@ -134,15 +134,15 @@ class disAnalysisTask(BatchPoolTask):
         ifield  =   anafname.split('-')[1].split('.')[0]
         data    =   pyfits.getdata(anafname)
         mask    =   np.ones(len(data)).astype(bool)
-        mask    =   mask&(~np.isnan(data['base_SdssShape_psf_xx']))
-        mask    =   mask&(~np.isnan(data['base_SdssShape_psf_yy']))
-        mask    =   mask&(~np.isnan(data['base_SdssShape_psf_xy']))
+        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xx']))
+        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_yy']))
+        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xy']))
         mask    =   mask&(~np.isnan(data['base_Variance_value']))
         ss      =   data[mask][0]
-        rpsf_trace  =   np.sqrt((ss['base_SdssShape_psf_xx']+ss['base_SdssShape_psf_yy'])/2.)
-        rpsf_det    =   (ss['base_SdssShape_psf_xx']*ss['base_SdssShape_psf_yy']-ss['base_SdssShape_psf_xy']**2.)**(0.25)
-        epsf1   =   (ss['base_SdssShape_psf_xx']-ss['base_SdssShape_psf_yy'])/(ss['base_SdssShape_psf_xx']+ss['base_SdssShape_psf_yy'])
-        epsf2   =   2.*ss['base_SdssShape_psf_xy']/(ss['base_SdssShape_psf_xx']+ss['base_SdssShape_psf_yy'])
+        rpsf_trace  =   np.sqrt((ss['ext_shapeHSM_HsmPsfMoments_xx']+ss['ext_shapeHSM_HsmPsfMoments_yy'])/2.)
+        rpsf_det    =   (ss['ext_shapeHSM_HsmPsfMoments_xx']*ss['ext_shapeHSM_HsmPsfMoments_yy']-ss['ext_shapeHSM_HsmPsfMoments_xy']**2.)**(0.25)
+        epsf1   =   (ss['ext_shapeHSM_HsmPsfMoments_xx']-ss['ext_shapeHSM_HsmPsfMoments_yy'])/(ss['ext_shapeHSM_HsmPsfMoments_xx']+ss['ext_shapeHSM_HsmPsfMoments_yy'])
+        epsf2   =   2.*ss['ext_shapeHSM_HsmPsfMoments_xy']/(ss['ext_shapeHSM_HsmPsfMoments_xx']+ss['ext_shapeHSM_HsmPsfMoments_yy'])
         var_meas=   ss['base_Variance_value']
         return (ifield,rpsf_trace,rpsf_det,epsf1,epsf2,var_meas)
       
