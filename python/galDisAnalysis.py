@@ -72,7 +72,7 @@ class galDisAnalysisTask(BatchPoolTask):
         self.mag_bin    =   np.linspace(22.,25.2,self.nbin2)
         self.mag_bin_0  =   self.mag_bin[:-1]
         self.mag_bin_1  =   self.mag_bin[1:]
-        self.magGrid    =   (self.snr_mag_0+self.snr_mag_1)/2.
+        self.magGrid    =   (self.mag_bin_0+self.mag_bin_1)/2.
         self.absE_bin   =   np.linspace(0.,2.,self.nbin2)
         self.absE_bin_0 =   self.absE_bin[:-1]
         self.absE_bin_1 =   self.absE_bin[1:]
@@ -128,6 +128,8 @@ class galDisAnalysisTask(BatchPoolTask):
         #do mask
         data    =   data[data['weak_lensing_flag']]
         ndata   =   len(data)
+        if ndata==0:
+            return None
         Res     =   data['ext_shapeHSM_HsmShapeRegauss_resolution']
         snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
         absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
