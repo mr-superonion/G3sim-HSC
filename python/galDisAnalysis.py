@@ -77,6 +77,7 @@ class galDisAnalysisTask(BatchPoolTask):
         self.absE_bin_0 =   self.absE_bin[:-1]
         self.absE_bin_1 =   self.absE_bin[1:]
         self.absEGrid   =   (self.absE_bin_0+self.absE_bin_1)/2.
+        self.datanames   =   ['gridRes','histRes','gridSnr','histSnr','gridMag','histMag','gridAbsE','histAbsE']
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
@@ -89,9 +90,9 @@ class galDisAnalysisTask(BatchPoolTask):
         fieldname   =   utilities.field_keys[fieldKey]
         self.log.info('Processing field: %s' %(fieldname))
         anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
-        simFname    =   os.path.join(anaFieldDir,'galDisSim.csv')
+        simOFname   =   os.path.join(anaFieldDir,'galDisSim.csv')
         self.log.info('Achieving the distriutions from simulations')
-        if not os.path.exists(simFname):
+        if not os.path.exists(simOFname):
             anafnames   =   glob.glob('%s/*.fits' %(anaFieldDir)) 
             #Prepare the pool
             pool        =   Pool("galDisAnalysis")
@@ -101,22 +102,22 @@ class galDisAnalysisTask(BatchPoolTask):
             outcomes    =   np.stack(outcomes)
             histAll     =   np.sum(outcomes,axis=0)
             datacols    =   [self.resGrid,histAll[0],self.snrGrid,histAll[1],self.magGrid,histAll[2],self.absEGrid,histAll[3]]
-            datanames   =   ['gridRes','histRes','gridSnr','histSnr','gridMag','histMag','gridAbsE','histAbsE']
-            t_dis_obs   =   Table(data=datacols,names=datanames)
-            t_dis_obs.write(simFname)
+            t_dis_sim   =   Table(data=datacols,names=self.datanames)
+            t_dis_sim.write(simOFname)
         else:
-            t_dis_obs   =   Table.read(simFname)
+            t_dis_sim   =   Table.read(simOFname)
         
         self.log.info('Achieving the distriutions from observations')
-        obsFname =   os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
-        """
-        t_dis_obs=  self.getObsHist(obsFname)
-        t_dis_obs.write(outDnameObs,overwrite=True)
+        obsFname =  os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
+        obsOFname=  os.path.join(anaFieldDir,'galDisObs.csv')
+        if not os.path.exists(obsOFname):
+            t_dis_obs   =   self.getObsGalDis(obsFname)
+            t_dis_obs.write(obsOFname)
+        else:
+            t_dis_obs   =   Table.read(obsOFname)
             
-        outDnameRw  =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
-        t_dis_rw    =   self.reWeight(t,t_dis,t_dis_obs)
-        t_dis_rw.write(outDnameRw,overwrite=True)
-        t.write(outFname,overwrite=True)
+        
+        """
         self.plotNoiPsf(t_dis,t_dis_obs,t_dis_rw,anaFieldDir)
         """
         return
@@ -142,7 +143,33 @@ class galDisAnalysisTask(BatchPoolTask):
         histAbsE=   np.histogram(absE,bins=self.absE_bin,density=True)[0]*ndata*rw
         return  np.vstack([histRes,histSnr,histMag,histAbsE])
     
-    
+    def getObsGalDis(self,obsFname)
+        data    =   fitsio.read(obsFname)
+        mask    =   np.ones(len(data)).astype(bool)
+        mask    =   mask&(~np.isnan(data['reGaus_resolution']))
+        mask    =   mask&(~np.isnan(data['CModel_snr']))
+        mask    =   mask&(~np.isnan(data['CModel_mag']))
+        mask    =   mask&(~np.isnan(data['reGaus_sigmaE']))
+        mask    =   mask&((data['CModel_mag'])<24.5)
+        mask    =   mask&(data['extendness']>0)
+        mask    =   mask&(data['reGaus_resolution']>0.3)
+        mask    =   mask&(data['CModel_snr']>10.)
+        mask    =   mask&(data['reGaus_sigmaE']<2.)
+        data    =   data[mask]
+        absE    =   data['reGaus_sigmaE']
+        Res     =   data['reGaus_resolution']
+        mag     =   data['CModel_mag']
+        snr     =   data['CModel_snr']
+        ndata   =   len(data)
+        histRes =   np.histogram(Res,bins=self.resolution_bin,density=True)[0]*ndata
+        histSnr =   np.histogram(snr,bins=self.snr_bin,density=True)[0]*ndata
+        histMag =   np.histogram(mag,bins=self.mag_bin,density=True)[0]*ndata
+        histAbsE=   np.histogram(absE,bins=self.absE_bin,density=True)[0]*ndata
+        obscols =   [self.resGrid,histRes,self.snrGrid,histSnr,self.magGrid,histMag,self.absEGrid,histAbsE]
+        t_dis_obs=   Table(data=obscols,names=self.datanames)
+        
+        return t_dis_obs
+        
     def plotNoiPsf(self,t_dis,t_dis_obs,t_dis_rw,anaFieldDir):
         fig = plt.figure()
         ax = fig.add_subplot(111)
