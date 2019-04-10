@@ -50,8 +50,10 @@ class prepareSimAnalysisConfig(pexConfig.Config):
         pexConfig.Config.validate(self)
         if not os.path.exists(self.anaDir):
             os.mkdir(self.anaDir)
-        for key in field_keys:
-            fN  =   field_keys[key]
+        for key in utilities.field_keys:
+            if key=='aegis':
+                continue
+            fN  =   utilities.field_keys[key]
             tmN =   os.path.join(self.anaDir,fN)
             if not os.path.exists(tmN):
                 os.mkdir(tmN)
@@ -93,16 +95,16 @@ class prepareSimAnalysisTask(BatchPoolTask):
         outcomes    =   pool.map(self.process,simList)
         outcomes    =   [x for x in outcomes if x is not None]
         catalogAll  =   vstack(outcomes)
-        outFname    =   os.path.join(self.config.anaDir,fieldName,'%s.fits'%(fieldName))
-        catalog.write(outFname)
+        outFname    =   os.path.join(self.config.anaDir,fieldname,'%s.fits'%(fieldname))
+        catalogAll.write(outFname)
         return
         
     def process(self,cache,ifield):
         self.log.info('Processing subfield %s' %(ifield))
-        catalog     =   prepare_sim_catalog('./',self.config.simDir,ifield,rescale_est_variance=self.config.rescale_noise)
+        catalog     =   utilities.prepare_sim_catalog('./',self.config.simDir,ifield,rescale_est_variance=self.config.rescale_noise)
         if catalog is None:
             self.log.info('failed to process subfield %d' %(ifield) )
-        return 
+        return catalog 
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
