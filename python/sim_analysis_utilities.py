@@ -91,6 +91,10 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
             (~np.isnan(catalog['modelfit_CModel_fluxSigma'])) & \
             (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution'])) & \
             (catalog['deblend_nChild']==0)&(catalog['centDist']<5.)
+    mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xx']))
+    mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_yy']))
+    mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xy']))
+    mask    =   mask&(~np.isnan(data['base_Variance_value']))
     catalog = catalog[mask]
     if len(catalog)==0:
         return None

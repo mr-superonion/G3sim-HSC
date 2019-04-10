@@ -91,7 +91,6 @@ class prepareSimAnalysisTask(BatchPoolTask):
         pool.cacheClear()
         simList =   Table.read('noiVar_rPsf_s18a.csv')
         simList =   simList[simList['field']==fieldKey]['num']
-        #fieldList=  range(18,19)
         outcomes    =   pool.map(self.process,simList)
         outcomes    =   [x for x in outcomes if x is not None]
         catalogAll  =   vstack(outcomes)
@@ -103,7 +102,7 @@ class prepareSimAnalysisTask(BatchPoolTask):
         self.log.info('Processing subfield %s' %(ifield))
         catalog     =   utilities.prepare_sim_catalog('./',self.config.simDir,ifield,rescale_est_variance=self.config.rescale_noise)
         if catalog is None:
-            self.log.info('failed to process subfield %d' %(ifield) )
+            self.log.info('failed to process subfield %d' %(ifield))
         return catalog 
 
     @classmethod

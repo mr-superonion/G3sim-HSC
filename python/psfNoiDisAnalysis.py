@@ -60,7 +60,6 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.nbin1      =   20
-        self.nbin2      =   60
         self.varPsfnames=   ('ifield','rpsf_trace','rpsf_det','epsf1','epsf2','var_meas')
         self.disnames   =   ('gridNoi','histNoi','gridPsf','histPsf','num')
         self.fwhm_bin   =   np.linspace(0.3,0.9,self.nbin1)
@@ -95,7 +94,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         self.log.info('Achieving the distriutions for observations')
         outDnameObs =   os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
         if not os.path.exists(outDnameObs):
-            obsFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
+            obsFname    =   os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
             dataObs     =   fitsio.read(obsFname)
             t_dis_obs   =   self.getObsHist(dataObs)
             t_dis_obs.write(outDnameObs,overwrite=True)
@@ -104,21 +103,23 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
             
         self.log.info('Achieving the distriutions for simulations')
         outDname    =   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
+        simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
         dataSim     =   fitsio.read(simFname)
+        dataSim     =   self.maskSim(dataSim)
         if not os.path.exists(outDname):
-            simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
-            t_dis_sim   =   self.getObsHist(dataSim)
+            t_dis_sim   =   self.getSimHist(dataSim)
             t_dis_sim.write(outDname,overwrite=True)
         else:
             t_dis_sim   =   Table.read(outDname)
-        
-        ratios_noi  =   np.array(t_dis_obs['histNoi']/t_dis_sim['histNoi'])
-        """            
-        outDnameRw  =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
-        t_dis_rw    =   self.reWeight(dataSim,t_dis_sim,t_dis_obs)
-        t_dis_rw.write(outDnameRw,overwrite=True)
+         
+        self.log.info('Reweighting the simulations')
+        outDnameRw      =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
+        if not os.path.exists(outDnameRw):
+            t_dis_rw    =   self.reWeight(dataSim,t_dis_sim,t_dis_obs)
+            t_dis_rw.write(outDnameRw,overwrite=True)
+        else:
+            t_dis_rw    =   Table.read(outDnameRw)   
         self.plotNoiPsf(t_dis_sim,t_dis_obs,t_dis_rw,anaFieldDir)
-        """
         return
     
     def getObsHist(self,data):
@@ -127,7 +128,6 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         mask    =   mask&(~np.isnan(data['psfMxx']))
         mask    =   mask&(~np.isnan(data['psfMyy']))
         mask    =   mask&(~np.isnan(data['psfMxy']))
-        data    =   data[mask]
         mask    =   mask&((data['CModel_mag'])<24.5)
         mask    =   mask&(data['extendness']>0)
         mask    =   mask&(data['ishape_hsm_regauss_sigma']>0.)
@@ -143,66 +143,59 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         return Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(data)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
     
-    
+    def maskSim(self,data): 
+        mask    =   np.ones(len(data)).astype(bool)
+        mask    =   mask&(data['weak_lensing_flag'])
+        data    =   data[mask]
+        return data
     
     def getSimHist(self,data):
         #Get the noise variance and psf information
-        mask    =   np.ones(len(data)).astype(bool)
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xx']))
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_yy']))
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xy']))
-        mask    =   mask&(~np.isnan(data['base_Variance_value']))
-        mask    =   mask&(data['weak_lensing_flag'])
-        data    =   data[mask]
-        rpsf_trace  =   np.sqrt((data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])/2.)
-        rpsf_det    =   (data['ext_shapeHSM_HsmPsfMoments_xx']*data['ext_shapeHSM_HsmPsfMoments_yy']-data['ext_shapeHSM_HsmPsfMoments_xy']**2.)**(0.25)
+        varNois =   data['base_Variance_value']
+        rpsf_det=   (data['ext_shapeHSM_HsmPsfMoments_xx']*data['ext_shapeHSM_HsmPsfMoments_yy']-data['ext_shapeHSM_HsmPsfMoments_xy']**2.)**(0.25)
+        fwhms   =   rpsf_det*0.168*2.355
         epsf1   =   (data['ext_shapeHSM_HsmPsfMoments_xx']-data['ext_shapeHSM_HsmPsfMoments_yy'])/(data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])
         epsf2   =   2.*data['ext_shapeHSM_HsmPsfMoments_xy']/(data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])
-        varNois =   data['base_Variance_value']
-        fwhms   =   rpsf_det*0.168*2.355
+        rpsf_trace  =   np.sqrt((data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])/2.)
         histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
         histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0]
         return Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(data)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
       
     
-    def reWeight(self,t,t_dis,t_dis_obs):
+    def reWeight(self,data,t_dis,t_dis_obs):
+        varNois =   data['base_Variance_value']
+        rpsf_det=   (data['ext_shapeHSM_HsmPsfMoments_xx']*data['ext_shapeHSM_HsmPsfMoments_yy']-data['ext_shapeHSM_HsmPsfMoments_xy']**2.)**(0.25)
+        fwhms   =   rpsf_det*0.168*2.355
         #reweight for noise
-       
-        weightNoi=  np.zeros(len(t))
-        for ii,ts in enumerate(t):
-            if ts['var_meas']<=self.var_bin[0] or ts['var_meas']>self.var_bin[-1]:
+        ratio_noi=   np.array(t_dis_obs['histNoi']/t_dis['histNoi'])
+        weightNoi=  np.zeros(len(data))
+        for ii,vn in enumerate(varNois):
+            if vn<=self.var_bin[0] or vn>self.var_bin[-1]:
                 weightNoi[ii]   =   0.
             else:
-                ind             =   np.where((ts['var_meas']>self.var_bin_0) & (ts['var_meas']<self.var_bin_1))[0][0]
-                weightNoi[ii]   =   ratios[ind]
-        t['weightNoi']  =   weightNoi
+                ind             =   np.where((vn>self.var_bin_0) & (vn<self.var_bin_1))[0][0]
+                weightNoi[ii]   =   ratio_noi[ind]
         #apply the noise weight
-        fwhms       =   t['rpsf_det']*0.168*2.355
-        varNois     =   t['var_meas']
         histNoi_rn  =   np.histogram(varNois,bins=self.var_bin,weights=weightNoi,density=True)[0]
         histPsf_rn  =   np.histogram(fwhms,bins=self.fwhm_bin,weights=weightNoi,density=True)[0]
         #reweight for PSF
         ratios  =   np.array(t_dis_obs['histPsf']/histPsf_rn)
-        weightPsf=  np.zeros(len(t))
-        for ii,ts in enumerate(t):
-            fwhm = ts['rpsf_det']*0.168*2.355
-            if fwhm<=self.fwhm_bin[0] or fwhm>self.fwhm_bin[-1]:
+        weightPsf=  np.zeros(len(data))
+        for ii,rp in enumerate(fwhms):
+            if rp<=self.fwhm_bin[0] or rp>self.fwhm_bin[-1]:
                 weightPsf[ii] =   0.
             else:
-                ind     =   np.where((fwhm>self.fwhm_bin_0) & (fwhm<self.fwhm_bin_1))[0][0]
+                ind     =   np.where((rp>self.fwhm_bin_0) & (rp<self.fwhm_bin_1))[0][0]
                 ratio   =   ratios[ind]
                 if np.isnan(ratio) or abs(ratio)==np.inf:
-                    weightPsf[ii]   =   0.
+                    weightPsf[ii]   =   10.
                 else:
                     weightPsf[ii]   =   ratio
-        t['weightPsf']  =   weightPsf
-        #apply the noise weight
-        weight  =   weightNoi*weightPsf 
-        t['weight'] =   weight
-        histNoi_rp =   np.histogram(varNois,bins=self.var_bin,weights=weight,density=True)[0]
-        histPsf_rp =   np.histogram(fwhms,bins=self.fwhm_bin,weights=weight,density=True)[0]
-        return Table(data=[self.gridNoi,histNoi_rp,self.gridPsf,histPsf_rp,len(t)*np.ones(len(self.gridNoi))],\
+        data['reweight_s16a']  =   weightPsf*weightNoi
+        histNoi_rp =   np.histogram(varNois,bins=self.var_bin,weights=data['reweight_s16a'],density=True)[0]
+        histPsf_rp =   np.histogram(fwhms,bins=self.fwhm_bin,weights=data['reweight_s16a'],density=True)[0]
+        return Table(data=[self.gridNoi,histNoi_rp,self.gridPsf,histPsf_rp,len(data)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
     
     def plotNoiPsf(self,t_dis,t_dis_obs,t_dis_rw,anaFieldDir):
