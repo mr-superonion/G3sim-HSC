@@ -76,12 +76,12 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
                 parentTask=self._parentTask, log=self.log))
     
     @abortOnError
-    
     def run(self,Id):
         #Prepare the pool
         pool        =   Pool("psfNoiDisAnalysis")
         pool.cacheClear()
         pool.map(self.process,utilities.field_keys.keys())
+        self.finalPlot()
         return
     
     def process(self,cache,fieldKey):
@@ -218,6 +218,89 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         plt.xlabel('PSF FWHM [arcsec]')
         plt.ylabel('prob')
         plt.savefig(os.path.join(anaFieldDir,'psfHist.png'))
+        return
+    
+    
+    def finalPlot(self):
+        obsDis_var  =   np.zeros(self.nbin1-1)
+        obsDis_fwhm =   np.zeros(self.nbin1-1)
+        obsNum      =   np.zeros(self.nbin1-1)
+        
+        simDis_var  =   np.zeros(self.nbin1-1)
+        simDis_fwhm =   np.zeros(self.nbin1-1)
+        simNum      =   np.zeros(self.nbin1-1)
+        
+        simRDis_var  =   np.zeros(self.nbin1-1)
+        simRDis_fwhm =   np.zeros(self.nbin1-1)
+        simRNum      =   np.zeros(self.nbin1-1)
+        
+        
+        figN=   plt.figure()
+        figP=   plt.figure()
+        for ii,fieldKey in enumerate(utilities.field_keys):
+            if fieldKey=='aegis':
+                continue
+            
+            fieldname   =   utilities.field_keys[fieldKey]
+            anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
+            
+            disnameOri  =   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
+            t_dis       =   Table.read(disnameOri)
+            simDis_var  +=  t_dis['histNoi']*t_dis['num']
+            simDis_fwhm +=  t_dis['histPsf']*t_dis['num']
+            simNum      +=  t_dis['num'] 
+            
+            disnameObs  =    os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
+            t_dis_obs   =   Table.read(disnameObs)
+            obsDis_var  +=  t_dis_obs['histNoi']*t_dis_obs['num']
+            obsDis_fwhm +=  t_dis_obs['histPsf']*t_dis_obs['num']
+            obsNum      +=  t_dis_obs['num'] 
+            
+            disnameRw   =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
+            t_dis_rw    =   Table.read(disnameRw)
+            simRDis_var +=  t_dis_rw['histNoi']*t_dis_rw['num']
+            simRDis_fwhm+=  t_dis_rw['histPsf']*t_dis_rw['num']
+            simRNum     +=  t_dis_rw['num']
+            
+            
+            axN =   figN.add_subplot(3,3,ii)
+            axN.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'-',label='obs',c='b')
+            axN.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'--',label='reweight',c='r')
+            axN.set_xlabel('noise variance')
+            axN.set_title(fieldname)
+            
+            axP =   figP.add_subplot(3,3,ii)
+            axP.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'-',label='obs',c='b')
+            axP.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'--',label='reweight',c='r')
+            axP.set_xlabel('PSF FWHM [arcsec]')
+            axP.set_title(fieldname)
+            
+        obsDis_var /=obsNum
+        obsDis_fwhm/=obsNum
+        
+        simDis_var /=simNum
+        simDis_fwhm/=simNum
+        
+        simRDis_var /=simRNum
+        simRDis_fwhm/=simRNum
+        
+        axN =   figN.add_subplot(3,3,7)
+        axN.plot(self.gridNoi,obsDis_var,'-',label='obs',c='b')
+        axN.plot(self.gridNoi,simRDis_var,'--',label='reweight',c='r')
+        axN.set_xlabel('noise variance')
+        axN.set_title('All')
+        axN.legend(loc='center left', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        figN.tight_layout()
+        figN.savefig(os.path.join(self.config.pltDir,'noiVar2.eps'))
+            
+        axP =   figP.add_subplot(3,3,7)
+        axP.plot(self.gridPsf,obsDis_fwhm,'-',label='obs',c='b')
+        axP.plot(self.gridPsf,simRDis_fwhm,'--',label='reweight',c='r')
+        axP.set_xlabel('PSF FWHM [arcsec]')
+        axP.set_title('All')
+        axP.legend(loc='center left', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        figP.tight_layout()
+        figP.savefig(os.path.join(self.config.pltDir,'psfFWHM2.eps'))
         return
     
     @classmethod
