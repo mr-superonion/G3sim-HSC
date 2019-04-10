@@ -47,7 +47,7 @@ class galDisAnalysisConfig(pexConfig.Config):
 class galDisAnalysisRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in utilities.field_keys.keys()] 
+        return [(ref, kwargs) for ref in range(1)] 
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -77,35 +77,26 @@ class galDisAnalysisTask(BatchPoolTask):
         self.absE_bin_0 =   self.absE_bin[:-1]
         self.absE_bin_1 =   self.absE_bin[1:]
         self.absEGrid   =   (self.absE_bin_0+self.absE_bin_1)/2.
-        self.datanames   =   ['gridRes','histRes','gridSnr','histSnr','gridMag','histMag','gridAbsE','histAbsE']
+        self.datanames   =   ['gridRes','histRes','gridSnr','histSnr','gridMag','histMag','gridAbsE','histAbsE','num']
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
                 parentTask=self._parentTask, log=self.log))
     
     @abortOnError
-    def run(self,fieldKey):
+    def run(self,Id)
+        #Prepare the pool
+        pool        =   Pool("galDisAnalysis")
+        pool.cacheClear()
+        pool.map(self.getSimGalDis,utilities.field_keys.keys())
+        return
+    
+    def process(self,fieldKey):
         if fieldKey=='aegis':
             return
         fieldname   =   utilities.field_keys[fieldKey]
         self.log.info('Processing field: %s' %(fieldname))
         anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
-        simOFname   =   os.path.join(anaFieldDir,'galDisSim.csv')
-        self.log.info('Achieving the distriutions from simulations')
-        if not os.path.exists(simOFname):
-            anafnames   =   glob.glob('%s/*.fits' %(anaFieldDir)) 
-            #Prepare the pool
-            pool        =   Pool("galDisAnalysis")
-            pool.cacheClear()
-            outcomes    =   pool.map(self.getSimGalDis,anafnames)
-            outcomes    =   [x for x in outcomes if x is not None]
-            outcomes    =   np.stack(outcomes)
-            histAll     =   np.sum(outcomes,axis=0)
-            datacols    =   [self.resGrid,histAll[0],self.snrGrid,histAll[1],self.magGrid,histAll[2],self.absEGrid,histAll[3]]
-            t_dis_sim   =   Table(data=datacols,names=self.datanames)
-            t_dis_sim.write(simOFname)
-        else:
-            t_dis_sim   =   Table.read(simOFname)
         
         self.log.info('Achieving the distriutions from observations')
         obsFname =  os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
@@ -115,30 +106,17 @@ class galDisAnalysisTask(BatchPoolTask):
             t_dis_obs.write(obsOFname)
         else:
             t_dis_obs   =   Table.read(obsOFname)
+        
+        self.log.info('Achieving the distriutions from simulations')
+        simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
+        simOFname   =   os.path.join(anaFieldDir,'galDisSim.csv')
+        if not os.path.exists(simOFname):
+            t_dis_sim.write(simOFname)
+        else:
+            t_dis_sim   =   Table.read(simOFname)
             
-        self.plotNoiPsf(t_dis_obs,t_dis_sim,anaFieldDir)
+        self.plotGalDis(t_dis_obs,t_dis_sim,anaFieldDir)
         return
-    
-    def getSimGalDis(self,cache,anafname):
-        #Get the noise variance and psf information
-        ifield  =   anafname.split('-')[1].split('.')[0]
-        data    =   fitsio.read(anafname)
-        #do mask
-        data    =   data[data['weak_lensing_flag']]
-        ndata   =   len(data)
-        if ndata==0:
-            return None
-        Res     =   data['ext_shapeHSM_HsmShapeRegauss_resolution']
-        snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
-        absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
-        absE    =   np.sqrt(absE)
-        mag     =   data['Mag']
-        rw      =   data[0]['reweight_s16a']
-        histRes =   np.histogram(Res,bins=self.resolution_bin,density=True)[0]*ndata*rw
-        histSnr =   np.histogram(snr,bins=self.snr_bin,density=True)[0]*ndata*rw
-        histMag =   np.histogram(mag,bins=self.mag_bin,density=True)[0]*ndata*rw
-        histAbsE=   np.histogram(absE,bins=self.absE_bin,density=True)[0]*ndata*rw
-        return  np.vstack([histRes,histSnr,histMag,histAbsE])
     
     def getObsGalDis(self,obsFname):
         data    =   fitsio.read(obsFname)
@@ -159,23 +137,43 @@ class galDisAnalysisTask(BatchPoolTask):
         Res     =   data['reGaus_resolution']
         mag     =   data['CModel_mag']
         snr     =   data['CModel_snr']
-        ndata   =   len(data)
-        histRes =   np.histogram(Res,bins=self.resolution_bin,density=True)[0]*ndata
-        histSnr =   np.histogram(snr,bins=self.snr_bin,density=True)[0]*ndata
-        histMag =   np.histogram(mag,bins=self.mag_bin,density=True)[0]*ndata
-        histAbsE=   np.histogram(absE,bins=self.absE_bin,density=True)[0]*ndata
-        obscols =   [self.resGrid,histRes,self.snrGrid,histSnr,self.magGrid,histMag,self.absEGrid,histAbsE]
+        ndata   =   len(data)*np.ones(len(self.nbin2-1))
+        histRes =   np.histogram(Res,bins=self.resolution_bin,density=True)[0]
+        histSnr =   np.histogram(snr,bins=self.snr_bin,density=True)[0]
+        histMag =   np.histogram(mag,bins=self.mag_bin,density=True)[0]
+        histAbsE=   np.histogram(absE,bins=self.absE_bin,density=True)[0]
+        obscols = [self.resGrid,histRes,self.snrGrid,histSnr,self.magGrid,histMag,self.absEGrid,histAbsE,ndata]
         t_dis_obs=   Table(data=obscols,names=self.datanames)
         
         return t_dis_obs
         
-    def plotNoiPsf(self,t_dis_obs,t_dis_rw,anaFieldDir):
+    def getSimGalDis(self,cache,simFname):
+        #Get the noise variance and psf information
+        ifield  =   anafname.split('-')[1].split('.')[0]
+        data    =   fitsio.read(simFname)
+        #do mask
+        data    =   data[data['weak_lensing_flag']]
+        ndata   =   len(data)*np.ones(len(self.nbin2-1))
+        Res     =   data['ext_shapeHSM_HsmShapeRegauss_resolution']
+        snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
+        absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
+        absE    =   np.sqrt(absE)
+        mag     =   data['Mag']
+        weight  =   data['reweight_s16a']
+        histRes =   np.histogram(Res,bins=self.resolution_bin,weights=weight,density=True)[0]
+        histSnr =   np.histogram(snr,bins=self.snr_bin,weights=weight,density=True)[0]
+        histMag =   np.histogram(mag,bins=self.mag_bin,weights=weight,density=True)[0]
+        histAbsE=   np.histogram(absE,bins=self.absE_bin,weights=weight,density=True)[0]
+        obscols = [self.resGrid,histRes,self.snrGrid,histSnr,self.magGrid,histMag,self.absEGrid,histAbsE,ndata]
+        t_dis_sim=   Table(data=obscols,names=self.datanames)
+        return t_dis_sim
+    
+    
+    def plotGalDis(self,t_dis_obs,t_dis_rw,anaFieldDir):
         fig =   plt.figure()
         ax  =   fig.add_subplot(111)
-        tp  =  t_dis_obs['histRes']/sum(t_dis_obs['histRes'])/(t_dis_obs['gridRes'][1]-t_dis_obs['gridRes'][0])
-        ax.plot(t_dis_obs['gridRes'],tp,'-',label='obs',c='b')
-        tp  =  t_dis_rw['histRes']/sum(t_dis_rw['histRes'])/(t_dis_rw['gridRes'][1]-t_dis_rw['gridRes'][0])
-        ax.plot(t_dis_rw['gridRes'],tp,'--',label='reweight',c='r')
+        ax.plot(t_dis_obs['gridRes'],t_dis_obs['histRes'],'-',label='obs',c='b')
+        ax.plot(t_dis_rw['gridRes'],t_dis_rw['histRes'],'--',label='reweight',c='r')
 
         ax.legend()
         plt.xlabel('resolution')
@@ -184,10 +182,8 @@ class galDisAnalysisTask(BatchPoolTask):
 
         fig =   plt.figure()
         ax  =   fig.add_subplot(111)
-        tp  =  t_dis_obs['histSnr']/sum(t_dis_obs['histSnr'])/(t_dis_obs['gridSnr'][1]-t_dis_obs['gridSnr'][0])
-        ax.plot(t_dis_obs['gridSnr'],tp,'-',label='obs',c='b')
-        tp  =  t_dis_rw['histSnr']/sum(t_dis_rw['histSnr'])/(t_dis_rw['gridSnr'][1]-t_dis_rw['gridSnr'][0])
-        ax.plot(t_dis_rw['gridSnr'],tp,'--',label='reweight',c='r')
+        ax.plot(t_dis_obs['gridSnr'],t_dis_obs['histSnr'],'-',label='obs',c='b')
+        ax.plot(t_dis_rw['gridSnr'],t_dis_rw['histSnr'],'--',label='reweight',c='r')
 
         ax.legend()
         plt.xlabel('CModel SNR')
