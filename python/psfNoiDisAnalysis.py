@@ -3,8 +3,7 @@
 import os
 import sys
 import glob
-import optparse
-import astropy.io.fits as pyfits
+import fitsio
 import sim_analysis_utilities as utilities
 import numpy as np
 from astropy.table import Table, vstack
@@ -47,7 +46,7 @@ class psfNoiDisAnalysisConfig(pexConfig.Config):
 class psfNoiDisAnalysisRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in utilities.field_keys.keys()] 
+        return [(ref, kwargs) for ref in range(1)] 
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -78,72 +77,64 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
                 parentTask=self._parentTask, log=self.log))
     
     @abortOnError
-    def run(self,fieldKey):
+    
+    def run(self,Id):
+        #Prepare the pool
+        pool        =   Pool("psfNoiDisAnalysis")
+        pool.cacheClear()
+        pool.map(self.process,utilities.field_keys.keys())
+        return
+    
+    def process(self,cache,fieldKey):
         if fieldKey=='aegis':
             return
         fieldname   =   utilities.field_keys[fieldKey]
         self.log.info('Processing field: %s' %(fieldname))
         anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
-        outFname    =   os.path.join(anaFieldDir,'varPSF.csv')
-        self.log.info('Achieving the distriutions for simulations')
-        if not os.path.exists(outFname):
-            anafnames   =   glob.glob('%s/*.fits' %(anaFieldDir)) 
-            #Prepare the pool
-            pool        =   Pool("psfNoiDisAnalysis")
-            pool.cacheClear()
-            rows        =   pool.map(self.getSimVarPsf,anafnames)
-            rows        =   [x for x in rows if x is not None]
-            t           =   Table(rows=rows, names=self.varPsfnames)
-            t.sort('ifield')
-            t.write(outFname,overwrite=True)
-        else:
-            t   =   Table.read(outFname)
-        fwhms   =   t['rpsf_det']*0.168*2.355
-        varNois =   t['var_meas']
-        histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
-        histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0]
-        outDname=   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
-        t_dis   =   Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(t)*np.ones(len(self.gridNoi))],\
-                    names=self.disnames)
-        t_dis.write(outDname,overwrite=True)
         
-        outDnameObs=    os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
         self.log.info('Achieving the distriutions for observations')
-        obsFname =   os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
-        t_dis_obs=  self.getObsHist(obsFname)
-        t_dis_obs.write(outDnameObs,overwrite=True)
+        outDnameObs =   os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
+        if not os.path.exists(outDnameObs):
+            obsFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
+            dataObs     =   fitsio.read(obsFname)
+            t_dis_obs   =   self.getObsHist(dataObs)
+            t_dis_obs.write(outDnameObs,overwrite=True)
+        else:
+            t_dis_obs   =   Table.read(outDnameObs)
             
+        self.log.info('Achieving the distriutions for simulations')
+        outDname    =   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
+        dataSim     =   fitsio.read(simFname)
+        if not os.path.exists(outDname):
+            simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
+            t_dis_sim   =   self.getObsHist(dataSim)
+            t_dis_sim.write(outDname,overwrite=True)
+        else:
+            t_dis_sim   =   Table.read(outDname)
+        
+        ratios_noi  =   np.array(t_dis_obs['histNoi']/t_dis_sim['histNoi'])
+        """            
         outDnameRw  =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
-        t_dis_rw    =   self.reWeight(t,t_dis,t_dis_obs)
+        t_dis_rw    =   self.reWeight(dataSim,t_dis_sim,t_dis_obs)
         t_dis_rw.write(outDnameRw,overwrite=True)
-        t.write(outFname,overwrite=True)
-        self.plotNoiPsf(t_dis,t_dis_obs,t_dis_rw,anaFieldDir)
+        self.plotNoiPsf(t_dis_sim,t_dis_obs,t_dis_rw,anaFieldDir)
+        """
         return
     
-    def getSimVarPsf(self,cache,anafname):
-        #Get the noise variance and psf information
-        ifield  =   anafname.split('-')[1].split('.')[0]
-        data    =   pyfits.getdata(anafname)
-        mask    =   np.ones(len(data)).astype(bool)
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xx']))
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_yy']))
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xy']))
-        mask    =   mask&(~np.isnan(data['base_Variance_value']))
-        ss      =   data[mask][0]
-        rpsf_trace  =   np.sqrt((ss['ext_shapeHSM_HsmPsfMoments_xx']+ss['ext_shapeHSM_HsmPsfMoments_yy'])/2.)
-        rpsf_det    =   (ss['ext_shapeHSM_HsmPsfMoments_xx']*ss['ext_shapeHSM_HsmPsfMoments_yy']-ss['ext_shapeHSM_HsmPsfMoments_xy']**2.)**(0.25)
-        epsf1   =   (ss['ext_shapeHSM_HsmPsfMoments_xx']-ss['ext_shapeHSM_HsmPsfMoments_yy'])/(ss['ext_shapeHSM_HsmPsfMoments_xx']+ss['ext_shapeHSM_HsmPsfMoments_yy'])
-        epsf2   =   2.*ss['ext_shapeHSM_HsmPsfMoments_xy']/(ss['ext_shapeHSM_HsmPsfMoments_xx']+ss['ext_shapeHSM_HsmPsfMoments_yy'])
-        var_meas=   ss['base_Variance_value']
-        return (ifield,rpsf_trace,rpsf_det,epsf1,epsf2,var_meas)
-      
-    def getObsHist(self,obsFname):
-        data    =   pyfits.getdata(obsFname)
+    def getObsHist(self,data):
         mask    =   np.ones(len(data)).astype(bool)
         mask    =   mask&(~np.isnan(data['noiVar']))
         mask    =   mask&(~np.isnan(data['psfMxx']))
         mask    =   mask&(~np.isnan(data['psfMyy']))
         mask    =   mask&(~np.isnan(data['psfMxy']))
+        data    =   data[mask]
+        mask    =   mask&((data['CModel_mag'])<24.5)
+        mask    =   mask&(data['extendness']>0)
+        mask    =   mask&(data['ishape_hsm_regauss_sigma']>0.)
+        mask    =   mask&(data['ishape_hsm_regauss_sigma']<0.4)
+        mask    =   mask&(data['reGaus_resolution']>0.3)
+        mask    =   mask&(data['CModel_snr']>10.)
+        mask    =   mask&(data['reGaus_sigmaE']<2.)
         data    =   data[mask]
         fwhms   =   (data['psfMxx']*data['psfMyy']-data['psfMxy']**2)**(0.25)*0.168*2.355
         varNois =   data['noiVar']
@@ -153,9 +144,31 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
                     names=self.disnames)
     
     
+    
+    def getSimHist(self,data):
+        #Get the noise variance and psf information
+        mask    =   np.ones(len(data)).astype(bool)
+        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xx']))
+        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_yy']))
+        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xy']))
+        mask    =   mask&(~np.isnan(data['base_Variance_value']))
+        mask    =   mask&(data['weak_lensing_flag'])
+        data    =   data[mask]
+        rpsf_trace  =   np.sqrt((data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])/2.)
+        rpsf_det    =   (data['ext_shapeHSM_HsmPsfMoments_xx']*data['ext_shapeHSM_HsmPsfMoments_yy']-data['ext_shapeHSM_HsmPsfMoments_xy']**2.)**(0.25)
+        epsf1   =   (data['ext_shapeHSM_HsmPsfMoments_xx']-data['ext_shapeHSM_HsmPsfMoments_yy'])/(data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])
+        epsf2   =   2.*data['ext_shapeHSM_HsmPsfMoments_xy']/(data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])
+        varNois =   data['base_Variance_value']
+        fwhms   =   rpsf_det*0.168*2.355
+        histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
+        histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0]
+        return Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(data)*np.ones(len(self.gridNoi))],\
+                    names=self.disnames)
+      
+    
     def reWeight(self,t,t_dis,t_dis_obs):
         #reweight for noise
-        ratios  =   np.array(t_dis_obs['histNoi']/t_dis['histNoi'])
+       
         weightNoi=  np.zeros(len(t))
         for ii,ts in enumerate(t):
             if ts['var_meas']<=self.var_bin[0] or ts['var_meas']>self.var_bin[-1]:
