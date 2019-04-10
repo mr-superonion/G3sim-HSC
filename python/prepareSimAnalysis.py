@@ -28,7 +28,7 @@
 import sys
 import os
 from astropy.table import Table, vstack
-from sim_analysis_utilities import *
+import sim_analysis_utilities as utilities
 
 import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
@@ -42,7 +42,6 @@ class prepareSimAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'output catalogs')
     simDir  =   pexConfig.Field(dtype=str, default='outcomeFPFS', doc = 'input catalogs')
     version =   pexConfig.Field(dtype=str, default='v1', doc = 'input catalogs')
-    nSims   =   pexConfig.Field(dtype=int, default=3200, doc = 'number of simulations')
     rescale_noise  =   pexConfig.Field(dtype=bool, default=False, doc = 'rescale measrued noise variance to the target noise variance')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
@@ -60,7 +59,7 @@ class prepareSimAnalysisConfig(pexConfig.Config):
 class processSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in range(1)] 
+        return [(ref, kwargs) for ref in utilities.field_keys.keys()] 
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -80,19 +79,21 @@ class prepareSimAnalysisTask(BatchPoolTask):
                 parentTask=self._parentTask, log=self.log))
     
     @abortOnError
-    def run(self,Id):
-        # Get the  galaxy generator      
-        # Load data
+    def run(self,fieldKey):
+        if fieldKey=='aegis':
+            return
+        fieldname   =   utilities.field_keys[fieldKey]
+        self.log.info('Processing field: %s' %(fieldname))
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        fieldList=  range(self.config.nSims)
+        simList =   Table.read('noiVar_rPsf_s18a.csv')
+        simList =   simList[simList['field']==fieldKey]['num']
         #fieldList=  range(18,19)
-        outcomes    =   pool.map(self.process,fieldList)
+        outcomes    =   pool.map(self.process,simList)
         outcomes    =   [x for x in outcomes if x is not None]
         catalogAll  =   vstack(outcomes)
-        fieldName   =   catalogAll[0]['field_name']
-        outFname    =   os.path.join(self.config.anaDir,fieldName,'src-%04d.fits'%(ifield))
+        outFname    =   os.path.join(self.config.anaDir,fieldName,'%s.fits'%(fieldName))
         catalog.write(outFname)
         return
         
