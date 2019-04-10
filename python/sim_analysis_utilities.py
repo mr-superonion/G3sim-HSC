@@ -54,37 +54,46 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     for i in range(n_flag):
         catalog[header["TFLAG%s" % (i+1)]] = catalog["flags"][:, i]
     
+    """
     # Load information from noiVarPsf
     noiPsfFname =   './noiVar_rPsf_s18a.csv'
     noiPsf      =   Table.read(noiPsfFname)
     inoiPsf     =   noiPsf[isim]
     catalog['est_over_true_var']= inoiPsf['var_meas'] / inoiPsf['var_target']
     catalog['reweight_s16a']    = inoiPsf['weightNoi']*inoiPsf['weightNoi']
-    catalog['field_name']       = np.string_(field_keys[inoiPsf['field']])
+    """
+    catalog['reweight_s16a']    = 1.
+    
     # Load information from psfPre
     psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % isim)
     psfInfo     =   pyfits.getheader(psfFname)
     catalog['g1']=  psfInfo['g1']
     catalog['g2']=  psfInfo['g2']
+    catalog['field_name']   = np.string_(field_keys[psfInfo['field']])
     # Add a gridIndex column instead of using the index column, for compatibility
     catalog['ipos']     =   (catalog['base_SdssCentroid_y']//64)*50 +(catalog['base_SdssCentroid_x']//64)
     catalog['ipos']     =   catalog['ipos'].astype(np.int)
-    catalog['centDist']  =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
+    catalog['centDist'] =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
                             (catalog['base_SdssCentroid_x']%64-32)**2.)
-    catalog['centDist']  =   np.sqrt(catalog['centDist'])
+    catalog['centDist'] =   np.sqrt(catalog['centDist'])
     # First, keep only detections that are the closest to the grid point
     # Get sorted index by grid index and grid distance
-    catalog     =   catalog[catalog['deblend_nChild']==0]
     inds        =   np.lexsort([catalog['centDist'], catalog['ipos']])
     inds_unique =   np.unique(catalog['ipos'][inds], return_index=True)[1]
-    catalog     =   catalog[inds[inds_unique]]
+    catalog['closest']= False
+    catalog[inds[inds_unique]]  =   True
     
     # Then, apply mask for permissive cuts
     mask =  (~(catalog['base_SdssCentroid_flag'])) & \
             (~catalog['ext_shapeHSM_HsmShapeRegauss_flag']) & \
-            (catalog['base_ClassificationExtendedness_value'] != 0) & \
-            (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_sigma']))
+            (catalog['base_ClassificationExtendedness_value'] > 0) & \
+            (~np.isnan(catalog['modelfit_CModel_flux']))& \
+            (~np.isnan(catalog['modelfit_CModel_fluxSigma'])) & \
+            (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution'])) & \
+            (catalog['deblend_nChild']==0)&(catalog['centDist']<5.)
     catalog = catalog[mask]
+    if len(catalog)==0:
+        return None
 
 
     # Load information from catPre
@@ -106,8 +115,8 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     
     
     # Add extinction file
-    filename_extinction = os.path.join(dir, 'cosmos_extinction.fits')
-    extinction_table = Table.read(filename_extinction)
+    #filename_extinction = os.path.join(dir, 'cosmos_extinction.fits')
+    #extinction_table = Table.read(filename_extinction)
     
     # Join tables on cosmos_index
     #catalog     =   join(catalog, extinction_table,'IDENT')
@@ -146,127 +155,6 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     catalog['BAND'].dtype   =   'S20'
     return catalog
 
-
-def prepare_data_catalog(dir=None, subfield=None):
-    """
-    Loads a data catalog of specified name from specified directory
-
-    Parameters
-    ----------
-
-    dir: string
-        Path to the directory storing the HSC data
-
-    subfield: string
-        Name of the subfield to load
-
-    Returns
-    -------
-
-    catalog : np.recarrays
-        Catalog loaded from fits file without any additional cuts applied.
-    """
-    filename = os.path.join(dir, subfield + ".fits")
-    catalog = Table.read(filename)
-    return catalog
-
-
-def load_sims_catalog_HDF5(dir=None, sims_version=None, subfield=None,
-                           rescale_est_variance=False):
-    if rescale_est_variance and 'v4' in sims_version:
-        filename = os.path.join(dir, 'src_by_fields_rescale.hdf5')
-    else:
-        filename = os.path.join(dir, 'src_by_fields.hdf5')
-    catalog = Table.read(filename, path='/%s'%subfield)
-    return catalog
-
-
-
-
-
-def load_data_catalog_HDF5(dir=None, data_version=None, subfield=None,
-                           columns=['ishape_hsm_regauss_e1',
-                                    'ishape_hsm_regauss_e2',
-                                    'ishape_hsm_regauss_sigma',
-                                    'ishape_hsm_regauss_resolution',
-                                    'imag_cmodel_err',
-                                    'imag_cmodel',
-                                    'a_i',
-                                    'iflux_cmodel',
-                                    'iflux_cmodel_err',
-                                    'ishape_sdss_psf_ixx',
-                                    'ishape_sdss_psf_iyy',
-                                    'ishape_sdss_psf_ixy',
-                                    'gmag_forced_cmodel_err',
-                                    'rmag_forced_cmodel_err',
-                                    'ymag_forced_cmodel_err',
-                                    'zmag_forced_cmodel_err',
-                                    'ira', 'idec', 'icountinputs',
-                                    'rcountinputs',
-                                    'zcountinputs', 'ycountinputs',
-                                    'gcountinputs',
-                                    'iflags_pixel_bright_object_center',
-                                    'weak_lensing_flag',
-                                    'iblendedness_abs_flux']):
-    """
-    Loads the data catalog of specified subfield name from HDF5 file stored
-    in the specified directory. Only loads requested columns specified in
-    argument. Columns are added to enable reweighting of simulations and data
-    so their observing conditions are matched; the exact details of those cuts
-    depend on both the S16A catalogs and the simulation versions, and need
-    to be modified if either is changed.
-
-    The file storing the data is expected to be found in
-    dir+"/"+data_version+"/"+data_version+".hdf5"
-
-    Parameters
-    ----------
-
-    dir: string
-        Path to the directory storing the HSC data
-
-    data_version: string
-        Version of the HSC data.
-
-    subfield: string
-        Name of the subfield to load, in ['AEGIS', 'GAMA09H', 'GAMA15H',
-        'HECTOMAP', 'VVDS', 'WIDE12H', 'XMM']
-
-    columns: list of string
-        List of the column names to load from the HDF5 file.
-
-    Returns
-    -------
-
-    catalog : np.recarrays
-        Catalog loaded without any additional cuts applied.
-    """
-    import h5py
-    # Open HDF5 file
-    f = h5py.File( os.path.join(dir, data_version, 'HSC_'+data_version+'.hdf5'), 'r')
-
-    cols = []
-    psf_cols = []
-
-    for c in columns:
-        dset = f['/'+subfield+'/'+c]
-        cols.append(dset[...])
-
-    # Creates table
-    catalog = Table(cols, names=columns)
-    f.close()
-
-    # Add a column for reweighting
-    catalog['reweight_s16a'] = 1.0
-
-    if (subfield in ['HECTOMAP', 'GAMA09H' ]):
-        psf_size = get_psf_size(catalog)
-        if (subfield == 'HECTOMAP'):
-            catalog['reweight_s16a'][psf_size > 3.7] = 0.
-        if (subfield == 'GAMA09H'):
-            catalog['reweight_s16a'][psf_size < 3.7] = 0.
-
-    return catalog
 
 
 

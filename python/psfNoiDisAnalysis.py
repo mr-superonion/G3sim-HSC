@@ -29,8 +29,6 @@ class psfNoiDisAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs directory')
     obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field-matched/', doc = 'observed catalogs directory')
     pltDir  =   pexConfig.Field(dtype=str, default='plot', doc = 'plot directory')
-    pltType =   pexConfig.Field(dtype=str, default='eps', doc = 'plot directory')
-    version =   pexConfig.Field(dtype=str, default='v1', doc = 'input catalogs')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
@@ -74,14 +72,6 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         self.var_bin_0  =   self.var_bin[:-1]
         self.var_bin_1  =   self.var_bin[1:]
         self.gridNoi    =   (self.var_bin_0+self.var_bin_1)/2.
-        self.resolution_bin=np.linspace(0.1,1.,self.nbin2)
-        self.resolution_bin_0  =   self.resolution_bin[:-1]
-        self.resolution_bin_1  =   self.resolution_bin[1:]
-        self.snr_bin    =   np.linspace(0.,80.,self.nbin2)
-        self.snr_bin_0  =   self.snr_bin[:-1]
-        self.snr_bin_1  =   self.snr_bin[1:]
-        self.mag_bin    =   np.linspace(22.,25.2,self.nbin2)
-        self.absE_bin   =   np.linspace(0.,2.,self.nbin2)
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,

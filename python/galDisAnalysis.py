@@ -3,8 +3,8 @@
 import os
 import sys
 import glob
+import fitsio
 import optparse
-import astropy.io.fits as pyfits
 import sim_analysis_utilities as utilities
 import numpy as np
 from astropy.table import Table, vstack
@@ -116,16 +116,13 @@ class galDisAnalysisTask(BatchPoolTask):
         else:
             t_dis_obs   =   Table.read(obsOFname)
             
-        
-        """
-        self.plotNoiPsf(t_dis,t_dis_obs,t_dis_rw,anaFieldDir)
-        """
+        self.plotNoiPsf(t_dis_obs,t_dis_sim,anaFieldDir)
         return
     
     def getSimGalDis(self,cache,anafname):
         #Get the noise variance and psf information
         ifield  =   anafname.split('-')[1].split('.')[0]
-        data    =   pyfits.getdata(anafname)
+        data    =   fitsio.read(anafname)
         #do mask
         data    =   data[data['weak_lensing_flag']]
         ndata   =   len(data)
@@ -143,7 +140,7 @@ class galDisAnalysisTask(BatchPoolTask):
         histAbsE=   np.histogram(absE,bins=self.absE_bin,density=True)[0]*ndata*rw
         return  np.vstack([histRes,histSnr,histMag,histAbsE])
     
-    def getObsGalDis(self,obsFname)
+    def getObsGalDis(self,obsFname):
         data    =   fitsio.read(obsFname)
         mask    =   np.ones(len(data)).astype(bool)
         mask    =   mask&(~np.isnan(data['reGaus_resolution']))
@@ -152,6 +149,8 @@ class galDisAnalysisTask(BatchPoolTask):
         mask    =   mask&(~np.isnan(data['reGaus_sigmaE']))
         mask    =   mask&((data['CModel_mag'])<24.5)
         mask    =   mask&(data['extendness']>0)
+        mask    =   mask&(data['ishape_hsm_regauss_sigma']>0.)
+        mask    =   mask&(data['ishape_hsm_regauss_sigma']<0.4)
         mask    =   mask&(data['reGaus_resolution']>0.3)
         mask    =   mask&(data['CModel_snr']>10.)
         mask    =   mask&(data['reGaus_sigmaE']<2.)
@@ -170,26 +169,30 @@ class galDisAnalysisTask(BatchPoolTask):
         
         return t_dis_obs
         
-    def plotNoiPsf(self,t_dis,t_dis_obs,t_dis_rw,anaFieldDir):
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        #ax.plot(t_dis['gridNoi'],t_dis['histNoi'],'--',label='sim',c='r')
-        ax.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'-',label='obs',c='b')
-        ax.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'--',label='reweight',c='r')
-        ax.legend()
-        plt.xlabel('noise variance')
-        plt.ylabel('prob')
-        plt.savefig(os.path.join(anaFieldDir,'noiHist.png'))
+    def plotNoiPsf(self,t_dis_obs,t_dis_rw,anaFieldDir):
+        fig =   plt.figure()
+        ax  =   fig.add_subplot(111)
+        tp  =  t_dis_obs['histRes']/sum(t_dis_obs['histRes'])/(t_dis_obs['gridRes'][1]-t_dis_obs['gridRes'][0])
+        ax.plot(t_dis_obs['gridRes'],tp,'-',label='obs',c='b')
+        tp  =  t_dis_rw['histRes']/sum(t_dis_rw['histRes'])/(t_dis_rw['gridRes'][1]-t_dis_rw['gridRes'][0])
+        ax.plot(t_dis_rw['gridRes'],tp,'--',label='reweight',c='r')
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        #ax.plot(t_dis['gridPsf'],t_dis['histPsf'],'--',label='sim',c='r')
-        ax.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'-',label='obs',c='b')
-        ax.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'--',label='reweight',c='r')
         ax.legend()
-        plt.xlabel('PSF FWHM [arcsec]')
+        plt.xlabel('resolution')
         plt.ylabel('prob')
-        plt.savefig(os.path.join(anaFieldDir,'psfHist.png'))
+        plt.savefig(os.path.join(anaFieldDir,'resHist.png'))
+
+        fig =   plt.figure()
+        ax  =   fig.add_subplot(111)
+        tp  =  t_dis_obs['histSnr']/sum(t_dis_obs['histSnr'])/(t_dis_obs['gridSnr'][1]-t_dis_obs['gridSnr'][0])
+        ax.plot(t_dis_obs['gridSnr'],tp,'-',label='obs',c='b')
+        tp  =  t_dis_rw['histSnr']/sum(t_dis_rw['histSnr'])/(t_dis_rw['gridSnr'][1]-t_dis_rw['gridSnr'][0])
+        ax.plot(t_dis_rw['gridSnr'],tp,'--',label='reweight',c='r')
+
+        ax.legend()
+        plt.xlabel('CModel SNR')
+        plt.ylabel('prob')
+        plt.savefig(os.path.join(anaFieldDir,'snrHist.png'))
         return
     
     @classmethod

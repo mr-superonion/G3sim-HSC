@@ -86,22 +86,21 @@ class prepareSimAnalysisTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        fieldList=  range(18,19)
-        pool.map(self.process,fieldList)
+        fieldList=  range(self.config.nSims)
+        #fieldList=  range(18,19)
+        outcomes    =   pool.map(self.process,fieldList)
+        outcomes    =   [x for x in outcomes if x is not None]
+        catalogAll  =   vstack(outcomes)
+        fieldName   =   catalogAll[0]['field_name']
+        outFname    =   os.path.join(self.config.anaDir,fieldName,'src-%04d.fits'%(ifield))
+        catalog.write(outFname)
         return
         
     def process(self,cache,ifield):
         self.log.info('Processing subfield %s' %(ifield))
-        try:
-            catalog     =   prepare_sim_catalog('./',self.config.simDir,ifield,rescale_est_variance=self.config.rescale_noise)
-            fieldName   =   catalog[0]['field_name']
-            outFname    =   os.path.join(self.config.anaDir,fieldName,'src-%04d.fits'%(ifield))
-            catalog.write(outFname)
-        except IOError:
-            # Technically there could be some other IOError here,
-            # e.g., missing variance file rather than this subfield
-            # being missing.  But for now let's keep it like this.
-            self.log.info("Subfield %d missing, skipping to the next one."%(ifield))
+        catalog     =   prepare_sim_catalog('./',self.config.simDir,ifield,rescale_est_variance=self.config.rescale_noise)
+        if catalog is None:
+            self.log.info('failed to process subfield %d' %(ifield) )
         return 
 
     @classmethod
