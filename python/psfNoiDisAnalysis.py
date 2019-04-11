@@ -3,7 +3,7 @@
 import os
 import sys
 import glob
-import fitsio
+import astropy.io.fits as pyfits
 import sim_analysis_utilities as utilities
 import numpy as np
 from astropy.table import Table, vstack
@@ -26,7 +26,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class psfNoiDisAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs directory')
-    obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field-matched/', doc = 'observed catalogs directory')
+    obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs directory')
     pltDir  =   pexConfig.Field(dtype=str, default='plot', doc = 'plot directory')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
@@ -95,7 +95,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         outDnameObs =   os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
         if not os.path.exists(outDnameObs):
             obsFname    =   os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
-            dataObs     =   fitsio.read(obsFname)
+            dataObs     =   pyfits.getdata(obsFname)
             t_dis_obs   =   self.getObsHist(dataObs)
             t_dis_obs.write(outDnameObs,overwrite=True)
         else:
@@ -104,22 +104,17 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         self.log.info('Achieving the distriutions for simulations')
         outDname    =   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
         simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
-        dataSim     =   fitsio.read(simFname)
+        dataSim     =   pyfits.getdata(simFname)
         dataSim     =   self.maskSim(dataSim)
-        if not os.path.exists(outDname):
-            t_dis_sim   =   self.getSimHist(dataSim)
-            t_dis_sim.write(outDname,overwrite=True)
-        else:
-            t_dis_sim   =   Table.read(outDname)
+        t_dis_sim   =   self.getSimHist(dataSim)
+        t_dis_sim.write(outDname,overwrite=True)
          
         self.log.info('Reweighting the simulations')
-        outDnameRw      =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
-        if not os.path.exists(outDnameRw):
-            t_dis_rw    =   self.reWeight(dataSim,t_dis_sim,t_dis_obs)
-            t_dis_rw.write(outDnameRw,overwrite=True)
-        else:
-            t_dis_rw    =   Table.read(outDnameRw)   
+        outDnameRw  =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
+        t_dis_rw    =   self.reWeight(dataSim,t_dis_sim,t_dis_obs)
+        t_dis_rw.write(outDnameRw,overwrite=True)
         self.plotNoiPsf(t_dis_sim,t_dis_obs,t_dis_rw,anaFieldDir)
+        pyfits.writeto(simFname,dataSim,clobber=True)
         return
     
     def getObsHist(self,data):
@@ -130,8 +125,6 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         mask    =   mask&(~np.isnan(data['psfMxy']))
         mask    =   mask&((data['CModel_mag'])<24.5)
         mask    =   mask&(data['extendness']>0)
-        mask    =   mask&(data['ishape_hsm_regauss_sigma']>0.)
-        mask    =   mask&(data['ishape_hsm_regauss_sigma']<0.4)
         mask    =   mask&(data['reGaus_resolution']>0.3)
         mask    =   mask&(data['CModel_snr']>10.)
         mask    =   mask&(data['reGaus_sigmaE']<2.)
@@ -145,6 +138,10 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
     
     def maskSim(self,data): 
         mask    =   np.ones(len(data)).astype(bool)
+        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xx']))
+        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_yy']))
+        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xy']))
+        mask    =   mask&(~np.isnan(data['base_Variance_value']))
         mask    =   mask&(data['weak_lensing_flag'])
         data    =   data[mask]
         return data

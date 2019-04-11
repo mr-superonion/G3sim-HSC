@@ -54,14 +54,6 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     for i in range(n_flag):
         catalog[header["TFLAG%s" % (i+1)]] = catalog["flags"][:, i]
     
-    """
-    # Load information from noiVarPsf
-    noiPsfFname =   './noiVar_rPsf_s18a.csv'
-    noiPsf      =   Table.read(noiPsfFname)
-    inoiPsf     =   noiPsf[isim]
-    catalog['est_over_true_var']= inoiPsf['var_meas'] / inoiPsf['var_target']
-    catalog['reweight_s16a']    = inoiPsf['weightNoi']*inoiPsf['weightNoi']
-    """
     catalog['reweight_s16a']    = 1.
     
     # Load information from psfPre
@@ -81,7 +73,7 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     inds        =   np.lexsort([catalog['centDist'], catalog['ipos']])
     inds_unique =   np.unique(catalog['ipos'][inds], return_index=True)[1]
     catalog['closest']= False
-    catalog[inds[inds_unique]]  =   True
+    catalog['closest'][inds[inds_unique]]  =   True
     
     # Then, apply mask for permissive cuts
     mask =  (~(catalog['base_SdssCentroid_flag'])) & \
@@ -91,15 +83,16 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
             (~np.isnan(catalog['modelfit_CModel_fluxSigma'])) & \
             (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution'])) & \
             (catalog['deblend_nChild']==0)&(catalog['centDist']<5.)
-    mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xx']))
-    mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_yy']))
-    mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xy']))
-    mask    =   mask&(~np.isnan(data['base_Variance_value']))
+    mask    =   mask&(~np.isnan(catalog['ext_shapeHSM_HsmPsfMoments_xx']))
+    mask    =   mask&(~np.isnan(catalog['ext_shapeHSM_HsmPsfMoments_yy']))
+    mask    =   mask&(~np.isnan(catalog['ext_shapeHSM_HsmPsfMoments_xy']))
+    mask    =   mask&(~np.isnan(catalog['base_Variance_value']))
+    mask    =   mask&(~np.isnan(catalog['modelfit_CModel_flux']))
+    mask    =   mask&(~np.isnan(catalog['modelfit_CModel_fluxSigma']))
+    mask    =   mask&(~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution']))
     catalog = catalog[mask]
     if len(catalog)==0:
         return None
-
-
     # Load information from catPre
     catFname    =   os.path.join(dir, 'catPre/catalog-%04d.fits' % isim)
     catInfo     =   Table.read(catFname)
@@ -158,7 +151,6 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     catalog['ishape_hsm_regauss_derived_shear_bias_c2'] = 0.
     catalog['BAND'].dtype   =   'S20'
     return catalog
-
 
 
 
