@@ -113,6 +113,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         mask    =   mask&(data['reGaus_resolution']>0.3)
         mask    =   mask&(data['CModel_snr']>10.)
         mask    =   mask&(data['reGaus_sigmaE']<2.)
+        mask    =   mask&(data['fdfc'])
         data    =   data[mask]
         absE    =   data['reGaus_sigmaE']
         res     =   data['reGaus_resolution']
@@ -124,12 +125,6 @@ class galDisAnalysis2DTask(BatchPoolTask):
         
     def maskSim(self,data):
         mask    =   np.ones(len(data)).astype(bool)
-        mask    =   mask&(~np.isnan(data['modelfit_CModel_flux']))
-        mask    =   mask&(~np.isnan(data['modelfit_CModel_fluxSigma']))
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmShapeRegauss_resolution']))
-        mask    =   mask&(~np.isnan(data['base_Variance_value']))
-        mask    =   mask&(data['closest'])
-        mask    =   mask&(np.all(~np.isnan(data['fpfs_moments']),axis=1))
         snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
         absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
         mag     =   data['Mag']

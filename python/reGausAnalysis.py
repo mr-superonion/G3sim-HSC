@@ -75,12 +75,12 @@ class reGausAnalysisTask(BatchPoolTask):
         pool    =   Pool("reGausAnalysis")
         pool.cacheClear()
         outcomes=   pool.map(self.process,utilities.field_keys)
+        outcomes    =   [x for x in outcomes if x is not None]
         outtable=   vstack(outcomes)
         self.reGaus_sigmaE.finalise(outtable,self.config.pltDir,self.config.pltType)
         return
         
     def process(self,cache,fieldKey):
-        ifield  =   row['num']
         fieldname=  utilities.field_keys[fieldKey]
         self.log.info('Processing field %s' %(fieldname))
         fname   =   os.path.join(self.config.anaDir,fieldname,'%s.fits'%(fieldname))

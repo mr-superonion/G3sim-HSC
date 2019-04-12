@@ -128,6 +128,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         mask    =   mask&(data['reGaus_resolution']>0.3)
         mask    =   mask&(data['CModel_snr']>10.)
         mask    =   mask&(data['reGaus_sigmaE']<2.)
+        mask    =   mask&(data['fdfc'])
         data    =   data[mask]
         fwhms   =   (data['psfMxx']*data['psfMyy']-data['psfMxy']**2)**(0.25)*0.168*2.355
         varNois =   data['noiVar']
@@ -138,11 +139,12 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
     
     def maskSim(self,data): 
         mask    =   np.ones(len(data)).astype(bool)
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xx']))
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_yy']))
-        mask    =   mask&(~np.isnan(data['ext_shapeHSM_HsmPsfMoments_xy']))
-        mask    =   mask&(~np.isnan(data['base_Variance_value']))
-        mask    =   mask&(data['weak_lensing_flag'])
+        snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
+        absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
+        mag     =   data['Mag']
+        mask    =   mask&(snr>10.)
+        mask    =   mask&(absE<2.)
+        mask    =   mask&(mag<24.5)
         data    =   data[mask]
         return data
     

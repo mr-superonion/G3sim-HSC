@@ -72,8 +72,9 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     # Get sorted index by grid index and grid distance
     inds        =   np.lexsort([catalog['centDist'], catalog['ipos']])
     inds_unique =   np.unique(catalog['ipos'][inds], return_index=True)[1]
-    catalog['closest']= False
-    catalog['closest'][inds[inds_unique]]  =   True
+    #catalog['closest']  =   False
+    #catalog['closest'][inds[inds_unique]]  =   True
+    catalog = catalog[inds[inds_unique]]
     
     # Then, apply mask for permissive cuts
     mask =  (~(catalog['base_SdssCentroid_flag'])) & \
