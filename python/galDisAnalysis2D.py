@@ -16,6 +16,9 @@ matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+import matplotlib.lines as mlines
+from matplotlib.colors import LogNorm
 import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -112,7 +115,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         mask    =   mask&(data['reGaus_sigmaE']<2.)
         data    =   data[mask]
         absE    =   data['reGaus_sigmaE']
-        Res     =   data['reGaus_resolution']
+        res     =   data['reGaus_resolution']
         mag     =   data['CModel_mag']
         snr     =   data['CModel_snr']
         weight  =   np.ones(len(data))
@@ -140,8 +143,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         #Get the noise variance and psf information
         data    =   fitsio.read(simFname)
         data    =   self.maskSim(data)
-        ndata   =   len(data)*np.ones(self.nbin2-1)
-        Res     =   data['ext_shapeHSM_HsmShapeRegauss_resolution']
+        res     =   data['ext_shapeHSM_HsmShapeRegauss_resolution']
         snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
         absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
         absE    =   np.sqrt(absE)
@@ -202,7 +204,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%d'))
         ax.xaxis.set_minor_formatter(mtick.FormatStrFormatter('%d'))
         plt.tight_layout()
-
+        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D.eps'))
         return
     
     @classmethod

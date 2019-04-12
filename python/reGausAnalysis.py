@@ -22,7 +22,6 @@ class reGausAnalysisConfig(pexConfig.Config):
     obsDir  =   pexConfig.Field(dtype=str, default='./', doc = 'observed catalogs')
     pltDir  =   pexConfig.Field(dtype=str, default='plot', doc = 'plot directory')
     pltType =   pexConfig.Field(dtype=str, default='eps', doc = 'plot directory')
-    version =   pexConfig.Field(dtype=str, default='v1', doc = 'input catalogs')
     nSims   =   pexConfig.Field(dtype=int, default=3200, doc = 'number of simulations')
     rescale_noise  =   pexConfig.Field(dtype=bool, default=True, doc = 'rescale measured noise to target noise?')
     useCalib=   pexConfig.Field(dtype=bool, default=False, doc = 'apply calibration?')
