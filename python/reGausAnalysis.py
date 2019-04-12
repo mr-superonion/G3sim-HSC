@@ -74,20 +74,20 @@ class reGausAnalysisTask(BatchPoolTask):
         rows    =   Table.read('noiVar_rPsf_s18a.csv')
         pool    =   Pool("reGausAnalysis")
         pool.cacheClear()
-        outcomes=   pool.map(self.process,rows)
+        outcomes=   pool.map(self.process,utilities.field_keys)
         outtable=   vstack(outcomes)
         self.reGaus_sigmaE.finalise(outtable,self.config.pltDir,self.config.pltType)
         return
         
-    def process(self,cache,row):
+    def process(self,cache,fieldKey):
         ifield  =   row['num']
-        self.log.info('Processing subfield %s' %(ifield))
-        fieldname=  utilities.field_keys[row['field']]
-        fname   =   os.path.join(self.config.anaDir,fieldname,'src-%04d.fits'%(ifield))
+        fieldname=  utilities.field_keys[fieldKey]
+        self.log.info('Processing field %s' %(fieldname))
+        fname   =   os.path.join(self.config.anaDir,fieldname,'%s.fits'%(fieldname))
         try:
             catalog =   Table.read(fname)   
         except:
-            self.log.info(fname)
+            self.log.info('Cannot find catalog for field: %s' %(fieldname))
             return
         return self.reGaus_sigmaE.run(catalog)
 
