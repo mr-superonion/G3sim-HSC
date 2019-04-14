@@ -105,7 +105,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         outDname    =   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
         simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
         dataSim     =   pyfits.getdata(simFname)
-        dataSim     =   self.maskSim(dataSim)
+        dataSim['reweight_s16a']    =   0.
         t_dis_sim   =   self.getSimHist(dataSim)
         t_dis_sim.write(outDname,overwrite=True)
          
@@ -113,8 +113,8 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         outDnameRw  =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
         t_dis_rw    =   self.reWeight(dataSim,t_dis_sim,t_dis_obs)
         t_dis_rw.write(outDnameRw,overwrite=True)
-        self.plotNoiPsf(t_dis_sim,t_dis_obs,t_dis_rw,anaFieldDir)
         pyfits.writeto(simFname,dataSim,clobber=True)
+        self.plotNoiPsf(t_dis_sim,t_dis_obs,t_dis_rw,anaFieldDir)
         return
     
     def getObsHist(self,data):
@@ -123,11 +123,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         mask    =   mask&(~np.isnan(data['psfMxx']))
         mask    =   mask&(~np.isnan(data['psfMyy']))
         mask    =   mask&(~np.isnan(data['psfMxy']))
-        mask    =   mask&((data['CModel_mag'])<24.5)
         mask    =   mask&(data['extendness']>0)
-        mask    =   mask&(data['reGaus_resolution']>0.3)
-        mask    =   mask&(data['CModel_snr']>10.)
-        mask    =   mask&(data['reGaus_sigmaE']<2.)
         mask    =   mask&(data['fdfc'])
         data    =   data[mask]
         fwhms   =   (data['psfMxx']*data['psfMyy']-data['psfMxy']**2)**(0.25)*0.168*2.355
@@ -137,16 +133,6 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         return Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(data)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
     
-    def maskSim(self,data): 
-        mask    =   np.ones(len(data)).astype(bool)
-        snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
-        absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
-        mag     =   data['Mag']
-        mask    =   mask&(snr>10.)
-        mask    =   mask&(absE<2.)
-        mask    =   mask&(mag<24.5)
-        data    =   data[mask]
-        return data
     
     def getSimHist(self,data):
         #Get the noise variance and psf information
@@ -191,9 +177,10 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
                     weightPsf[ii]   =   10.
                 else:
                     weightPsf[ii]   =   ratio
-        data['reweight_s16a']  =   weightPsf*weightNoi
-        histNoi_rp =   np.histogram(varNois,bins=self.var_bin,weights=data['reweight_s16a'],density=True)[0]
-        histPsf_rp =   np.histogram(fwhms,bins=self.fwhm_bin,weights=data['reweight_s16a'],density=True)[0]
+        reweight    =   weightPsf*weightNoi
+        data['reweight_s16a']   =   reweight
+        histNoi_rp  =   np.histogram(varNois,bins=self.var_bin,weights=data['reweight_s16a'],density=True)[0]
+        histPsf_rp  =   np.histogram(fwhms,bins=self.fwhm_bin,weights=data['reweight_s16a'],density=True)[0]
         return Table(data=[self.gridNoi,histNoi_rp,self.gridPsf,histPsf_rp,len(data)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
     

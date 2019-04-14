@@ -54,7 +54,7 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     for i in range(n_flag):
         catalog[header["TFLAG%s" % (i+1)]] = catalog["flags"][:, i]
     
-    catalog['reweight_s16a']    = 1.
+    catalog['reweight_s16a']    =  0.
     
     # Load information from psfPre
     psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % isim)
@@ -131,11 +131,11 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
                catalog['ishape_hsm_regauss_e2']**2)
 
     catalog['weak_lensing_flag'] = ((get_imag(catalog)) < 24.5) & \
-        (sig_e > 0.0) & \
-        (sig_e < 0.4) & \
         (e <= 2.) & \
         (catalog['ishape_hsm_regauss_resolution'] >= 0.3) & \
         (get_snr(catalog) >= 10.)
+        #(sig_e > 0.0) & \
+        #(sig_e < 0.4) &
 
     # add a bunch of columns that get used for WL analysis - fake it for now!
     catalog['ishape_hsm_regauss_derived_sigma_e'] = catalog['ishape_hsm_regauss_sigma']
@@ -446,7 +446,7 @@ def get_snr(catalog):
     In the case of GREAT3-like simulations, the noise rescaling factor is applied
     to match the data.
     """
-    snr = catalog['modelfit_CModel_flux'] / catalog['modelfit_CModel_fluxSigma']
+    snr     =   catalog['modelfit_CModel_flux']/catalog['modelfit_CModel_fluxSigma']
     return snr
 
 
@@ -456,16 +456,17 @@ def get_imag(catalog):
     simulation catalog. Does not apply any cuts and returns NaNs for invalid
     values.
     """
-    
-    return -2.5 * np.log10(catalog['modelfit_CModel_flux']) + 27.
+    mag     =   catalog['Mag']
+    #return -2.5 * np.log10(catalog['modelfit_CModel_flux']) + 27.
+    return mag
 
 
 def get_abs_ellip(catalog):
     """
     Returns the modulus of galaxy distortions.
     """
-    return np.sqrt(catalog['ishape_hsm_regauss_e1']**2 +
-                   catalog['ishape_hsm_regauss_e2']**2)
+    absE    =   catalog['ext_shapeHSM_HsmShapeRegauss_e1']**2.+catalog['ext_shapeHSM_HsmShapeRegauss_e2']**2.
+    return absE 
 
 
 def get_res(catalog):

@@ -148,21 +148,11 @@ class galDisAnalysisTask(BatchPoolTask):
         
         return t_dis_obs
         
-    def maskSim(self,data):
-        mask    =   np.ones(len(data)).astype(bool)
-        snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
-        absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
-        mag     =   data['Mag']
-        mask    =   mask&(snr>10.)
-        mask    =   mask&(absE<2.)
-        mask    =   mask&(mag<24.5)
-        data    =   data[mask]
-        return data
-        
     def getSimGalDis(self,simFname):
         #Get the noise variance and psf information
         data    =   fitsio.read(simFname)
-        data    =   self.maskSim(data)
+        mask    =   data['weak_lensing_flag']
+        data    =   data[mask]
         ndata   =   len(data)*np.ones(self.nbin2-1)
         Res     =   data['ext_shapeHSM_HsmShapeRegauss_resolution']
         snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
