@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import numpy as np
 import matplotlib
 matplotlib.use('agg')
@@ -21,7 +22,7 @@ def main():
     fwhm_bin_0  =   fwhm_bin[:-1]
     fwhm_bin_1  =   fwhm_bin[1:]
     gridPsf     =   (fwhm_bin_0+fwhm_bin_1)/2.
-    histPsf     =   np.histogram(b,bins=fwhm_bin)
+    histPsf     =   np.histogram(b,bins=fwhm_bin,density=True)[0]
     anaFieldDir =   '/work/xiangchong.li/work/S18ASimHSC/s16/anaCat/HECTOMAP/'
     fnameRw     =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
     fnameOb     =   os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
