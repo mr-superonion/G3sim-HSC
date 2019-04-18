@@ -1,8 +1,14 @@
 #!/usr/bin/env python
-
 import os
 import sys
-import optparse
+import matplotlib
+matplotlib.use('agg')
+matplotlib.rcParams['ps.useafm'] = True
+matplotlib.rcParams['pdf.use14corefonts'] = True
+matplotlib.rcParams['text.usetex'] = True
+import matplotlib.pyplot as plt
+
+import scipy.stats as stats
 import sim_analysis_utilities as utilities
 import numpy as np
 from astropy.table import Table, vstack
@@ -103,8 +109,20 @@ class reGaus_sigmaETask(BatchPoolTask):
         self.finalise(outtable,self.config.pltDir,self.config.pltType)
         return
         
+    def do_ks_test(self,x,y,sample_names="two samples"):
+        """routine to do a 2-sample ks test and report on consistency of distributions"""
+        (ks_d, ks_p) = stats.ks_2samp(x,y)
+        if ks_p >= 0.05:
+            self.log.info('Distributions for %s are consistent!'%sample_names)
+        else:
+            self.log.info('Distributions for %s differ!'%sample_names)
+        self.log.info('(d, p)=(%f, %f)'%(ks_d, ks_p))
+        return
+        
     def process(self,cache,fieldKey,reweight_s16a=True,use_wl_flag=True):
         fieldname=  utilities.field_keys[fieldKey]
+        if fieldname==  'AEGIS':
+            return None
         self.log.info('Processing field %s' %(fieldname))
         fname   =   os.path.join(self.config.anaDir,fieldname,'%s.fits'%(fieldname))
         data =   Table.read(fname)
