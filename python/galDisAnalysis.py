@@ -42,7 +42,7 @@ class galDisAnalysisConfig(pexConfig.Config):
             raise RuntimeError("Data catalog directory %s does not exist "
                          "or is not a directory" % (self.anaDir))
         if not os.path.exists(self.pltDir):
-            os.mkdir(self.plotDir)
+            os.mkdir(self.pltDir)
 
 class galDisAnalysisRunner(TaskRunner):
     @staticmethod

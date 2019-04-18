@@ -544,7 +544,7 @@ def get_sigma_e_model(catalog):
 
     # Build the baseline model for sigma_e.
     #sigma_e = 0.264 * ((snr/20.)**-0.891) * ((res/0.5)**-1.015)
-    sigma_e = 0.269*((SNR/20.)**-0.948)*((res/0.5)*-0.984)
+    sigma_e = 0.269*((snr/20.)**-0.948)*((res/0.5)*-0.984)
     
     # Get the corrections from interpolation amongst saved values.
     data_file = "plot/sigmae/sigmae_ratio.dat"
@@ -556,5 +556,18 @@ def get_sigma_e_model(catalog):
 
     # Interpolate the corrections (which multiply the power-law results).
     result = grid_interpolate(log_saved_snr, saved_res, saved_corr, log_snr, res)
-    return result*sigma_e    
-    
+    return result*sigma_e 
+
+
+def grid_interpolate(x, y, z, eval_x, eval_y):
+    """
+    This is a utility for interpolating a 2D function z(x, y) linearly to values
+    (x, y) = (eval_x, eval_y), but also enabling extrapolation beyond the (x, y)
+    bounds using the nearest neighbor method.
+    """
+    from scipy.interpolate import griddata
+    result = griddata((x, y), z, (eval_x, eval_y), method='linear')
+    nn_result = griddata((x, y), z, (eval_x, eval_y), method='nearest')
+    mask = np.isnan(result)
+    result[mask] = nn_result[mask]
+    return result

@@ -7,9 +7,9 @@ matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
+import sim_analysis_utilities as utilities
 
 import scipy.stats as stats
-import sim_analysis_utilities as utilities
 import numpy as np
 from astropy.table import Table, vstack
 
@@ -46,7 +46,7 @@ class reGaus_eRMSConfig(pexConfig.Config):
             raise RuntimeError("Data catalog directory %s does not exist "
                          "or is not a directory" % (self.anaDir))
         if not os.path.exists(self.pltDir):
-            os.mkdir(self.plotDir)
+            os.mkdir(self.pltDir)
 
 class reGaus_eRMSRunner(TaskRunner):
     @staticmethod
@@ -85,7 +85,8 @@ class reGaus_eRMSTask(BatchPoolTask):
         pool    =   Pool("reGaus_eRMS")
         pool.cacheClear()
         outcomes=   pool.map(self.process,utilities.field_keys)
-        outcomes    =   [x for x in outcomes if x is not None]
+        outcomes=   [x for x in outcomes if x is not None]
+        print(outcomes)
         outtable=   vstack(outcomes)
         self.finalise(outtable)
         return
@@ -97,7 +98,7 @@ class reGaus_eRMSTask(BatchPoolTask):
             return None
         self.log.info('Processing field %s' %(fieldname))
         fname   =   os.path.join(self.config.anaDir,fieldname,'%s.fits'%(fieldname))
-        data =   Table.read(fname)
+        data    =   Table.read(fname)
         """
         Get estimated and true shape information, lensing shear, and other information.
         """
@@ -120,8 +121,8 @@ class reGaus_eRMSTask(BatchPoolTask):
         dataTab.append(data[mask]['ishape_hsm_regauss_e1'])
         dataTab.append(data[mask]['ishape_hsm_regauss_e2'])
         dataTab.append(utilities.get_sigma_e(data[mask]))
-        dataTab.append(utilities.get_sigma_e_model(data[mask])
-        dataTab.append(np.zeros_like(data[mask]))
+        dataTab.append(utilities.get_sigma_e_model(data[mask]))
+        dataTab.append(np.zeros_like(data[mask]).astype(float))
         dataTab.append(data[mask]['ishape_hsm_regauss_resolution'])
         dataTab.append(utilities.get_snr(data[mask]))
         dataTab.append(utilities.get_imag(data[mask]))
@@ -239,7 +240,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_2d.eps')
+        plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_2d.eps'))
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
