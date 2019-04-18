@@ -24,7 +24,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_sigmaEConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
-    obsDir  =   pexConfig.Field(dtype=str, default='./', doc = 'observed catalogs')
+    obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs')
     pltDir  =   pexConfig.Field(dtype=str, default='plot/sigmae/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
     max_snr =   pexConfig.Field(dtype=float, default=80., doc = 'Maximum value of signal to noise ratio')
@@ -177,7 +177,6 @@ class reGaus_sigmaETask(BatchPoolTask):
         master_snr = inTable['snr']
         master_weight = inTable['weight']
         master_psf_size = inTable['psf_size']
-        n_subfields = len(inTable)
 
 
         # Figure out any other mask to apply for observing conditions.
