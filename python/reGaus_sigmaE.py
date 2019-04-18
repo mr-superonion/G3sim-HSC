@@ -25,11 +25,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 class reGaus_sigmaEConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
     obsDir  =   pexConfig.Field(dtype=str, default='./', doc = 'observed catalogs')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot', doc = 'plot directory')
-    pltType =   pexConfig.Field(dtype=str, default='eps', doc = 'plot directory')
-    nSims   =   pexConfig.Field(dtype=int, default=3200, doc = 'number of simulations')
-    rescale_noise  =   pexConfig.Field(dtype=bool, default=True, doc = 'rescale measured noise to target noise?')
-    useCalib=   pexConfig.Field(dtype=bool, default=False, doc = 'apply calibration?')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot/sigmae/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
     max_snr =   pexConfig.Field(dtype=float, default=80., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
@@ -106,7 +102,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         outcomes=   pool.map(self.process,utilities.field_keys)
         outcomes    =   [x for x in outcomes if x is not None]
         outtable=   vstack(outcomes)
-        self.finalise(outtable,self.config.pltDir,self.config.pltType)
+        self.finalise(outtable)
         return
         
     def do_ks_test(self,x,y,sample_names="two samples"):
@@ -163,16 +159,13 @@ class reGaus_sigmaETask(BatchPoolTask):
         
         return Table(data=dataTab,names=self.names)
         
-    def finalise(self,inTable,pltDir0,pltType):
+    def finalise(self,inTable):
         """
         Make distributions of the quantities that we need to calculate
         in order to estimate the distribution of shape measurement
         errors.  Everything here is unweighted; the only exception is
         weighting to account for the S16A conditions.
         """
-        pltDir  =   os.path.join(pltDir0,'sigmae')
-        if not os.path.exists(pltDir):
-            os.mkdir(pltDir)
         # First: assemble the arrays for individual subfields into one big master catalog.
         master_e1 = inTable['e1']
         master_e2 = inTable['e2']
@@ -376,7 +369,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(pltDir,'sigmae_estimated.%s'%(pltType)))
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_estimated.eps'))
 
 
         # Plot catalog sigma_e as a function of SNR, resolution.
@@ -389,7 +382,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(pltDir,'sigmae_cat.%s'%(pltType)) )
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_cat.eps') )
 
         # Plot ratio of catalog to estimated sigma_e.
         fig = plt.figure()
@@ -400,7 +393,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(pltDir,'sigmae_cat_estimated_ratio.%s' %(pltType)))
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_cat_estimated_ratio.eps'))
 
 
         # Model sigma_e as a function of SNR, resolution (including
@@ -414,7 +407,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(pltDir,'sigmae_model.%s'%(pltType)))
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_model.eps'))
         # model / estimated sigma_e as a function of SNR, resolution.  Should be close to 1.
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -424,13 +417,13 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(pltDir,'sigmae_ratio.%s' %(pltType)))
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_ratio.eps'))
 
         # save data table for model/actual
         out_data = (self.mean_snr.flatten(), self.mean_res.flatten(),
                     (self.est_sigma_e/model_sigma_e).flatten())
         out_data = np.column_stack(out_data)
-        np.savetxt(os.path.join(pltDir,'sigmae_ratio.dat'), out_data)
+        np.savetxt(os.path.join(self.config.pltDir,'sigmae_ratio.dat'), out_data)
         return
     
     @classmethod

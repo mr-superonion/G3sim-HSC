@@ -522,5 +522,39 @@ def get_psf_size(catalog, type='trace'):
     else:
         raise ValueError("Unknown PSF size type: %s"%type)
     return size
+
+
+def get_sigma_e_model(catalog):
+    """
+    This utility returns a model for the shape measurement uncertainty as a function of SNR and
+    resolution.  It uses the catalog directly to get the SNR and resolution values.
+
+    The file storing the data used to build the approximate correction is expected to be found in
+    plot/sigmae_ratio.dat
+
+    """
+    # Get the necessary quantities.
+    snr = get_snr(catalog)
+    log_snr = np.log10(snr)
+    res = get_res(catalog)
+    # Fix interpolation for NaN/inf
+    m = np.isnan(log_snr) | np.isinf(log_snr)
+    log_snr[m] = 1. # set to minimum value that passes nominal cut
+    snr[m] = 10.
+
+    # Build the baseline model for sigma_e.
+    #sigma_e = 0.264 * ((snr/20.)**-0.891) * ((res/0.5)**-1.015)
+    sigma_e = 0.269*((SNR/20.)**-0.948)*((res/0.5)*-0.984)
     
+    # Get the corrections from interpolation amongst saved values.
+    data_file = "plot/sigmae/sigmae_ratio.dat"
+    dat = np.loadtxt(data_file).transpose()
+    saved_snr = dat[0,:]
+    log_saved_snr = np.log10(saved_snr)
+    saved_res = dat[1,:]
+    saved_corr = dat[2,:]
+
+    # Interpolate the corrections (which multiply the power-law results).
+    result = grid_interpolate(log_saved_snr, saved_res, saved_corr, log_snr, res)
+    return result*sigma_e    
     
