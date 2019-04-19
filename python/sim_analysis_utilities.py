@@ -33,12 +33,30 @@ plot_colors = {
     'XMM' : '#4575b4'
     }
 
-def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
-    # Load the catalog from fits file
-    filename = os.path.join( dir,simDir,'src-%04d.fits' % isim)
-    # If the file does not exist, an IOError will be raised
-    catalog = Table.read(filename)
+def prepare_sim_catalog(catalog,isSim=True):
+    colNames    =   catalog.colnames
     
+    # Load the header to get proper name of flags
+    header = pyfits.getheader(filename, 1)
+    n_flag = catalog["flags"].shape[1]
+    for i in range(n_flag):
+        catalog[header["TFLAG%s" % (i+1)]] = catalog["flags"][:, i]
+    
+    # Then, apply mask for permissive cuts
+    mask =  (~(catalog['base_SdssCentroid_flag'])) &\
+            (~catalog['ext_shapeHSM_HsmShapeRegauss_flag']) &\
+            (catalog['base_ClassificationExtendedness_value'] > 0) &\
+            (~np.isnan(catalog['modelfit_CModel_flux']))&\
+            (~np.isnan(catalog['modelfit_CModel_fluxSigma'])) &\
+            (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution'])) &\
+            (~np.isnan(catalog['ext_shapeHSM_HsmPsfMoments_xx'])) &\
+            (~np.isnan(catalog['ext_shapeHSM_HsmPsfMoments_yy'])) &\
+            (~np.isnan(catalog['ext_shapeHSM_HsmPsfMoments_xy'])) &\
+            (~np.isnan(catalog['base_Variance_value']))&\
+            (~np.isnan(catalog['modelfit_CModel_flux']))&\
+            (~np.isnan(catalog['modelfit_CModel_fluxSigma']))&\
+            (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution']))
+    catalog =   catalog[colNames]
     # Add columns with names matching the real data
     cols = []
     data_fields = {'ext_shapeHSM_HsmShapeRegauss_e1': 'ishape_hsm_regauss_e1',
@@ -48,77 +66,57 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     for i in data_fields:
         catalog[data_fields[i]] = catalog[i]
     
-    # Load the header to get proper name of flags
-    header = pyfits.getheader(filename, 1)
-    n_flag = catalog["flags"].shape[1]
-    for i in range(n_flag):
-        catalog[header["TFLAG%s" % (i+1)]] = catalog["flags"][:, i]
-    
-    catalog['reweight_s16a']    =  0.
-    
-    # Load information from psfPre
-    psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % isim)
-    psfInfo     =   pyfits.getheader(psfFname)
-    catalog['g1']=  psfInfo['g1']
-    catalog['g2']=  psfInfo['g2']
-    catalog['field_name']   = np.string_(field_keys[psfInfo['field']])
-    # Add a gridIndex column instead of using the index column, for compatibility
-    catalog['ipos']     =   (catalog['base_SdssCentroid_y']//64)*50 +(catalog['base_SdssCentroid_x']//64)
-    catalog['ipos']     =   catalog['ipos'].astype(np.int)
-    catalog['centDist'] =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
-                            (catalog['base_SdssCentroid_x']%64-32)**2.)
-    catalog['centDist'] =   np.sqrt(catalog['centDist'])
-    # First, keep only detections that are the closest to the grid point
-    # Get sorted index by grid index and grid distance
-    inds        =   np.lexsort([catalog['centDist'], catalog['ipos']])
-    inds_unique =   np.unique(catalog['ipos'][inds], return_index=True)[1]
-    #catalog['closest']  =   False
-    #catalog['closest'][inds[inds_unique]]  =   True
-    catalog = catalog[inds[inds_unique]]
-    
-    # Then, apply mask for permissive cuts
-    mask =  (~(catalog['base_SdssCentroid_flag'])) & \
-            (~catalog['ext_shapeHSM_HsmShapeRegauss_flag']) & \
-            (catalog['base_ClassificationExtendedness_value'] > 0) & \
-            (~np.isnan(catalog['modelfit_CModel_flux']))& \
-            (~np.isnan(catalog['modelfit_CModel_fluxSigma'])) & \
-            (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution'])) & \
-            (catalog['deblend_nChild']==0)&(catalog['centDist']<5.)
-    mask    =   mask&(~np.isnan(catalog['ext_shapeHSM_HsmPsfMoments_xx']))
-    mask    =   mask&(~np.isnan(catalog['ext_shapeHSM_HsmPsfMoments_yy']))
-    mask    =   mask&(~np.isnan(catalog['ext_shapeHSM_HsmPsfMoments_xy']))
-    mask    =   mask&(~np.isnan(catalog['base_Variance_value']))
-    mask    =   mask&(~np.isnan(catalog['modelfit_CModel_flux']))
-    mask    =   mask&(~np.isnan(catalog['modelfit_CModel_fluxSigma']))
-    mask    =   mask&(~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution']))
-    catalog = catalog[mask]
+    # For simulation
+    if isSim:
+        catalog['reweight_s16a']    =  0.
+        # Load information from psfPre
+        psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % isim)
+        psfInfo     =   pyfits.getheader(psfFname)
+        catalog['g1']=  psfInfo['g1']
+        catalog['g2']=  psfInfo['g2']
+        catalog['field_name']   = np.string_(field_keys[psfInfo['field']])
+        # Add a gridIndex column instead of using the index column, for compatibility
+        catalog['ipos']     =   (catalog['base_SdssCentroid_y']//64)*50 +(catalog['base_SdssCentroid_x']//64)
+        catalog['ipos']     =   catalog['ipos'].astype(np.int)
+        catalog['centDist'] =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
+                                (catalog['base_SdssCentroid_x']%64-32)**2.)
+        catalog['centDist'] =   np.sqrt(catalog['centDist'])
+        # First, keep only detections that are the closest to the grid point
+        # Get sorted index by grid index and grid distance
+        inds        =   np.lexsort([catalog['centDist'], catalog['ipos']])
+        inds_unique =   np.unique(catalog['ipos'][inds], return_index=True)[1]
+        catalog     =   catalog[inds[inds_unique]]
+        mask    =   mask&(catalog['deblend_nChild']==0)&(catalog['centDist']<5.)
+        # Load information from catPre
+        catFname    =   os.path.join(dir, 'catPre/catalog-%04d.fits' % isim)
+        catInfo     =   Table.read(catFname)
+        # Join catalogs on grid index
+        catalog = join(catalog, catInfo, 'ipos')
+        catalog['BAND'].dtype   =   'S20'
+        # Add extinction file
+        #filename_extinction = os.path.join(dir, 'cosmos_extinction.fits')
+        #extinction_table = Table.read(filename_extinction)
+        
+        # Join tables on cosmos_index
+        #catalog     =   join(catalog, extinction_table,'IDENT')   
+           
+    catalog =   catalog[mask]
     if len(catalog)==0:
         return None
-    # Load information from catPre
-    catFname    =   os.path.join(dir, 'catPre/catalog-%04d.fits' % isim)
-    catInfo     =   Table.read(catFname)
-    # Join catalogs on grid index
-    catalog = join(catalog, catInfo, 'ipos')
-    # Now, identify pairs based on their input ipos values
-    n = 50*50 # Number of grid points
-    mask_even = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int'), assume_unique=True)
-    mask_odd  = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int')+1, assume_unique=True)
+    
+    if isSim:
+        # Now, identify pairs based on their input ipos values
+        n = 50*50 # Number of grid points
+        mask_even = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int'), assume_unique=True)
+        mask_odd  = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int')+1, assume_unique=True)
 
-    # Find index of broken pairs
-    broken_pairs = np.setxor1d(catalog['ipos'][mask_even] % n,
-                               catalog['ipos'][mask_odd] % n - 1)
-    mask_pairs = ~np.in1d(catalog['ipos'] % n,
-                              np.concatenate([broken_pairs, broken_pairs+1]), assume_unique=True)
-    catalog['paired'] = mask_pairs
-    
-    
-    # Add extinction file
-    #filename_extinction = os.path.join(dir, 'cosmos_extinction.fits')
-    #extinction_table = Table.read(filename_extinction)
-    
-    # Join tables on cosmos_index
-    #catalog     =   join(catalog, extinction_table,'IDENT')
-    catalog.sort(['paired', 'ipos'])
+        # Find index of broken pairs
+        broken_pairs = np.setxor1d(catalog['ipos'][mask_even] % n,
+                                   catalog['ipos'][mask_odd] % n - 1)
+        mask_pairs = ~np.in1d(catalog['ipos'] % n,
+                                  np.concatenate([broken_pairs, broken_pairs+1]), assume_unique=True)
+        catalog['paired'] = mask_pairs
+        catalog.sort(['paired', 'ipos'])
     
     # Add column to make a WL flag for the simulation data:
     #     imag_cmodel - a_i < 24.5
@@ -150,9 +148,8 @@ def prepare_sim_catalog(dir,simDir,isim=None, rescale_est_variance=False):
     catalog['ishape_hsm_regauss_derived_shear_bias_m'] = 0.
     catalog['ishape_hsm_regauss_derived_shear_bias_c1'] = 0.
     catalog['ishape_hsm_regauss_derived_shear_bias_c2'] = 0.
-    catalog['BAND'].dtype   =   'S20'
+    
     return catalog
-
 
 
 def galaxy_selector(catalog, min_snr=None, max_snr=None,
@@ -557,6 +554,47 @@ def get_sigma_e_model(catalog):
     # Interpolate the corrections (which multiply the power-law results).
     result = grid_interpolate(log_saved_snr, saved_res, saved_corr, log_snr, res)
     return result*sigma_e 
+
+def get_erms_model(catalog):
+    """
+    This utility returns a model for the RMS ellipticity as a function of SNR and
+    resolution.  It uses the catalog directly to get the SNR and resolution values.
+
+    The file storing the data used to build the model is expected to be found in
+    plot/eRMS/intrinsicshape_2d.dat
+
+    """
+    # Get the necessary quantities.
+    snr = get_snr(catalog)
+    log_snr = np.log10(snr)
+    res = get_res(catalog)
+    # Fix interpolation for NaN/inf
+    m = np.isnan(log_snr) | np.isinf(log_snr)
+    log_snr[m] = 1. # set to minimum value that passes nominal cut
+    snr[m] = 10.
+
+    # Get saved model values.
+    data_file = "plot/eRMS/intrinsicshape_2d.dat"
+    dat = np.loadtxt(data_file).transpose()
+    saved_snr = dat[0,:]
+    log_saved_snr = np.log10(saved_snr)
+    saved_res = dat[1,:]
+    saved_model = dat[2,:]
+
+    # Interpolate the e_rms values and return them.
+    result = grid_interpolate(log_saved_snr, saved_res, saved_model, log_snr, res)
+    return result
+
+
+def get_weight_model(catalog):
+    """
+    This utility returns a model for the shape measurement weight as a
+    function of SNR and resolution.  It relies on two other routines
+    to get models for the intrinsic shape RMS and measurement error.
+    """
+    sigmae_meas = get_sigma_e_model(catalog)
+    erms = get_erms_model(catalog)
+    return 1./(sigmae_meas**2 + erms**2)
 
 
 def grid_interpolate(x, y, z, eval_x, eval_y):

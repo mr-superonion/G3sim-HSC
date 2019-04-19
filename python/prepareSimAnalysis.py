@@ -42,7 +42,6 @@ class prepareSimAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'output catalogs')
     simDir  =   pexConfig.Field(dtype=str, default='outcomeFPFS', doc = 'input catalogs')
     version =   pexConfig.Field(dtype=str, default='v1', doc = 'input catalogs')
-    rescale_noise  =   pexConfig.Field(dtype=bool, default=False, doc = 'rescale measrued noise variance to the target noise variance')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
@@ -100,7 +99,12 @@ class prepareSimAnalysisTask(BatchPoolTask):
         
     def process(self,cache,ifield):
         self.log.info('Processing subfield %s' %(ifield))
-        catalog     =   utilities.prepare_sim_catalog('./',self.config.simDir,ifield,rescale_est_variance=self.config.rescale_noise)
+        # Load the catalog from fits file
+        filename    =   os.path.join(self.config.simDir,'src-%04d.fits' % ifield)
+        # If the file does not exist, an IOError will be raised
+        catalog     =   Table.read(filename)
+        catalog     =   utilities.prepare_sim_catalog(catalog,isSim=True)
+        catalog['isim'] =   ifield
         if catalog is None:
             self.log.info('failed to process subfield %d' %(ifield))
         return catalog 
