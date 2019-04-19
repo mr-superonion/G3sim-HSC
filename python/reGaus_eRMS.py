@@ -86,7 +86,6 @@ class reGaus_eRMSTask(BatchPoolTask):
         pool.cacheClear()
         outcomes=   pool.map(self.process,utilities.field_keys)
         outcomes=   [x for x in outcomes if x is not None]
-        print(outcomes)
         outtable=   vstack(outcomes)
         self.finalise(outtable)
         return
@@ -109,13 +108,8 @@ class reGaus_eRMSTask(BatchPoolTask):
                                          use_wl_flag=use_wl_flag,
                                          bright_star_mask=False,
                                          max_snr=self.max_snr,
-                                         cancel_shape_noise=False,
-                                         max_e=self.max_e,
-                                         max_sigma_e=self.max_sigma_e)
-                                         
+                                         cancel_shape_noise=False)
         dataTab =   []
-        # Get true shear for the subfield.
-        g1_true, g2_true = utilities.get_true_shear(data[mask])
         # Store NumPy arrays for e1,e2,sigma_e,model_sigma_e,
         # model_cc,resolution,snr,weight
         dataTab.append(data[mask]['ishape_hsm_regauss_e1'])
@@ -129,7 +123,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         if reweight_s16a:
             dataTab.append(data[mask]['reweight_s16a'])
         else:
-            dataTab.append(np.ones_like(true_e1).astype(float))
+            dataTab.append(np.ones_like(dataTab[0]).astype(float))
         # Store subfield true shears.
         return Table(data=dataTab,names=self.names)
         
@@ -260,7 +254,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         out_data = (mean_snr.flatten(), mean_res.flatten(),
                     model_rms.flatten())
         out_data = np.column_stack(out_data)
-        np.savetxt(os.path.join(self.config.pltDir,'intrinsicshape_2d.dat', out_data))
+        np.savetxt(os.path.join(self.config.pltDir,'intrinsicshape_2d.dat'), out_data)
         return
     
     @classmethod

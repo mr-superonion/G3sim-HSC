@@ -153,7 +153,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         if reweight_s16a:
             dataTab.append(data[mask]['reweight_s16a'])
         else:
-            dataTab.append(np.ones_like(true_e1).astype(float))
+            dataTab.append(np.ones_like(g1_true).astype(float))
         dataTab.append(utilities.get_psf_size(data[mask]))
         # Store subfield true shears.
         
@@ -423,6 +423,21 @@ class reGaus_sigmaETask(BatchPoolTask):
                     (self.est_sigma_e/model_sigma_e).flatten())
         out_data = np.column_stack(out_data)
         np.savetxt(os.path.join(self.config.pltDir,'sigmae_ratio.dat'), out_data)
+
+        # Plot estimated e_rms.
+        fig = plt.figure()
+        cm  = plt.cm.get_cmap('RdYlBu')
+        ax = fig.add_subplot(111)
+        vmin = np.min(self.est_rms)
+        vmin = np.max(self.est_rms)
+        sc = ax.scatter(self.mean_snr, self.mean_res, c=self.est_rms, cmap=cm,
+                        vmin=vmin, vmax=vmax)
+        plt.colorbar(sc)
+        ax.set_title(r'Estimated $e_{rms}$')
+        plt.xscale('log')
+        plt.xlabel('SNR')
+        plt.ylabel('resolution')
+        plt.savefig(os.path.join(self.config.pltDir,'eRms_estimated.eps'))
         return
     
     @classmethod

@@ -393,7 +393,7 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
     return mask
 
 
-def sliding_window_def(snr, res, n_gal=50*50, n_bin_1d=20, snr_overlap=1.4):
+def sliding_window_def(snr, res, n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
     """
     A routine to define 2d bins in a sample based on its (snr, res)
     using a sliding window.  `n_gal` sets the minimum number of
@@ -544,7 +544,7 @@ def get_sigma_e_model(catalog):
 
     # Build the baseline model for sigma_e.
     #sigma_e = 0.264 * ((snr/20.)**-0.891) * ((res/0.5)**-1.015)
-    sigma_e = 0.269*((snr/20.)**-0.948)*((res/0.5)*-0.984)
+    sigma_e = 0.269 * ((snr/20.)**-0.956) * ((res/0.5)**-1.085)
     
     # Get the corrections from interpolation amongst saved values.
     data_file = "plot/sigmae/sigmae_ratio.dat"
