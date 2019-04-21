@@ -402,37 +402,437 @@ def sliding_window_def(snr, res, n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
     lower and upper resolution bin edges have shape (n_bin_1d,
     n_bin_1d).
     """
-    # First define bin edges in SNR.  To do this, we find percentiles
-    # for `n_bin_1d` bins with overlap defined by `snr_overlap`.
-    lower_percentiles = np.linspace(0.,100.,n_bin_1d+1)[:-1]
-    delta_perc = lower_percentiles[1]-lower_percentiles[0]
-    lower_percentiles -= (0.5*(snr_overlap-1.))*delta_perc
-    lower_percentiles[0] = 0
-    upper_percentiles = np.linspace(0.,100.,n_bin_1d+1)[1:]
-    upper_percentiles += (0.5*(snr_overlap-1.))*delta_perc
-    upper_percentiles[-1] = 100.
-    snr_lower_edges = np.percentile(snr, lower_percentiles)
-    snr_upper_edges = np.percentile(snr, upper_percentiles)
-    res_lower_edges = np.zeros((n_bin_1d, n_bin_1d))
-    res_upper_edges = np.zeros((n_bin_1d, n_bin_1d))
+    n_per_bin = len(snr) / (nbin_1d**2)
+    if n_per_bin < n_gal:
+        # If we can't divide up into that many bins, then use a sliding window.
+        # First define bin edges in SNR.  To do this, we find percentiles
+        # for `n_bin_1d` bins with overlap defined by `snr_overlap`.
+        lower_percentiles = np.linspace(0.,100.,n_bin_1d+1)[:-1]
+        delta_perc = lower_percentiles[1]-lower_percentiles[0]
+        lower_percentiles -= (0.5*(snr_overlap-1.))*delta_perc
+        lower_percentiles[0] = 0
+        upper_percentiles = np.linspace(0.,100.,n_bin_1d+1)[1:]
+        upper_percentiles += (0.5*(snr_overlap-1.))*delta_perc
+        upper_percentiles[-1] = 100.
+        snr_lower = np.percentile(snr, lower_percentiles)
+        snr_upper = np.percentile(snr, upper_percentiles)
+        res_lower = np.zeros((n_bin_1d, n_bin_1d))
+        res_upper = np.zeros((n_bin_1d, n_bin_1d))
+        # Now loop over the bins in SNR.
+        for snr_bin in range(n_bin_1d):
+            snr_bin_mask = (snr >= snr_lower[snr_bin]) & \
+                (snr < snr_upper[snr_bin])
+            tmp_res = res[snr_bin_mask]
+            if len(tmp_res) < 1.1*n_gal:
+                raise RuntimeError("Not enough objects to make "+
+                                   "sliding window")
+            delta_perc = 100*float(n_gal) / len(tmp_res) # width of bin in percentiles
+            lower_percentiles = np.linspace(0.,100.-delta_perc,n_bin_1d)
+            upper_percentiles = lower_percentiles + delta_perc
+            res_lower[snr_bin, :] = np.percentile(tmp_res,
+                                                        lower_percentiles)
+            res_upper[snr_bin, :] = np.percentile(tmp_res,
+                                                        upper_percentiles)
 
-    # Now loop over the bins in SNR.
-    for snr_bin in range(n_bin_1d):
-        snr_bin_mask = (snr >= snr_lower_edges[snr_bin]) & \
-            (snr < snr_upper_edges[snr_bin])
-        tmp_res = res[snr_bin_mask]
-        if len(tmp_res) < 1.1*n_gal:
-            raise RuntimeError("Not enough objects to make "+
-                               "sliding window")
-        delta_perc = 100*float(n_gal) / len(tmp_res) # width of bin in percentiles
-        lower_percentiles = np.linspace(0.,100.-delta_perc,n_bin_1d)
-        upper_percentiles = lower_percentiles + delta_perc
-        res_lower_edges[snr_bin, :] = np.percentile(tmp_res,
-                                                    lower_percentiles)
-        res_upper_edges[snr_bin, :] = np.percentile(tmp_res,
-                                                    upper_percentiles)
+    else:
+        # Otherwise, just divide them up.
+        lower_percentiles = np.linspace(0.,100.,self.self.config.nbin_1d+1)[:-1]
+        upper_percentiles = np.linspace(0.,100.,self.self.config.nbin_1d+1)[1:]
+        snr_lower = np.percentile(snr, lower_percentiles)
+        snr_upper = np.percentile(snr, upper_percentiles)
+        res_lower = np.zeros((self.self.config.nbin_1d,self.self.config.nbin_1d))
+        res_upper = np.zeros((self.self.config.nbin_1d,self.self.config.nbin_1d))
+        for ind in range(self.self.config.nbin_1d):
+            m = (snr >= snr_lower[ind]) & (snr < snr_upper[ind])
+            tmp_res = res[m]
+            res_lower[ind,:] = np.percentile(tmp_res, lower_percentiles)
+            res_upper[ind,:] = np.percentile(tmp_res, upper_percentiles)
+            
+    return snr_lower, snr_upper, res_lower, res_upper
 
-    return snr_lower_edges, snr_upper_edges, res_lower_edges, res_upper_edges
+def estimate_subfield_shear(catalog, use_model=False, verbose=False, cancel_shape_noise=True,
+                            simple_resp=True, report_resp=False, reweight_s16a=False,
+                            roundtrip_data=None,
+                            test_weight_bias=False):
+    """
+    The purpose of this routine is to estimate the shear for a given subfield.
+
+    This function expects the true shear to be the same for all entries.  If it
+    finds >1 subfield index it will raise a RuntimeError.
+
+    Parameters
+    ----------
+
+    catalog: recarray
+        Catalog to use for shear estimation.
+
+    use_model: bool (default: False)
+        Use get_X_model routines for weights, RMS ellipticity, and sigma_e?  If
+        False, then will use catalog entries.
+
+    verbose: bool (default: False)
+        Emit diagnostic statements?
+
+    cancel_shape_noise: bool (default: True)
+        Should shape noise cancellation be enforced by requiring the same
+        weight, RMS ellipticity, and sigma_e to be used for both galaxies in 90
+        degree rotated pairs?
+
+    simple_resp: bool (default: True)
+        Use the simpler formula for the responsivity?
+
+    report_resp: bool (default: False)
+        Return the value of responsivity along with the shears?
+
+    reweight_s16a: bool (default: False)
+        Use the S16A reweighting?  This will be the same value for each entry
+        since the routine works at the subfield level.
+
+    data_version: str (default: default_data_version)
+        Data version for this analysis.  While this analysis is only run on
+        sims, the data version determines filenames to be used for making models
+        for the weights etc.
+
+    sims_version: str (default: default_sims_version)
+        Sims version for this analysis.  While the data itself from the sims is
+        passed in directly, the sims version determines filenames to be used for
+        making models for the weights etc.
+
+    roundtrip_data: tuple or none (default: None)
+        Data to be used for a round-trip analysis given some set of calibration
+        corrections that differs from the ones in the catalogs.  This should be
+        a tuple of (m, c1, c2) values with the same length as `catalog`.  If it
+        is passed in, then the calibration values in the catalog are completely
+        ignored.  If None, then the catalog calibration values are used.
+    """
+
+    if verbose:
+        print('Using %d objects in input catalog' % (len(catalog)))
+
+    if roundtrip_data is not None:
+        model_m, model_c1, model_c2 = roundtrip_data
+
+    # The calculation below follows the agreed-upon procedure from
+    # http://hscsurvey.pbworks.com/w/page/113068663/notes%20on%20lensing%20signal%20calculation%20with%20S16A%20catalog
+    if not use_model:
+        weights = catalog['ishape_hsm_regauss_derived_shape_weight']
+        e_rms = catalog['ishape_hsm_regauss_derived_rms_e']
+        if 'ishape_hsm_regauss_derived_sigma_e' in catalog.dtype.names:
+            sigma_e = catalog['ishape_hsm_regauss_derived_sigma_e']
+        else:
+            sigma_e = get_sigma_e(catalog)
+    else:
+        weights = get_weight_model(catalog, data_version=data_version, sims_version=sims_version)
+        e_rms = get_erms_model(catalog, data_version=data_version, sims_version=sims_version)
+        sigma_e = get_sigma_e_model(catalog, data_version=data_version, sims_version=sims_version)
+    if reweight_s16a:
+        weights *= catalog['reweight_s16a']
+    # Enforce equality of weights etc. for galaxies in a pair if shape noise cancellation is
+    # requested.
+    if cancel_shape_noise and not test_weight_bias:
+        weights[1::2] = weights[0::2]
+        e_rms[1::2] = e_rms[0::2]
+        sigma_e[1::2] = sigma_e[0::2]
+
+    # Deal gracefully with the case of zero weights (generally due to reweight_s16a option).
+    if np.sum(weights)==0:
+        if not report_resp:
+            return 0, 0
+        else:
+            return 0, 0, 0
+
+    e1 = catalog['ishape_hsm_regauss_e1']
+    e2 = catalog['ishape_hsm_regauss_e2']
+    shear_num_1 = np.sum(weights * e1)
+    shear_num_2 = np.sum(weights * e2)
+    sum_weight = np.sum(weights)
+    if roundtrip_data is None:
+        bias_num = np.sum(weights*catalog['ishape_hsm_regauss_derived_shear_bias_m'])
+        add_num_1 = np.sum(weights*catalog['ishape_hsm_regauss_derived_shear_bias_c1'])
+        add_num_2 = np.sum(weights*catalog['ishape_hsm_regauss_derived_shear_bias_c2'])
+    else:
+        bias_num = np.sum(weights*model_m)
+        add_num_1 = np.sum(weights*model_c1)
+        add_num_2 = np.sum(weights*model_c2)
+
+    if simple_resp:
+        resp_num = np.sum(weights * e_rms**2)
+    else:
+        f = e_rms**2 * weights # e_rms^2 / (e_rms^2 + sigma_e^2)
+        k0 = (1.0-f) * e_rms**2
+        k1 = f**2
+        resp_num = np.sum(weights * (1.0 - k0 - 0.5*k1*(e1**2 + e2**2)))
+
+    if simple_resp:
+        responsivity = 1.0 - resp_num/sum_weight
+    else:
+        responsivity = resp_num / sum_weight
+
+    if responsivity > 2. or responsivity < 0.:
+        raise RuntimeError(
+            "Error: responsivity is %f with sum_weight %f"%(responsivity,sum_weight))
+    if verbose:
+        print("Shear responsivity: %f" % responsivity)
+    bias = bias_num / sum_weight
+    if verbose:
+        print("Bias: %f, %f, %f" %(bias,bias_num,sum_weight))
+    g1 = shear_num_1 / (2.0*responsivity*sum_weight*(1.0+bias)) \
+        - add_num_1/((1.0+bias)*sum_weight)
+    g2 = shear_num_2 / (2.0*responsivity*sum_weight*(1.0+bias)) \
+        - add_num_2/((1.0+bias)*sum_weight)
+    if not report_resp:
+        return g1, g2
+    else:
+        return g1, g2, responsivity
+
+
+
+def getMeanAbsEllip(catalog, weight=None):
+    """Routine for estimating the mean absolute ellipticity from a catalog.
+    Should be used on catalogs that have already been suitably masked so
+    they don't have NaN values or other garbage. Can optionally use weights.
+
+    Parameters
+    ----------
+
+    catalog: recarray
+        Catalog to process
+
+    weight: ndarray (optional)
+        Weight array of the same size as the catalog
+
+    Returns
+    -------
+
+    mean_e: float
+        Mean absolute ellipticity
+    """
+    # If there are no weights given, then simply use a set of weights that are
+    # equal to 1.
+    if weight is None:
+        weight = np.ones(len(catalog))
+
+    mean_e = np.mean(weight * np.sqrt(catalog['ishape_hsm_regauss_e1']**2 +
+                                      catalog['ishape_hsm_regauss_e2']**2))
+
+    return mean_e
+
+
+def getMeanRes(catalog, weight=None):
+    """
+    Routine for estimating the mean resolution from a catalog.
+    Should be used on catalogs that have already been suitably masked so
+    they don't have NaN values or other garbage. Can optionally use weights.
+
+    Parameters
+    ----------
+
+    catalog: recarray
+        Catalog to process
+
+    weight: ndarray (optional)
+        Weight array of the same size as the catalog
+
+    Returns
+    -------
+
+    mean_res: float
+        Mean resolution
+    """
+    if weight is None:
+        weight = np.ones(len(catalog))
+
+    return np.mean(weight * catalog['ishape_hsm_regauss_resolution'])
+
+
+def getMeanSnr(catalog, weight=None):
+    """
+    Routine for estimating the mean S/N from a catalog.
+    Should be used on catalogs that have already been suitably masked so
+    they don't have NaN values or other garbage. Can optionally use weights.
+
+    Parameters
+    ----------
+
+    catalog: recarray
+        Catalog to process
+
+    weight: ndarray (optional)
+        Weight array of the same size as the catalog
+
+    Returns
+    -------
+
+    mean_snr: float
+        Mean snr
+    """
+    if weight is None:
+        weight = np.ones(len(catalog))
+
+    tmp_snr = weight * get_snr(catalog)
+
+    return np.mean(tmp_snr)
+
+
+def fitline(xarr, yarr):
+    """Fit a line y = a + b * x to input x and y arrays by least squares.
+
+    Returns the tuple (a, b, Var(a), Cov(a, b), Var(b)), after performing an internal estimate of
+    measurement errors from the best-fitting model residuals.
+
+    See Numerical Recipes (Press et al 1992; Section 15.2) for a clear description of the details
+    of this simple regression.
+    """
+    # Get the S values (use default sigma2, best fit a and b still valid for
+    # stationary data)
+    S, Sx, Sy, Sxx, Sxy = _calculateSvalues(xarr, yarr)
+    # Get the best fit a and b
+    Del = S * Sxx - Sx * Sx
+    a = (Sxx * Sy - Sx * Sxy) / Del
+    b = (S * Sxy - Sx * Sy) / Del
+    # Use these to estimate the sigma^2 by residuals from the best-fitting
+    # model
+    ymodel = a + b * xarr
+    sigma2 = np.mean((yarr - ymodel)**2)
+    # And use this to get model parameter error estimates
+    var_a = sigma2 * Sxx / Del
+    cov_ab = - sigma2 * Sx / Del
+    var_b = sigma2 * S / Del
+    return (a, b, var_a, cov_ab, var_b)
+
+
+def _calculateSvalues(xarr, yarr, sigma2=1.):
+    """Calculates the intermediate S values required for basic linear regression.
+
+    See, e.g., Numerical Recipes (Press et al 1992) Section 15.2.
+    """
+    if len(xarr) != len(yarr):
+        raise ValueError("Input xarr and yarr differ in length!")
+    if len(xarr) <= 1:
+        raise ValueError("Input arrays must have 2 or more values elements.")
+
+    S = len(xarr) / sigma2
+    Sx = np.sum(xarr / sigma2)
+    Sy = np.sum(yarr / sigma2)
+    Sxx = np.sum(xarr * xarr / sigma2)
+    Sxy = np.sum(xarr * yarr / sigma2)
+    return (S, Sx, Sy, Sxx, Sxy)
+
+
+def show_shear_bias(g, g_true, m=None, merr=None, c=None):
+    """
+    This is a routine to plot estimated vs. true shear values (for one component).  Optionally, a
+    trend-line showing some calibration bias value can be shown.
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.scatter(g_true, g - g_true)
+    if m is not None:
+        x_vals = np.sort(g_true)
+        y_vals = m * x_vals
+        if c is not None:
+            y_vals += c
+        ax.plot(x_vals, y_vals, 'r-')
+        if merr is not None:
+            ax.set_title('m=%.3f +/- %.3f'%(m,merr))
+    ax.plot(x_vals, np.zeros_like(x_vals), 'k--')
+    plt.xlabel('true g')
+    plt.ylabel('g - true g')
+    return fig
+
+
+def show_shear_additive_bias(residual, e_psf, a, aerr):
+    """
+    This is a routine for showing additive bias.  It takes a NumPy array of the residuals,
+    g-(1+m)g_true, and plots it against the PSF ellipticity.  The slope should be the "a" value.
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.scatter(e_psf, residual)
+    x_vals = np.sort(e_psf)
+    y_vals = a*x_vals
+    ax.set_title('a=%.3f +/- %.3f'%(a,aerr))
+    ax.plot(x_vals, y_vals, 'r-')
+    ax.plot(x_vals, np.zeros_like(x_vals), 'k--')
+    plt.xlabel('PSF e (this component)')
+    plt.ylabel('Residual additive error')
+    return fig
+
+
+def get_true_shear(catalog):
+    """
+    This routine accesses the truth tables to get the true shear.
+    """
+    return catalog['g1'], catalog['g2']
+
+
+def systematics_func(x, m, a):
+    return m * x[0, :] + a * x[1, :]
+
+
+
+
+def get_m_c_a(g1, g2, g1_true, g2_true, psf_e1, psf_e2, sigma_vals, separate_components=True):
+    """
+    This routine takes a list/tuple/NumPy array of values for estimated shear (`g1`, `g2`), true
+    shear (`g1_true`, `g2_true`), and PSF ellipticity (`psf_e1`, `psf_e2`).  Then it does a
+    GREAT3-like analysis for calibration bias and additive bias.
+
+    Depending on the value of `separate_components`, it does this
+    either separately for each component, or for both combined.
+    """
+    # First, just make sure the inputs are NumPy arrays to enable the math that has to happen later.
+    g1 = np.array(g1)
+    g2 = np.array(g2)
+    g1_true = np.array(g1_true)
+    g2_true = np.array(g2_true)
+    psf_e1 = np.array(psf_e1)
+    psf_e2 = np.array(psf_e2)
+    sigma_vals = np.array(sigma_vals)
+
+    if not separate_components:
+        g = np.concatenate([g1, g2])
+        g_true = np.concatenate([g1_true, g2_true])
+        psf_e = np.concatenate([psf_e1, psf_e2])
+        sigma_vals = np.concatenate([sigma_vals, sigma_vals])
+
+    # identify which ones we don't want to plot
+    to_use = (sigma_vals < 1.e10)
+
+    # Our default algorithm is going to be to fit for
+    # g-g_true = m g_true + a e_PSF
+    # for each component, using scipy.optimize.curve_fit.
+    # This can eventually accomodate weights as needed.
+    import scipy.optimize
+    if separate_components:
+        popt1, pcov1 = scipy.optimize.curve_fit(systematics_func,
+                                                np.vstack((g1_true,psf_e1)), g1-g1_true,
+                                                sigma=sigma_vals)
+        popt2, pcov2 = scipy.optimize.curve_fit(systematics_func,
+                                                np.vstack((g2_true,psf_e2)), g2-g2_true,
+                                                sigma=sigma_vals)
+        # Return everything: (m, a, sigma_m, sigma_a) first for component 1 then for
+        # component 2, followed by plots.
+        return popt1[0], popt1[1], math.sqrt(pcov1[0][0]), math.sqrt(pcov1[1][1]), \
+            popt2[0], popt2[1], math.sqrt(pcov2[0][0]), math.sqrt(pcov2[1][1]), \
+            show_shear_bias(g1[to_use], g1_true[to_use], m=popt1[0], merr=math.sqrt(pcov1[0][0])), \
+            show_shear_bias(g2[to_use], g2_true[to_use], m=popt2[0], merr=math.sqrt(pcov2[0][0])), \
+            show_shear_additive_bias(g1[to_use]-(1.0+popt1[0])*g1_true[to_use],
+                                     psf_e1[to_use], popt1[1], math.sqrt(pcov1[1][1])), \
+                                     show_shear_additive_bias(g2[to_use]-(1.0+popt2[0])*g2_true[to_use],
+                                                              psf_e2[to_use], popt2[1], math.sqrt(pcov2[1][1]))
+    else:
+        popt, pcov = scipy.optimize.curve_fit(systematics_func,
+                                              np.vstack((g_true,
+                                                         psf_e)),
+                                              g-g_true,
+                                              sigma=sigma_vals)
+        # Return everything: (m, a, sigma_m, sigma_a), followed by plots.
+        return popt[0], popt[1], math.sqrt(pcov[0][0]), math.sqrt(pcov[1][1]), \
+            show_shear_bias(g[to_use], g_true[to_use], m=popt[0], merr=math.sqrt(pcov[0][0])), \
+            show_shear_additive_bias(g[to_use]-(1.0+popt[0])*g_true[to_use],
+                                     psf_e[to_use], popt[1], math.sqrt(pcov[1][1]))
+
 
 
 

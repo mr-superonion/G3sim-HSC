@@ -28,6 +28,9 @@ class reGaus_shearMcConfig(pexConfig.Config):
     pltDir  =   pexConfig.Field(dtype=str, default='plot/shearMc/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
     use_model=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
+    cancel_shape_noise=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use orthogonal galaxies to cancel shape noise')
+    separate_components= pexConfig.Field(dtype=bool, default=True, doc = 'whether to seperate g1 g2 components')
+    
     
     max_snr =   pexConfig.Field(dtype=float, default=80., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
@@ -73,6 +76,8 @@ class reGaus_shearMcTask(BatchPoolTask):
         self.upper_psf_size = self.config.upper_psf_size
 
         # Initialize array to store multiplicative bias and associated quantities.
+        self.snr_bins = np.zeros((self.n_bin_snr, self.n_bin_res))
+        self.res_bins = np.zeros((self.n_bin_snr, self.n_bin_res))
         self.m1_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.a1_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.m2_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
@@ -80,8 +85,16 @@ class reGaus_shearMcTask(BatchPoolTask):
         self.sigm1_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.siga1_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         
-        
-        
+        #Estimated g1,g2 for the whole isim
+        self.g1 = []
+        self.g2 = []
+        #True g1,g2
+        self.g1_true = []
+        self.g2_true = []
+        self.psf_e1 = []
+        self.psf_e2 = []
+        self.sigma_g = []
+        self.weight_s16a = []
         
         self.log.info('Beginning shearMc analysis for the following scenario:')
         self.log.info('   %d bins in both SNR and resolution'%self.config.nbin_1d)
@@ -107,7 +120,7 @@ class reGaus_shearMcTask(BatchPoolTask):
         return
         
         
-    def process(self,cache,fieldKey,reweight_s16a=True,use_wl_flag=True):
+    def process(self,cache,fieldKey):
         fieldname=  utilities.field_keys[fieldKey]
         if fieldname==  'AEGIS':
             return None
@@ -124,16 +137,16 @@ class reGaus_shearMcTask(BatchPoolTask):
         # 2) bright_star_mask is set to False (instead of
         #    self.bright_star_mask) because we are running on sims.
         mask    =   utilities.galaxy_selector(catalog=data,
-                                         use_wl_flag=use_wl_flag,
+                                         use_wl_flag=True,
                                          bright_star_mask=False,
                                          max_snr=self.max_snr,
-                                         cancel_shape_noise=True,
+                                         cancel_shape_noise=self.config.cancel_shape_noise,
                                          max_e=self.max_e,
                                          max_sigma_e=self.max_sigma_e)
                                          
         return data[mask]
         
-    def finalise(self,catalog):
+    def finalise(self,catalog,reweight_s16a=True):
         """
         Compute shear biases and make plots
         """
@@ -150,6 +163,8 @@ class reGaus_shearMcTask(BatchPoolTask):
         if self.upper_psf_size < 100.:
             cut_val = np.percentile(psf_size, self.upper_psf_size)
             cond_mask &= (psf_size < cut_val)
+        assert np.all(cond_mask[0::2]==cond_mask[1::2]),\
+                "Mask for imaging conditions does not obey shape noise cancellation sanity check"
         catalog = catalog[cond_mask]
         
         # Set up sliding window definition and make a mask for each SNR, resolution bin.
@@ -163,10 +178,185 @@ class reGaus_shearMcTask(BatchPoolTask):
             shape_weights = utilities.get_weight_model(catalog)
         else:
             shape_weights = catalog['ishape_hsm_regauss_derived_shape_weight']
+        if reweight_s16a:
+            shape_weights *= catalog['reweight_s16a']
+        if self.config.cancel_shape_noise:
+            shape_weights[1::2] = shape_weights[0::2]
+            assert np.all(catalog['reweight_s16a'][0::2]==catalog['reweight_s16a'][1::2]), \
+                'Galaxies in pairs do not have the same reweight_s16a factors'
         
+        # Sort out binning. 
+        snr_lower, snr_upper, res_lower, res_upper = \
+            utilities.sliding_window_def(snr, res,
+            n_bin_1d=self.config.nbin_1d)
+        # Store Mask for each (snr,res) bin
+        bin_mask = {}
+        for j in range(self.config.nbin_1d):
+            for k in range(self.config.nbin_1d):
+                # This line below doesn't preserve shape noise cancellation, since each galaxy in
+                # the pair has the cut imposed separately.
+                tmp_mask = (snr >= snr_lower[j]) & (snr < snr_upper[j]) & \
+                    (res >= res_lower[j,k]) & (res < res_upper[j,k])
+                # This line will re-impose the shape noise cancellation (by only using the first in
+                # the pair for the cut).
+                if self.config.cancel_shape_noise:
+                    tmp_mask[1::2] = tmp_mask[0::2]
+                mean_snr = np.sum(shape_weights[tmp_mask]*snr[tmp_mask]) / \
+                    np.sum(shape_weights[tmp_mask])
+                mean_res = np.sum(shape_weights[tmp_mask]*res[tmp_mask]) / \
+                    np.sum(shape_weights[tmp_mask])
+                self.snr_bins[j,k] = mean_snr
+                self.res_bins[j,k] = mean_res
+                bin_mask['%d_%d'%(j,k)] = tmp_mask.copy()
+
+        # The shear estimation routine is built to work on simulation subfields
+        # We need to iterate on all independent subfields
+        subfield_id = catalog['isim']
+        sids = np.unique(subfield_id)
+        self.g1_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d, len(sids)))
+        self.g2_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d, len(sids)))
+        self.sigma_g_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d, len(sids)))
+
+        resp_list = []
+        #Estimate shear for each isim
+        for tmp_ind, i in enumerate(sids):
+            m = (subfield_id == i)
+            # Get true shear
+            g1_true, g2_true = utilities.get_true_shear(catalog[m][0])
+            # Define the PSF shape and rotation angle to apply to get into that frame
+            psf_e1, psf_e2 = utilities.get_psf_ellip(catalog[m][0])
+            self.g1_true.append(g1_true)
+            self.g2_true.append(g2_true)
+            self.psf_e1.append(psf_e1)
+            self.psf_e2.append(psf_e2)
+            self.weight_s16a.append(catalog['reweight_s16a'][m][0])
+            
+            
+            #For overall estimation
+            if np.sum(shape_weights[m])>0:
+                # Estimate the shear
+                if i==1: verbose=True
+                else: verbose=False
+                g1, g2, resp = utilities.estimate_subfield_shear(
+                    catalog[m], use_model=self.config.use_model,
+                    cancel_shape_noise=self.config.cancel_shape_noise,
+                    simple_resp=True, report_resp=True,
+                    reweight_s16a=reweight_s16a,
+                    roundtrip_data=None,
+                    test_weight_bias=False,
+                    verbose=verbose)
+                # Get an approximate shape noise per component:
+                # sigma_g / sqrt(N) ~ 0.25/sqrt(N)
+                # Note: we have cancelled shape noise here!  So there is not really
+                # this much noise.  But measurement error goes like 1/sqrt(N) as well,
+                # and capturing that trend is really the important part.
+                sigma_g = 0.25/math.sqrt(shape_weights[m].sum())
+                self.g1.append(g1)
+                self.g2.append(g2)
+                resp_list.append(resp)
+                self.sigma_g.append(sigma_g)
+            else:
+                self.g1.append(0)
+                self.g2.append(0)
+                resp_list.append(0)
+                self.sigma_g.append(1e12)
+            
+            
+            
+            # Get the estimate in bins in SNR/res as well.
+            for j in range(self.config.nbin_1d):
+                for k in range(self.config.nbin_1d):
+                    mm = bin_mask['%d_%d'%(j,k)] & (subfield_id == i)
+                    # Some weird bins might have no objects in particular subfields.
+                    # Don't use estimate_subfield_shear on those!
+                    if mm.astype(int).sum() > 2:
+                        # Another criterion: make sure the objects have nonzero weight
+                        if np.sum(shape_weights[mm])>0:
+                            tmp_g1, tmp_g2, tmp_resp = utilities.estimate_subfield_shear(
+                                catalog[mm], use_model=self.config.use_model,
+                                cancel_shape_noise=self.config.cancel_shape_noise,
+                                simple_resp=True, report_resp=True,
+                                reweight_s16a=self.config.reweight_s16a,
+                                roundtrip_data=None,
+                                test_weight_bias=False)
+                            self.g1_bins[j,k,tmp_ind] = tmp_g1
+                            self.g2_bins[j,k,tmp_ind] = tmp_g2
+                            self.sigma_g_bins[j,k,tmp_ind] = 0.25/math.sqrt(mm.astype(int).sum())
+                        else:
+                            self.g1_bins[j,k,tmp_ind] = 0.0
+                            self.g2_bins[j,k,tmp_ind] = 0.0
+                            self.sigma_g_bins[j,k,tmp_ind] = 1.e12
+                    else:
+                        self.g1_bins[j,k,tmp_ind] = 0.0
+                        self.g2_bins[j,k,tmp_ind] = 0.0
+                        self.sigma_g_bins[j,k,tmp_ind] = 1.e12
+
+        self.sigma_g = np.array(self.sigma_g)
+        resp_list = np.array(resp_list)
+        self.g1 = np.array(self.g1)
+        self.g2 = np.array(self.g2)
+        self.weight_s16a = np.array(self.weight_s16a)
+        self.g1_true = np.array(self.g1_true)
+        self.g2_true = np.array(self.g2_true)
+        self.psf_e1 = np.array(self.psf_e1)
+        self.psf_e2 = np.array(self.psf_e2)
+        overall_use = self.sigma_g < 1e10
+        self.log.info('For overall analysis, using %d subfields with nonzero total weight'%\
+            overall_use.astype(int).sum())
+        sigma_vals = self.sigma_g[overall_use]
+        if reweight_s16a:
+            # We are going to weight by 1/sigma_vals^2.
+            # But self.weight_s16a should be a multiplier for the weight.
+            # So we take sigma_vals, and divide by sqrt(self.weight_s16a),
+            # controlling for the cases where it leads to division by zero.
+            division_val = np.sqrt(self.weight_s16a[overall_use])
+            division_val[division_val<1.e-6] = 1.e-6
+            sigma_vals /= division_val
         
-        
+        self.log.info('Overall bias analysis:')
+        if self.config.separate_components:
+            m1, a1, sig_m1, sig_a1, m2, a2, sig_m2, sig_a2, fig1, fig2, fig3, fig4 = \
+                utilities.get_m_c_a(self.g1[overall_use], self.g2[overall_use],
+                                    self.g1_true[overall_use], self.g2_true[overall_use],
+                                    self.psf_e1[overall_use], self.psf_e2[overall_use],
+                                    sigma_vals, separate_components=self.config.separate_components)
+            self.log.info('m1 = %.3f +/- %.3f' % (m1, sig_m1))
+            self.log.info('a1 = %.3f +/- %.3f' % (a1, sig_a1))
+            self.log.info('m2 = %.3f +/- %.3f' % (m2, sig_m2))
+            self.log.info('a2 = %.3f +/- %.3f' % (a2, sig_a2))
+            fig1.savefig(self.plot_pref+'shear_bias_1.'+self.plot_type)
+            fig2.savefig(self.plot_pref+'shear_bias_2.'+self.plot_type)
+            fig3.savefig(self.plot_pref+'shear_additive_residual_1.'+self.plot_type)
+            fig4.savefig(self.plot_pref+'shear_additive_residual_2.'+self.plot_type)
+        else:
+            m1, a1, sig_m1, sig_a1, fig1, fig2 = \
+                utilities.get_m_c_a(self.g1[overall_use], self.g2[overall_use],
+                                    self.g1_true[overall_use], self.g2_true[overall_use],
+                                    self.psf_e1[overall_use], self.psf_e2[overall_use],
+                                    sigma_vals, separate_components=self.config.separate_components)
+
+            self.log.info('m = %.3f +/- %.3f' % (m1, sig_m1))
+            self.log.info('a = %.3f +/- %.3f' % (a1, sig_a1))
+            fig1.savefig(self.config.pltDir+'shear_bias.eps')
+            fig2.savefig(self.config.pltDir+'shear_additive_residual.eps')
+            
+
+        # Histogram of responsivity and weighted mean etc.
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        h, ed = np.histogram(np.array(resp_list[overall_use]),
+                             bins=int(len(resp_list[overall_use])/20.),
+                             weights = 1./sigma_vals**2, density=True,
+                             range = np.percentile(resp_list[overall_use], [1.,99.]))
+        x = 0.5*(ed[:-1] + ed[1:])
+        median_val = ws.weighted_median(resp_list[overall_use], weights=1./sigma_vals**2)
+        ax.plot(x,h)
+        ax.plot([median_val,median_val],[np.min(h),np.max(h)], 'r--')
+        plt.xlabel('responsivity')
+        ax.set_title('Median responsivity: %.3f'%(median_val))
+        plt.savefig(self.config.pltDir+'shear_responsivity.eps')
         return
+    
     
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
