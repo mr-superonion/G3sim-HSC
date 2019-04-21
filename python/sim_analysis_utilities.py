@@ -33,8 +33,9 @@ plot_colors = {
     'XMM' : '#4575b4'
     }
 
-def prepare_sim_catalog(catalog,isSim=True):
-    colNames    =   catalog.colnames
+def prepare_catalog(filename,isim=-1):
+    catalog =   Table.read(filename)
+    colNames=   catalog.colnames
     
     # Load the header to get proper name of flags
     header = pyfits.getheader(filename, 1)
@@ -55,7 +56,11 @@ def prepare_sim_catalog(catalog,isSim=True):
             (~np.isnan(catalog['base_Variance_value']))&\
             (~np.isnan(catalog['modelfit_CModel_flux']))&\
             (~np.isnan(catalog['modelfit_CModel_fluxSigma']))&\
-            (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution']))
+            (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution']))&\
+            (catalog['deblend_nChild']==0)
+    catalog =   catalog[mask]
+    if len(catalog)==0:
+        return None
     catalog =   catalog[colNames]
     # Add columns with names matching the real data
     cols = []
@@ -65,12 +70,12 @@ def prepare_sim_catalog(catalog,isSim=True):
                    'ext_shapeHSM_HsmShapeRegauss_resolution': 'ishape_hsm_regauss_resolution'}
     for i in data_fields:
         catalog[data_fields[i]] = catalog[i]
-    
+
     # For simulation
-    if isSim:
+    if isim>=0:
         catalog['reweight_s16a']    =  0.
         # Load information from psfPre
-        psfFname    =   os.path.join(dir, 'psfPre/psf%04d.fits' % isim)
+        psfFname    =   'psfPre/psf%04d.fits' % isim
         psfInfo     =   pyfits.getheader(psfFname)
         catalog['g1']=  psfInfo['g1']
         catalog['g2']=  psfInfo['g2']
@@ -86,25 +91,20 @@ def prepare_sim_catalog(catalog,isSim=True):
         inds        =   np.lexsort([catalog['centDist'], catalog['ipos']])
         inds_unique =   np.unique(catalog['ipos'][inds], return_index=True)[1]
         catalog     =   catalog[inds[inds_unique]]
-        mask    =   mask&(catalog['deblend_nChild']==0)&(catalog['centDist']<5.)
+        catalog     =   catalog[(catalog['centDist']<5.)]
         # Load information from catPre
-        catFname    =   os.path.join(dir, 'catPre/catalog-%04d.fits' % isim)
+        catFname    =   'catPre/catalog-%04d.fits' % isim
         catInfo     =   Table.read(catFname)
         # Join catalogs on grid index
         catalog = join(catalog, catInfo, 'ipos')
         catalog['BAND'].dtype   =   'S20'
         # Add extinction file
-        #filename_extinction = os.path.join(dir, 'cosmos_extinction.fits')
+        #filename_extinction = 'cosmos_extinction.fits'
         #extinction_table = Table.read(filename_extinction)
         
         # Join tables on cosmos_index
         #catalog     =   join(catalog, extinction_table,'IDENT')   
            
-    catalog =   catalog[mask]
-    if len(catalog)==0:
-        return None
-    
-    if isSim:
         # Now, identify pairs based on their input ipos values
         n = 50*50 # Number of grid points
         mask_even = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int'), assume_unique=True)
@@ -117,6 +117,7 @@ def prepare_sim_catalog(catalog,isSim=True):
                                   np.concatenate([broken_pairs, broken_pairs+1]), assume_unique=True)
         catalog['paired'] = mask_pairs
         catalog.sort(['paired', 'ipos'])
+        catalog['isim'] =   isim
     
     # Add column to make a WL flag for the simulation data:
     #     imag_cmodel - a_i < 24.5
