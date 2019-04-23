@@ -8,6 +8,8 @@ matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
+import scipy.optimize as opt
+import weightedstats as ws
 import scipy.stats as stats
 import sim_analysis_utilities as utilities
 import numpy as np
@@ -22,17 +24,18 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
-class reGaus_shearMcConfig(pexConfig.Config):
+class reGaus_shearCalibConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
     obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot/shearMc/', doc = 'plot directory')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot/shearCalib/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
     use_model=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
     cancel_shape_noise=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use orthogonal galaxies to cancel shape noise')
     separate_components= pexConfig.Field(dtype=bool, default=True, doc = 'whether to seperate g1 g2 components')
+    bin_plot= pexConfig.Field(dtype=bool, default=True, doc = 'whether to seperate g1 g2 components')
     
     
-    max_snr =   pexConfig.Field(dtype=float, default=80., doc = 'Maximum value of signal to noise ratio')
+    max_snr =   pexConfig.Field(dtype=float, default=1000., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
     max_sigma_e =   pexConfig.Field(dtype=float, default=0.4, doc = 'Maximum value of sigmaE')
     lower_psf_size  =   pexConfig.Field(dtype=float, default=0., doc = 'Minimum of PSF size')
@@ -53,7 +56,7 @@ class reGaus_shearMcConfig(pexConfig.Config):
         if not os.path.exists(self.pltDir):
             os.mkdir(self.pltDir)
 
-class reGaus_shearMcRunner(TaskRunner):
+class reGaus_shearCalibRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         return [(ref, kwargs) for ref in range(1)] 
@@ -62,10 +65,10 @@ def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
 
-class reGaus_shearMcTask(BatchPoolTask):
-    ConfigClass     =   reGaus_shearMcConfig
-    RunnerClass     =   reGaus_shearMcRunner
-    _DefaultName    =   "reGaus_shearMc"
+class reGaus_shearCalibTask(BatchPoolTask):
+    ConfigClass     =   reGaus_shearCalibConfig
+    RunnerClass     =   reGaus_shearCalibRunner
+    _DefaultName    =   "reGaus_shearCalib"
     
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
@@ -76,8 +79,8 @@ class reGaus_shearMcTask(BatchPoolTask):
         self.upper_psf_size = self.config.upper_psf_size
 
         # Initialize array to store multiplicative bias and associated quantities.
-        self.snr_bins = np.zeros((self.n_bin_snr, self.n_bin_res))
-        self.res_bins = np.zeros((self.n_bin_snr, self.n_bin_res))
+        self.snr_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
+        self.res_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.m1_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.a1_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.m2_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
@@ -85,9 +88,6 @@ class reGaus_shearMcTask(BatchPoolTask):
         self.sigm1_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.siga1_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         
-        #Estimated g1,g2 for the whole isim
-        self.g1 = []
-        self.g2 = []
         #True g1,g2
         self.g1_true = []
         self.g2_true = []
@@ -95,8 +95,11 @@ class reGaus_shearMcTask(BatchPoolTask):
         self.psf_e2 = []
         self.sigma_g = []
         self.weight_s16a = []
+
+        self.add_m_val  =   0.
+        self.add_a_val  =   0.
         
-        self.log.info('Beginning shearMc analysis for the following scenario:')
+        self.log.info('Beginning shearCalib analysis for the following scenario:')
         self.log.info('   %d bins in both SNR and resolution'%self.config.nbin_1d)
         self.log.info('   Percentile ranges for PSF size: %.2f-%.2f'%\
             (self.lower_psf_size, self.upper_psf_size))
@@ -111,14 +114,13 @@ class reGaus_shearMcTask(BatchPoolTask):
     def run(self,Id):
         #Prepare the pool
         rows    =   Table.read('noiVar_rPsf_s18a.csv')
-        pool    =   Pool("reGaus_shearMc")
+        pool    =   Pool("reGaus_shearCalib")
         pool.cacheClear()
         outcomes=   pool.map(self.process,utilities.field_keys)
-        outcomes    =   [x for x in outcomes if x is not None]
+        outcomes=   [x for x in outcomes if x is not None]
         outtable=   vstack(outcomes)
         self.finalise(outtable)
         return
-        
         
     def process(self,cache,fieldKey):
         fieldname=  utilities.field_keys[fieldKey]
@@ -150,9 +152,6 @@ class reGaus_shearMcTask(BatchPoolTask):
         """
         Compute shear biases and make plots
         """
-        # Concatenate all the catalogs across fields.
-        catalog = astropy.table.vstack(self.catalog_list)
-
         # Get mask for imaging conditions.  Note this will always preserve shape noise cancellation
         # due to how the sims are set up, though we can do an assert just to check.
         psf_size = utilities.get_psf_size(catalog)
@@ -231,38 +230,6 @@ class reGaus_shearMcTask(BatchPoolTask):
             self.psf_e2.append(psf_e2)
             self.weight_s16a.append(catalog['reweight_s16a'][m][0])
             
-            
-            #For overall estimation
-            if np.sum(shape_weights[m])>0:
-                # Estimate the shear
-                if i==1: verbose=True
-                else: verbose=False
-                g1, g2, resp = utilities.estimate_subfield_shear(
-                    catalog[m], use_model=self.config.use_model,
-                    cancel_shape_noise=self.config.cancel_shape_noise,
-                    simple_resp=True, report_resp=True,
-                    reweight_s16a=reweight_s16a,
-                    roundtrip_data=None,
-                    test_weight_bias=False,
-                    verbose=verbose)
-                # Get an approximate shape noise per component:
-                # sigma_g / sqrt(N) ~ 0.25/sqrt(N)
-                # Note: we have cancelled shape noise here!  So there is not really
-                # this much noise.  But measurement error goes like 1/sqrt(N) as well,
-                # and capturing that trend is really the important part.
-                sigma_g = 0.25/math.sqrt(shape_weights[m].sum())
-                self.g1.append(g1)
-                self.g2.append(g2)
-                resp_list.append(resp)
-                self.sigma_g.append(sigma_g)
-            else:
-                self.g1.append(0)
-                self.g2.append(0)
-                resp_list.append(0)
-                self.sigma_g.append(1e12)
-            
-            
-            
             # Get the estimate in bins in SNR/res as well.
             for j in range(self.config.nbin_1d):
                 for k in range(self.config.nbin_1d):
@@ -276,12 +243,12 @@ class reGaus_shearMcTask(BatchPoolTask):
                                 catalog[mm], use_model=self.config.use_model,
                                 cancel_shape_noise=self.config.cancel_shape_noise,
                                 simple_resp=True, report_resp=True,
-                                reweight_s16a=self.config.reweight_s16a,
+                                reweight_s16a=reweight_s16a,
                                 roundtrip_data=None,
                                 test_weight_bias=False)
                             self.g1_bins[j,k,tmp_ind] = tmp_g1
                             self.g2_bins[j,k,tmp_ind] = tmp_g2
-                            self.sigma_g_bins[j,k,tmp_ind] = 0.25/math.sqrt(mm.astype(int).sum())
+                            self.sigma_g_bins[j,k,tmp_ind] = 0.25/np.sqrt(mm.astype(int).sum())
                         else:
                             self.g1_bins[j,k,tmp_ind] = 0.0
                             self.g2_bins[j,k,tmp_ind] = 0.0
@@ -291,70 +258,168 @@ class reGaus_shearMcTask(BatchPoolTask):
                         self.g2_bins[j,k,tmp_ind] = 0.0
                         self.sigma_g_bins[j,k,tmp_ind] = 1.e12
 
-        self.sigma_g = np.array(self.sigma_g)
-        resp_list = np.array(resp_list)
-        self.g1 = np.array(self.g1)
-        self.g2 = np.array(self.g2)
         self.weight_s16a = np.array(self.weight_s16a)
         self.g1_true = np.array(self.g1_true)
         self.g2_true = np.array(self.g2_true)
         self.psf_e1 = np.array(self.psf_e1)
         self.psf_e2 = np.array(self.psf_e2)
-        overall_use = self.sigma_g < 1e10
-        self.log.info('For overall analysis, using %d subfields with nonzero total weight'%\
-            overall_use.astype(int).sum())
-        sigma_vals = self.sigma_g[overall_use]
-        if reweight_s16a:
-            # We are going to weight by 1/sigma_vals^2.
-            # But self.weight_s16a should be a multiplier for the weight.
-            # So we take sigma_vals, and divide by sqrt(self.weight_s16a),
-            # controlling for the cases where it leads to division by zero.
-            division_val = np.sqrt(self.weight_s16a[overall_use])
-            division_val[division_val<1.e-6] = 1.e-6
-            sigma_vals /= division_val
-        
-        self.log.info('Overall bias analysis:')
+
+        #For each of the sliding bins in SNR/resolution.
+        for j in range(self.config.nbin_1d):
+            for k in range(self.config.nbin_1d):
+                sigma_vals = self.sigma_g_bins[j,k,:]
+                if reweight_s16a:
+                    division_val = np.sqrt(self.weight_s16a)
+                    division_val[division_val<1.e-6] = 1.e-6
+                    sigma_vals /= division_val
+                tmp_use = sigma_vals < 1.e10
+                if self.config.separate_components:
+                    self.m1_bins[j,k], self.a1_bins[j,k], \
+                        self.sigm1_bins[j,k], self.siga1_bins[j,k], \
+                        self.m2_bins[j,k], self.a2_bins[j,k], sig_m2, sig_a2, \
+                        fig1, fig2, fig3, fig4 = \
+                        utilities.get_m_c_a(self.g1_bins[j,k,tmp_use],
+                                            self.g2_bins[j,k,tmp_use],
+                                            self.g1_true[tmp_use],
+                                            self.g2_true[tmp_use],
+                                            self.psf_e1[tmp_use],
+                                            self.psf_e2[tmp_use],
+                                            sigma_vals[tmp_use],
+                                            separate_components=self.config.separate_components)
+                else:
+                    self.m1_bins[j,k], self.a1_bins[j,k], \
+                        self.sigm1_bins[j,k], self.siga1_bins[j,k], \
+                        fig1, fig2 = \
+                        utilities.get_m_c_a(self.g1_bins[j,k,tmp_use],
+                                            self.g2_bins[j,k,tmp_use],
+                                            self.g1_true[tmp_use], self.g2_true[tmp_use],
+                                            self.psf_e1[tmp_use], self.psf_e2[tmp_use],
+                                            sigma_vals[tmp_use],
+                                            separate_components=self.config.separate_components)
+
+                self.log.info('Bin %d %d bias analysis:'%(j,k))
+                if self.config.separate_components:
+                    self.log.info('m1 = %.3f +/- %.3f' % (self.m1_bins[j,k], self.sigm1_bins[j,k]))
+                    self.log.info('a1 = %.3f +/- %.3f' % (self.a1_bins[j,k], self.siga1_bins[j,k]))
+                    self.log.info('m2 = %.3f +/- %.3f' % (self.m2_bins[j,k], sig_m2))
+                    self.log.info('a2 = %.3f +/- %.3f' % (self.a2_bins[j,k], sig_a2))
+                    if self.config.bin_plot:
+                        fig1.savefig(self.config.pltDir+\
+                                         'shear_bias_bin%d_%d_1.png'%(j,k))
+                        fig2.savefig(self.config.pltDir+\
+                                         'shear_bias_bin%d_%d_2.png'%(j,k))
+                        fig3.savefig(self.config.pltDir+\
+                                         'shear_additive_residual_bin%d_%d_1.png'%(j,k) )
+                        fig4.savefig(self.config.pltDir+\
+                                         'shear_additive_residual_bin%d_%d_2.png'%(j,k) )
+                else:
+                    self.log.info('m = %.3f +/- %.3f' % (self.m1_bins[j,k], self.sigm1_bins[j,k]))
+                    self.log.info('a = %.3f +/- %.3f' % (self.a1_bins[j,k], self.siga1_bins[j,k]))
+                    if self.bin_plot:
+                        fig1.savefig(self.config.pltDir+\
+                                         'shear_bias_bin%d_%d.png'%(j,k))
+                        fig2.savefig(self.config.pltDir+\
+                                         'shear_additive_residual_bin%d_%d.png'%(j,k) )
+        # Do some clever summary plots and model fitting.
+        cm = plt.cm.get_cmap('RdYlBu')
         if self.config.separate_components:
-            m1, a1, sig_m1, sig_a1, m2, a2, sig_m2, sig_a2, fig1, fig2, fig3, fig4 = \
-                utilities.get_m_c_a(self.g1[overall_use], self.g2[overall_use],
-                                    self.g1_true[overall_use], self.g2_true[overall_use],
-                                    self.psf_e1[overall_use], self.psf_e2[overall_use],
-                                    sigma_vals, separate_components=self.config.separate_components)
-            self.log.info('m1 = %.3f +/- %.3f' % (m1, sig_m1))
-            self.log.info('a1 = %.3f +/- %.3f' % (a1, sig_a1))
-            self.log.info('m2 = %.3f +/- %.3f' % (m2, sig_m2))
-            self.log.info('a2 = %.3f +/- %.3f' % (a2, sig_a2))
-            fig1.savefig(self.plot_pref+'shear_bias_1.'+self.plot_type)
-            fig2.savefig(self.plot_pref+'shear_bias_2.'+self.plot_type)
-            fig3.savefig(self.plot_pref+'shear_additive_residual_1.'+self.plot_type)
-            fig4.savefig(self.plot_pref+'shear_additive_residual_2.'+self.plot_type)
+            m_vmin = min(np.min(self.m1_bins+self.add_m_val), np.min(self.m2_bins+self.add_m_val))
+            m_vmax = max(np.max(self.m1_bins+self.add_m_val), np.max(self.m2_bins+self.add_m_val))
         else:
-            m1, a1, sig_m1, sig_a1, fig1, fig2 = \
-                utilities.get_m_c_a(self.g1[overall_use], self.g2[overall_use],
-                                    self.g1_true[overall_use], self.g2_true[overall_use],
-                                    self.psf_e1[overall_use], self.psf_e2[overall_use],
-                                    sigma_vals, separate_components=self.config.separate_components)
-
-            self.log.info('m = %.3f +/- %.3f' % (m1, sig_m1))
-            self.log.info('a = %.3f +/- %.3f' % (a1, sig_a1))
-            fig1.savefig(self.config.pltDir+'shear_bias.eps')
-            fig2.savefig(self.config.pltDir+'shear_additive_residual.eps')
-            
-
-        # Histogram of responsivity and weighted mean etc.
+            m_vmin = np.min(self.m1_bins+self.add_m_val)
+            m_vmax = np.max(self.m1_bins+self.add_m_val)
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        h, ed = np.histogram(np.array(resp_list[overall_use]),
-                             bins=int(len(resp_list[overall_use])/20.),
-                             weights = 1./sigma_vals**2, density=True,
-                             range = np.percentile(resp_list[overall_use], [1.,99.]))
-        x = 0.5*(ed[:-1] + ed[1:])
-        median_val = ws.weighted_median(resp_list[overall_use], weights=1./sigma_vals**2)
-        ax.plot(x,h)
-        ax.plot([median_val,median_val],[np.min(h),np.max(h)], 'r--')
-        plt.xlabel('responsivity')
-        ax.set_title('Median responsivity: %.3f'%(median_val))
-        plt.savefig(self.config.pltDir+'shear_responsivity.eps')
+        sc = ax.scatter(self.snr_bins, self.res_bins, c=self.m1_bins+self.add_m_val, cmap=cm,
+                    vmin=m_vmin, vmax=m_vmax, s=80, edgecolors='none')
+        cbar = plt.colorbar(sc)
+        if self.config.separate_components:
+            cbar.ax.set_title(r'$m_1$')
+        else:
+            if self.add_m_val > 0:
+                cbar.ax.set_title(r'$m+$constant')
+            else:
+                cbar.ax.set_title(r'$m$')
+        plt.xscale('log')
+        plt.xlabel('S/N')
+        plt.ylabel('resolution')
+        if self.config.separate_components:
+            plt.savefig(self.config.pltDir+'shear_m1_2d.eps')
+        else:
+            plt.savefig(self.config.pltDir+'shear_m_2d.eps')
+
+            # Also plot errors in this case.
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            sc = ax.scatter(self.snr_bins, self.res_bins, c=self.sigm1_bins, cmap=cm, s=80, edgecolors='none')
+            cbar = plt.colorbar(sc)
+            cbar.ax.set_title(r'$\sigma_m$')
+            plt.xscale('log')
+            plt.xlabel('S/N')
+            plt.ylabel('resolution')
+            plt.savefig(self.config.pltDir+'shear_sigm_2d.eps')
+
+        if self.config.separate_components:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            sc = ax.scatter(self.snr_bins, self.res_bins, c=self.m2_bins+self.add_m_val, cmap=cm,
+                            vmin=m_vmin, vmax=m_vmax, s=80, edgecolors='none')
+            cbar = plt.colorbar(sc)
+            cbar.ax.set_title(r'$m_2$')
+            plt.xscale('log')
+            plt.xlabel('S/N')
+            plt.ylabel('resolution')
+            plt.savefig(self.config.pltDir+'shear_m2_2d.eps')
+        
+        if self.config.separate_components:
+            a_vmin = min(np.min(self.a1_bins+self.add_a_val), np.min(self.a2_bins+self.add_a_val))
+            a_vmax = max(np.max(self.a1_bins+self.add_a_val), np.max(self.a2_bins+self.add_a_val))
+        else:
+            a_vmin = np.min(self.a1_bins+self.add_a_val)
+            a_vmax = np.max(self.a1_bins+self.add_a_val)
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        sc = ax.scatter(self.snr_bins, self.res_bins, c=self.a1_bins+self.add_a_val, cmap=cm,
+                        vmin=a_vmin, vmax=a_vmax, s=80, edgecolors='none')
+        cbar = plt.colorbar(sc)
+        if self.config.separate_components:
+            cbar.ax.set_title(r'$a_1$')
+        else:
+            if self.add_m_val > 0:
+                cbar.ax.set_title(r'$a$')
+            else:
+                cbar.ax.set_title(r'$a$')
+        plt.xscale('log')
+        plt.xlabel('S/N')
+        plt.ylabel('resolution')
+        if self.config.separate_components:
+            plt.savefig(self.config.pltDir+'shear_a1_2d.eps')
+        else:
+            plt.savefig(self.config.pltDir+'shear_a_2d.eps')
+
+            # Also plot errors in this case.
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            sc = ax.scatter(self.snr_bins, self.res_bins, c=self.siga1_bins, cmap=cm, s=80, edgecolors='none')
+            cbar = plt.colorbar(sc)
+            cbar.ax.set_title(r'$\sigma_a$')
+            plt.xscale('log')
+            plt.xlabel('S/N')
+            plt.ylabel('resolution')
+            plt.savefig(self.config.pltDir+'shear_siga_2d.eps')
+
+        if self.config.separate_components:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            sc = ax.scatter(self.snr_bins, self.res_bins, c=self.a2_bins+self.add_a_val, cmap=cm,
+                            vmin=a_vmin, vmax=a_vmax, s=80, edgecolors='none')
+            cbar = plt.colorbar(sc)
+            cbar.ax.set_title(r'$a_2$')
+            plt.xscale('log')
+            plt.xlabel('S/N')
+            plt.ylabel('resolution')
+            plt.savefig(self.config.pltDir+'shear_a2_2d.eps')
+
         return
     
     

@@ -402,7 +402,7 @@ def sliding_window_def(snr, res, n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
     lower and upper resolution bin edges have shape (n_bin_1d,
     n_bin_1d).
     """
-    n_per_bin = len(snr) / (nbin_1d**2)
+    n_per_bin = len(snr) / (n_bin_1d**2)
     if n_per_bin < n_gal:
         # If we can't divide up into that many bins, then use a sliding window.
         # First define bin edges in SNR.  To do this, we find percentiles
@@ -436,13 +436,13 @@ def sliding_window_def(snr, res, n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
 
     else:
         # Otherwise, just divide them up.
-        lower_percentiles = np.linspace(0.,100.,self.self.config.nbin_1d+1)[:-1]
-        upper_percentiles = np.linspace(0.,100.,self.self.config.nbin_1d+1)[1:]
+        lower_percentiles = np.linspace(0.,100.,n_bin_1d+1)[:-1]
+        upper_percentiles = np.linspace(0.,100.,n_bin_1d+1)[1:]
         snr_lower = np.percentile(snr, lower_percentiles)
         snr_upper = np.percentile(snr, upper_percentiles)
-        res_lower = np.zeros((self.self.config.nbin_1d,self.self.config.nbin_1d))
-        res_upper = np.zeros((self.self.config.nbin_1d,self.self.config.nbin_1d))
-        for ind in range(self.self.config.nbin_1d):
+        res_lower = np.zeros((n_bin_1d,n_bin_1d))
+        res_upper = np.zeros((n_bin_1d,n_bin_1d))
+        for ind in range(n_bin_1d):
             m = (snr >= snr_lower[ind]) & (snr < snr_upper[ind])
             tmp_res = res[m]
             res_lower[ind,:] = np.percentile(tmp_res, lower_percentiles)
@@ -488,16 +488,6 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False, cancel_shap
         Use the S16A reweighting?  This will be the same value for each entry
         since the routine works at the subfield level.
 
-    data_version: str (default: default_data_version)
-        Data version for this analysis.  While this analysis is only run on
-        sims, the data version determines filenames to be used for making models
-        for the weights etc.
-
-    sims_version: str (default: default_sims_version)
-        Sims version for this analysis.  While the data itself from the sims is
-        passed in directly, the sims version determines filenames to be used for
-        making models for the weights etc.
-
     roundtrip_data: tuple or none (default: None)
         Data to be used for a round-trip analysis given some set of calibration
         corrections that differs from the ones in the catalogs.  This should be
@@ -522,9 +512,9 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False, cancel_shap
         else:
             sigma_e = get_sigma_e(catalog)
     else:
-        weights = get_weight_model(catalog, data_version=data_version, sims_version=sims_version)
-        e_rms = get_erms_model(catalog, data_version=data_version, sims_version=sims_version)
-        sigma_e = get_sigma_e_model(catalog, data_version=data_version, sims_version=sims_version)
+        weights = get_weight_model(catalog)
+        e_rms = get_erms_model(catalog)
+        sigma_e = get_sigma_e_model(catalog)
     if reweight_s16a:
         weights *= catalog['reweight_s16a']
     # Enforce equality of weights etc. for galaxies in a pair if shape noise cancellation is
@@ -891,7 +881,7 @@ def get_true_shear(catalog):
     """
     return catalog['g1'], catalog['g2']
     
-def get_psf_size(catalog, type='trace'):
+def get_psf_size(catalog, type='fwhm-arcsec'):
     """
     This utility gets the PSF size from a data or sims catalog using the
     specified size definition from the second moments matrix.
@@ -906,20 +896,39 @@ def get_psf_size(catalog, type='trace'):
         Type of psf size measurement in ['trace', 'det', 'fwhm-arcsec'], default: 'trace'
 
     """
-    # Convert into pixel units for the data
-    psf_mxx = catalog['base_SdssShape_psf_xx']
-    psf_myy = catalog['base_SdssShape_psf_yy']
-    psf_mxy = catalog['base_SdssShape_psf_xy']
+    if 'base_SdssShape_psf_xx' in catalog.dtype.names:
+        psf_mxx = catalog['base_SdssShape_psf_xx']*0.168
+        psf_myy = catalog['base_SdssShape_psf_yy']*0.168
+        psf_mxy = catalog['base_SdssShape_psf_xy']*0.168
+    else:
+        psf_mxx = catalog['ishape_sdss_psf_ixx']
+        psf_myy = catalog['ishape_sdss_psf_iyy']
+        psf_mxy = catalog['ishape_sdss_psf_ixy']
 
     if type == 'trace':
         size = psf_mxx + psf_myy
-    elif type == 'det':
-        size = (psf_mxx * psf_myy - psf_mxy**2)**(0.25)
     elif type == 'fwhm-arcsec':
-        size = 0.168 * 2.355 * (psf_mxx * psf_myy - psf_mxy**2)**(0.25)
+        size = 2.355 * (psf_mxx * psf_myy - psf_mxy**2)**(0.25)
     else:
         raise ValueError("Unknown PSF size type: %s"%type)
     return size
+
+def get_psf_ellip(catalog):
+    """
+    This utility gets the PSF ellipticity (distortion) from a data or
+    sims catalog.
+    It does not impose flag cuts, but rather assumes that has already been done
+    """
+    if 'base_SdssShape_psf_xx' in catalog.dtype.names:
+        psf_mxx = catalog['base_SdssShape_psf_xx']*0.168
+        psf_myy = catalog['base_SdssShape_psf_yy']*0.168
+        psf_mxy = catalog['base_SdssShape_psf_xy']*0.168
+    else:
+        psf_mxx = catalog['ishape_sdss_psf_ixx']
+        psf_myy = catalog['ishape_sdss_psf_iyy']
+        psf_mxy = catalog['ishape_sdss_psf_ixy']
+    return (psf_mxx - psf_myy) / (psf_mxx + psf_myy), 2. * \
+        psf_mxy / (psf_mxx + psf_myy)
 
 
 def get_sigma_e_model(catalog):

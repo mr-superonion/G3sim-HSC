@@ -31,7 +31,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 class galDisAnalysis2DConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs directory')
     obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs directory')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot', doc = 'plot directory')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot/galDis/', doc = 'plot directory')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
