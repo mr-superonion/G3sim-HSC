@@ -53,7 +53,8 @@ class reGaus_shearCalibConfig(pexConfig.Config):
     use_model   =   pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
     cancel_shape_noise=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use orthogonal galaxies to cancel shape noise')
     separate_components= pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
-    round_trip  =   pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
+    round_trip  =   pexConfig.Field(dtype=bool, default=False, doc = 'do a round trip?')
+    test_weight_bias  =   pexConfig.Field(dtype=bool, default=False, doc = 'test weight bias?')
     bin_plot    =   pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
     
     max_snr =   pexConfig.Field(dtype=float, default=100000., doc = 'Maximum value of signal to noise ratio')
@@ -67,7 +68,11 @@ class reGaus_shearCalibConfig(pexConfig.Config):
 
     def validate(self):
         pexConfig.Config.validate(self)
-       # Checks that the paths provided are valid
+        if self.config.test_weight_bias and (not self.config.round_trip):
+            raise RuntimeError("Cannot test weight bias when not doing round trip")
+        if self.config.test_weight_bias and self.config.cancel_shape_noise:
+            raise RuntimeError("Cannot test weight bias when cancelling shape noise")
+        # Checks that the paths provided are valid
         if not os.path.isdir(self.anaDir):
             raise RuntimeError("Simulation catalog directory %s does not exist "
                          "or is not a directory" % (self.anaDir))
@@ -193,7 +198,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         res = utilities.get_res(catalog)
         
         if self.config.round_trip:
-            if not self.config.cancel_shape_noise:
+            if self.config.test_weight_bias:
                 weight_bias = True
             else:
                 weight_bias = False
@@ -285,7 +290,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
                                 simple_resp=True, report_resp=True,
                                 reweight_s16a=reweight_s16a,
                                 roundtrip_data=roundtrip_data,
-                                test_weight_bias=False)
+                                test_weight_bias=self.config.test_weight_bias)
                             self.g1_bins[j,k,tmp_ind] = tmp_g1
                             self.g2_bins[j,k,tmp_ind] = tmp_g2
                             self.sigma_g_bins[j,k,tmp_ind] = 0.25/np.sqrt(mm.astype(int).sum())
