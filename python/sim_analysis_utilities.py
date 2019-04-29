@@ -355,7 +355,8 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
         mask[mask] &= mag <= max_mag
 
     if max_blendedness is not None:
-        mask[mask] &= catalog['iblendedness_abs_flux'][mask] <= max_blendedness
+        #mask[mask] &= catalog['iblendedness_abs_flux'][mask] <= max_blendedness
+        mask[mask] &= catalog['base_Blendedness_abs_flux'][mask] <= max_blendedness
 
     # For sims only.
     if background_cut is not None and 'background' in catalog.dtype.names:
@@ -951,7 +952,7 @@ def get_sigma_e_model(catalog):
 
     # Build the baseline model for sigma_e.
     #sigma_e = 0.264 * ((snr/20.)**-0.891) * ((res/0.5)**-1.015)
-    sigma_e = 0.269 * ((snr/20.)**-0.956) * ((res/0.5)**-1.085)
+    sigma_e = 0.271 * ((snr/20.)**-0.935) * ((res/0.5)**-0.978)
     
     # Get the corrections from interpolation amongst saved values.
     data_file = "plot/sigmae/sigmae_ratio.dat"
@@ -1019,3 +1020,5 @@ def grid_interpolate(x, y, z, eval_x, eval_y):
     mask = np.isnan(result)
     result[mask] = nn_result[mask]
     return result
+
+

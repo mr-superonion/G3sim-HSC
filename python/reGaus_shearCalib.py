@@ -23,19 +23,40 @@ from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
+def m_func(x, b, c, d, e):
+    """
+    Empirically-motivated model we are trying to fit for m(SNR, res).
+
+    x[0,:] is SNR, x[1,:] is resolution.
+    """
+    model = (x[0,:]/20.)**d
+    model *= b*((x[1,:]/0.5)**c)
+    return model+e
+
+
+def a_func(x, b, c, d):
+    """
+    Empirically-motivated model we are trying to fit for a(SNR, res).
+
+    x[0,:] is SNR, x[1,:] is resolution.
+    """
+    model = b*(x[1,:]-c)
+    model *= (x[0,:]/20.)**d
+    return model
 
 class reGaus_shearCalibConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
     obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs')
     pltDir  =   pexConfig.Field(dtype=str, default='plot/shearCalib/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
+    ngal_bin=   pexConfig.Field(dtype=int, default=150000, doc = 'number of bins for 1-D parameter space')
     use_model=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
     cancel_shape_noise=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use orthogonal galaxies to cancel shape noise')
-    separate_components= pexConfig.Field(dtype=bool, default=True, doc = 'whether to seperate g1 g2 components')
-    bin_plot= pexConfig.Field(dtype=bool, default=True, doc = 'whether to seperate g1 g2 components')
+    separate_components= pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
+    bin_plot= pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
     
     
-    max_snr =   pexConfig.Field(dtype=float, default=1000., doc = 'Maximum value of signal to noise ratio')
+    max_snr =   pexConfig.Field(dtype=float, default=100000., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
     max_sigma_e =   pexConfig.Field(dtype=float, default=0.4, doc = 'Maximum value of sigmaE')
     lower_psf_size  =   pexConfig.Field(dtype=float, default=0., doc = 'Minimum of PSF size')
@@ -72,11 +93,6 @@ class reGaus_shearCalibTask(BatchPoolTask):
     
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-        self.max_snr = self.config.max_snr
-        self.max_e = self.config.max_e
-        self.max_sigma_e = self.config.max_sigma_e
-        self.lower_psf_size = self.config.lower_psf_size
-        self.upper_psf_size = self.config.upper_psf_size
 
         # Initialize array to store multiplicative bias and associated quantities.
         self.snr_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
@@ -102,7 +118,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         self.log.info('Beginning shearCalib analysis for the following scenario:')
         self.log.info('   %d bins in both SNR and resolution'%self.config.nbin_1d)
         self.log.info('   Percentile ranges for PSF size: %.2f-%.2f'%\
-            (self.lower_psf_size, self.upper_psf_size))
+            (self.config.lower_psf_size, self.config.upper_psf_size))
         self.log.info('')
         
     def __reduce__(self):
@@ -140,11 +156,10 @@ class reGaus_shearCalibTask(BatchPoolTask):
         #    self.bright_star_mask) because we are running on sims.
         mask    =   utilities.galaxy_selector(catalog=data,
                                          use_wl_flag=True,
-                                         bright_star_mask=False,
-                                         max_snr=self.max_snr,
+                                         max_snr=self.config.max_snr,
                                          cancel_shape_noise=self.config.cancel_shape_noise,
-                                         max_e=self.max_e,
-                                         max_sigma_e=self.max_sigma_e)
+                                         max_e=self.config.max_e,
+                                         max_sigma_e=self.config.max_sigma_e)
                                          
         return data[mask]
         
@@ -156,11 +171,11 @@ class reGaus_shearCalibTask(BatchPoolTask):
         # due to how the sims are set up, though we can do an assert just to check.
         psf_size = utilities.get_psf_size(catalog)
         cond_mask = np.ones_like(catalog).astype(bool)
-        if self.lower_psf_size > 0.:
-            cut_val = np.percentile(psf_size, self.lower_psf_size)
+        if self.config.lower_psf_size > 0.:
+            cut_val = np.percentile(psf_size, self.config.lower_psf_size)
             cond_mask &= (psf_size >= cut_val)
-        if self.upper_psf_size < 100.:
-            cut_val = np.percentile(psf_size, self.upper_psf_size)
+        if self.config.upper_psf_size < 100.:
+            cut_val = np.percentile(psf_size, self.config.upper_psf_size)
             cond_mask &= (psf_size < cut_val)
         assert np.all(cond_mask[0::2]==cond_mask[1::2]),\
                 "Mask for imaging conditions does not obey shape noise cancellation sanity check"
@@ -178,7 +193,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         else:
             shape_weights = catalog['ishape_hsm_regauss_derived_shape_weight']
         if reweight_s16a:
-            shape_weights *= catalog['reweight_s16a']
+            shape_weights = shape_weights*catalog['reweight_s16a']
         if self.config.cancel_shape_noise:
             shape_weights[1::2] = shape_weights[0::2]
             assert np.all(catalog['reweight_s16a'][0::2]==catalog['reweight_s16a'][1::2]), \
@@ -186,8 +201,9 @@ class reGaus_shearCalibTask(BatchPoolTask):
         
         # Sort out binning. 
         snr_lower, snr_upper, res_lower, res_upper = \
-            utilities.sliding_window_def(snr, res,
+            utilities.sliding_window_def(snr, res,n_gal=self.config.ngal_bin,
             n_bin_1d=self.config.nbin_1d)
+        
         # Store Mask for each (snr,res) bin
         bin_mask = {}
         for j in range(self.config.nbin_1d):
@@ -315,7 +331,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
                 else:
                     self.log.info('m = %.3f +/- %.3f' % (self.m1_bins[j,k], self.sigm1_bins[j,k]))
                     self.log.info('a = %.3f +/- %.3f' % (self.a1_bins[j,k], self.siga1_bins[j,k]))
-                    if self.bin_plot:
+                    if self.config.bin_plot:
                         fig1.savefig(self.config.pltDir+\
                                          'shear_bias_bin%d_%d.png'%(j,k))
                         fig2.savefig(self.config.pltDir+\
@@ -420,9 +436,123 @@ class reGaus_shearCalibTask(BatchPoolTask):
             plt.ylabel('resolution')
             plt.savefig(self.config.pltDir+'shear_a2_2d.eps')
 
+        if self.config.separate_components:
+            return
+
+        # Also do model fitting in this case.
+        out_data = (self.snr_bins.flatten(), self.res_bins.flatten(),
+                    self.m1_bins.flatten(), self.sigm1_bins.flatten(),
+                    self.a1_bins.flatten(), self.siga1_bins.flatten())
+        out_data = np.column_stack(out_data)
+        np.savetxt(self.config.pltDir+'shear_m_a_2d.dat', out_data)
+
+        if self.config.cancel_shape_noise:
+            fake_x = np.vstack((self.snr_bins.flatten(), self.res_bins.flatten()))
+            m_opt, m_cov = opt.curve_fit(
+                m_func, fake_x, self.m1_bins.flatten(), sigma=self.sigm1_bins.flatten(),
+                bounds=([-np.inf,0,-np.inf,-np.inf],[np.inf,np.inf,0,np.inf]))
+        else:
+            fake_x = np.vstack((self.snr_bins[1:-1,1:-1].flatten(),
+                                self.res_bins[1:-1,1:-1].flatten()))
+            m_opt, m_cov = opt.curve_fit(
+                m_func, fake_x, self.m1_bins[1:-1,1:-1].flatten(),
+                sigma=self.sigm1_bins[1:-1,1:-1].flatten(),
+                bounds=([-np.inf,0,-np.inf,-np.inf],[np.inf,np.inf,0,np.inf]))
+            fake_x = np.vstack((self.snr_bins.flatten(), self.res_bins.flatten()))
+        self.log.info('m model:')
+        self.log.info('m=b*(res/0.5)^c*(snr/20)^d+e')
+        for ind in range(len(m_opt)):
+            self.log.info('%f +/- %f'%(m_opt[ind],m_cov[ind,ind])) 
+        m_model = m_func(fake_x, *m_opt).reshape(self.config.nbin_1d, self.config.nbin_1d)
+        # And plot the model, residuals, and their significance
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        sc = ax.scatter(self.snr_bins, self.res_bins, c=m_model, cmap=cm,
+                        vmin=m_vmin, vmax=m_vmax, s=80, edgecolors='none')
+        cbar = plt.colorbar(sc)
+        cbar.ax.set_title(r'$m$ (model)')
+        plt.xscale('log')
+        plt.xlabel('S/N')
+        plt.ylabel('resolution')
+        plt.savefig(self.config.pltDir+'shear_m_model_2d.eps')
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        sc = ax.scatter(self.snr_bins, self.res_bins, c=self.m1_bins-m_model,
+                        cmap=cm, s=80, edgecolors='none')
+        cbar = plt.colorbar(sc)
+        cbar.ax.set_title(r'$m$ - model')
+        plt.xscale('log')
+        plt.xlabel('S/N')
+        plt.ylabel('resolution')
+        plt.savefig(self.config.pltDir+'shear_Delta_m_model_2d.eps')
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        sc = ax.scatter(self.snr_bins, self.res_bins,
+                        c=(self.m1_bins-m_model)/self.sigm1_bins, cmap=cm, s=80, edgecolors='none')
+        cbar = plt.colorbar(sc)
+        cbar.ax.set_title(r'($m$ - model)/$\sigma_m$')
+        plt.xscale('log')
+        plt.xlabel('S/N')
+        plt.ylabel('resolution')
+        plt.savefig(self.config.pltDir+'shear_m_model_signif_2d.eps')
+
+        #For additive bias
+        if self.config.cancel_shape_noise:
+            fake_x = np.vstack((self.snr_bins.flatten(), self.res_bins.flatten()))
+            a_opt, a_cov = opt.curve_fit(
+                a_func, fake_x, self.a1_bins.flatten(), sigma=self.siga1_bins.flatten(),
+                bounds=([-np.inf,-np.inf,-np.inf],[np.inf,np.inf,0.]))
+        else:
+            fake_x = np.vstack((self.snr_bins[1:-1,1:-1].flatten(),
+                                self.res_bins[1:-1,1:-1].flatten()))
+            a_opt, a_cov = opt.curve_fit(
+                a_func, fake_x, self.a1_bins[1:-1,1:-1].flatten(),
+                sigma=self.siga1_bins[1:-1,1:-1].flatten(),
+                bounds=([-np.inf,-np.inf,-np.inf],[np.inf,np.inf,0.]))
+            fake_x = np.vstack((self.snr_bins.flatten(), self.res_bins.flatten()))
+        self.log.info('a model:')
+        self.log.info('a=b*(res-c)*(snr/20)^d')
+        for ind in range(len(a_opt)):
+            self.log.info('%f +/- %f'%(a_opt[ind],a_cov[ind,ind]))
+        a_model = a_func(fake_x, *a_opt).reshape(self.config.nbin_1d, self.config.nbin_1d)
+        # Plot model, residuals, significance
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        sc = ax.scatter(self.snr_bins, self.res_bins, c=a_model, cmap=cm,
+                        vmin=a_vmin, vmax=a_vmax, s=80, edgecolors='none')
+        cbar = plt.colorbar(sc)
+        cbar.ax.set_title(r'$a$ (model)')
+        plt.xscale('log')
+        plt.xlabel('S/N')
+        plt.ylabel('resolution')
+        plt.savefig(self.config.pltDir+'shear_a_model_2d.eps')
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        sc = ax.scatter(self.snr_bins, self.res_bins,
+                        c=self.a1_bins-a_model, cmap=cm, s=80, edgecolors='none')
+        cbar = plt.colorbar(sc)
+        cbar.ax.set_title(r'$a$ - model')
+        plt.xscale('log')
+        plt.xlabel('S/N')
+        plt.ylabel('resolution')
+        plt.savefig(self.config.pltDir+'shear_Delta_a_model_2d.eps')
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        sc = ax.scatter(self.snr_bins, self.res_bins,
+                        c=(self.a1_bins-a_model)/self.siga1_bins, cmap=cm, s=80, edgecolors='none')
+        cbar = plt.colorbar(sc)
+        cbar.ax.set_title(r'($a$ - model)/$\sigma_a$')
+        plt.xscale('log')
+        plt.xlabel('S/N')
+        plt.ylabel('resolution')
+        plt.savefig(self.config.pltDir+'shear_a_model_signif_2d.eps')
         return
-    
-    
+
+
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)

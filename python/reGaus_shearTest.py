@@ -31,10 +31,10 @@ class reGaus_shearTestConfig(pexConfig.Config):
     nbin_1d =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
     use_model=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
     cancel_shape_noise=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use orthogonal galaxies to cancel shape noise')
-    separate_components= pexConfig.Field(dtype=bool, default=True, doc = 'whether to seperate g1 g2 components')
-    bin_plot= pexConfig.Field(dtype=bool, default=True, doc = 'whether to seperate g1 g2 components')
+    separate_components= pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
+    bin_plot= pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
     
-    max_snr =   pexConfig.Field(dtype=float, default=1000., doc = 'Maximum value of signal to noise ratio')
+    max_snr =   pexConfig.Field(dtype=float, default=100000., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
     max_sigma_e =   pexConfig.Field(dtype=float, default=0.4, doc = 'Maximum value of sigmaE')
     lower_psf_size  =   pexConfig.Field(dtype=float, default=0., doc = 'Minimum of PSF size')
@@ -139,7 +139,6 @@ class reGaus_shearTestTask(BatchPoolTask):
         #    self.bright_star_mask) because we are running on sims.
         mask    =   utilities.galaxy_selector(catalog=data,
                                          use_wl_flag=True,
-                                         bright_star_mask=False,
                                          max_snr=self.max_snr,
                                          cancel_shape_noise=self.config.cancel_shape_noise,
                                          max_e=self.max_e,

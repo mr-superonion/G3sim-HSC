@@ -41,7 +41,6 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 class prepareSimAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'output catalogs')
     simDir  =   pexConfig.Field(dtype=str, default='outcomeFPFS', doc = 'input catalogs')
-    version =   pexConfig.Field(dtype=str, default='v1', doc = 'input catalogs')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
