@@ -45,16 +45,16 @@ def a_func(x, b, c, d):
     return model
 
 class reGaus_shearCalibConfig(pexConfig.Config):
-    anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
-    obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot/shearCalib/', doc = 'plot directory')
-    nbin_1d =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
-    ngal_bin=   pexConfig.Field(dtype=int, default=150000, doc = 'number of bins for 1-D parameter space')
-    use_model=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
+    anaDir      =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
+    obsDir      =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs')
+    pltDir      =   pexConfig.Field(dtype=str, default='plot/shearCalib/', doc = 'plot directory')
+    nbin_1d     =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
+    ngal_bin    =   pexConfig.Field(dtype=int, default=150000, doc = 'number of bins for 1-D parameter space')
+    use_model   =   pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
     cancel_shape_noise=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use orthogonal galaxies to cancel shape noise')
     separate_components= pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
-    bin_plot= pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
-    
+    round_trip  =   pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
+    bin_plot    =   pexConfig.Field(dtype=bool, default=False, doc = 'whether to seperate g1 g2 components')
     
     max_snr =   pexConfig.Field(dtype=float, default=100000., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
@@ -93,7 +93,14 @@ class reGaus_shearCalibTask(BatchPoolTask):
     
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-
+        
+        if self.config.cancel_shape_noise and not self.config.round_trip:
+            self.prefix='shear'
+        if self.config.cancel_shape_noise and self.config.round_trip:
+            self.prefix='test_shear'
+        if not self.config.cancel_shape_noise and self.config.round_trip:
+            self.prefix='weightBias'
+        
         # Initialize array to store multiplicative bias and associated quantities.
         self.snr_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
         self.res_bins = np.zeros((self.config.nbin_1d, self.config.nbin_1d))
@@ -184,6 +191,19 @@ class reGaus_shearCalibTask(BatchPoolTask):
         # Set up sliding window definition and make a mask for each SNR, resolution bin.
         snr = utilities.get_snr(catalog)
         res = utilities.get_res(catalog)
+        
+        if self.config.round_trip:
+            if not self.config.cancel_shape_noise:
+                weight_bias = True
+            else:
+                weight_bias = False
+            model_m = utilities.get_m_model(catalog,weight_bias=weight_bias)
+            model_a = utilities.get_a_model(catalog, data_version=weight_bias=weight_bias)
+            psf_e1, psf_e2 = utilities.get_psf_ellip(catalog)
+            model_c1 = model_a*psf_e1
+            model_c2 = model_a*psf_e2
+        
+        
         # We need to get the weights here, to use when averaging over galaxies to get mean effective
         # SNR and resolution.
         # Note, it might be worth making a utility for this combined shape + S16A weight, since it's
@@ -255,12 +275,16 @@ class reGaus_shearCalibTask(BatchPoolTask):
                     if mm.astype(int).sum() > 2:
                         # Another criterion: make sure the objects have nonzero weight
                         if np.sum(shape_weights[mm])>0:
+                            if self.self.config.round_trip:
+                                roundtrip_data = (model_m[mm], model_c1[mm], model_c2[mm])
+                            else:
+                                roundtrip_data = None
                             tmp_g1, tmp_g2, tmp_resp = utilities.estimate_subfield_shear(
                                 catalog[mm], use_model=self.config.use_model,
                                 cancel_shape_noise=self.config.cancel_shape_noise,
                                 simple_resp=True, report_resp=True,
                                 reweight_s16a=reweight_s16a,
-                                roundtrip_data=None,
+                                roundtrip_data=roundtrip_data,
                                 test_weight_bias=False)
                             self.g1_bins[j,k,tmp_ind] = tmp_g1
                             self.g2_bins[j,k,tmp_ind] = tmp_g2
@@ -321,21 +345,21 @@ class reGaus_shearCalibTask(BatchPoolTask):
                     self.log.info('a2 = %.3f +/- %.3f' % (self.a2_bins[j,k], sig_a2))
                     if self.config.bin_plot:
                         fig1.savefig(self.config.pltDir+\
-                                         'shear_bias_bin%d_%d_1.png'%(j,k))
+                                         '%s_bias_bin%d_%d_1.png'%(j,k))
                         fig2.savefig(self.config.pltDir+\
-                                         'shear_bias_bin%d_%d_2.png'%(j,k))
+                                         '%s_bias_bin%d_%d_2.png'%(j,k))
                         fig3.savefig(self.config.pltDir+\
-                                         'shear_additive_residual_bin%d_%d_1.png'%(j,k) )
+                                         '%s_additive_residual_bin%d_%d_1.png'%(j,k) )
                         fig4.savefig(self.config.pltDir+\
-                                         'shear_additive_residual_bin%d_%d_2.png'%(j,k) )
+                                         '%s_additive_residual_bin%d_%d_2.png'%(j,k) )
                 else:
                     self.log.info('m = %.3f +/- %.3f' % (self.m1_bins[j,k], self.sigm1_bins[j,k]))
                     self.log.info('a = %.3f +/- %.3f' % (self.a1_bins[j,k], self.siga1_bins[j,k]))
                     if self.config.bin_plot:
                         fig1.savefig(self.config.pltDir+\
-                                         'shear_bias_bin%d_%d.png'%(j,k))
+                                         '%s_bias_bin%d_%d.png'%(j,k))
                         fig2.savefig(self.config.pltDir+\
-                                         'shear_additive_residual_bin%d_%d.png'%(j,k) )
+                                         '%s_additive_residual_bin%d_%d.png'%(j,k) )
         # Do some clever summary plots and model fitting.
         cm = plt.cm.get_cmap('RdYlBu')
         if self.config.separate_components:
@@ -360,9 +384,9 @@ class reGaus_shearCalibTask(BatchPoolTask):
         plt.xlabel('S/N')
         plt.ylabel('resolution')
         if self.config.separate_components:
-            plt.savefig(self.config.pltDir+'shear_m1_2d.eps')
+            plt.savefig(self.config.pltDir+'%s_m1_2d.eps'%(self.prefix))
         else:
-            plt.savefig(self.config.pltDir+'shear_m_2d.eps')
+            plt.savefig(self.config.pltDir+'%s_m_2d.eps'%(self.prefix))
 
             # Also plot errors in this case.
             fig = plt.figure()
@@ -373,7 +397,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
             plt.xscale('log')
             plt.xlabel('S/N')
             plt.ylabel('resolution')
-            plt.savefig(self.config.pltDir+'shear_sigm_2d.eps')
+            plt.savefig(self.config.pltDir+'%s_sigm_2d.eps'%(self.prefix))
 
         if self.config.separate_components:
             fig = plt.figure()
@@ -385,7 +409,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
             plt.xscale('log')
             plt.xlabel('S/N')
             plt.ylabel('resolution')
-            plt.savefig(self.config.pltDir+'shear_m2_2d.eps')
+            plt.savefig(self.config.pltDir+'%s_m2_2d.eps'%(self.prefix))
         
         if self.config.separate_components:
             a_vmin = min(np.min(self.a1_bins+self.add_a_val), np.min(self.a2_bins+self.add_a_val))
@@ -409,9 +433,9 @@ class reGaus_shearCalibTask(BatchPoolTask):
         plt.xlabel('S/N')
         plt.ylabel('resolution')
         if self.config.separate_components:
-            plt.savefig(self.config.pltDir+'shear_a1_2d.eps')
+            plt.savefig(self.config.pltDir+'%s_a1_2d.eps'%(self.prefix))
         else:
-            plt.savefig(self.config.pltDir+'shear_a_2d.eps')
+            plt.savefig(self.config.pltDir+'%s_a_2d.eps'%(self.prefix))
 
             # Also plot errors in this case.
             fig = plt.figure()
@@ -422,7 +446,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
             plt.xscale('log')
             plt.xlabel('S/N')
             plt.ylabel('resolution')
-            plt.savefig(self.config.pltDir+'shear_siga_2d.eps')
+            plt.savefig(self.config.pltDir+'%s_siga_2d.eps'%(self.prefix))
 
         if self.config.separate_components:
             fig = plt.figure()
@@ -434,7 +458,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
             plt.xscale('log')
             plt.xlabel('S/N')
             plt.ylabel('resolution')
-            plt.savefig(self.config.pltDir+'shear_a2_2d.eps')
+            plt.savefig(self.config.pltDir+'%s_a2_2d.eps'%(self.prefix))
 
         if self.config.separate_components:
             return
@@ -444,7 +468,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
                     self.m1_bins.flatten(), self.sigm1_bins.flatten(),
                     self.a1_bins.flatten(), self.siga1_bins.flatten())
         out_data = np.column_stack(out_data)
-        np.savetxt(self.config.pltDir+'shear_m_a_2d.dat', out_data)
+        np.savetxt(self.config.pltDir+'%s_m_a_2d.dat'%(self.prefix), out_data)
 
         if self.config.cancel_shape_noise:
             fake_x = np.vstack((self.snr_bins.flatten(), self.res_bins.flatten()))
@@ -474,7 +498,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(self.config.pltDir+'shear_m_model_2d.eps')
+        plt.savefig(self.config.pltDir+'%s_m_model_2d.eps'%(self.prefix))
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -485,7 +509,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(self.config.pltDir+'shear_Delta_m_model_2d.eps')
+        plt.savefig(self.config.pltDir+'%s_Delta_m_model_2d.eps'%(self.prefix))
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -496,7 +520,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(self.config.pltDir+'shear_m_model_signif_2d.eps')
+        plt.savefig(self.config.pltDir+'%s_m_model_signif_2d.eps'%(self.prefix))
 
         #For additive bias
         if self.config.cancel_shape_noise:
@@ -527,7 +551,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(self.config.pltDir+'shear_a_model_2d.eps')
+        plt.savefig(self.config.pltDir+'%s_a_model_2d.eps'%(self.prefix))
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -538,7 +562,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(self.config.pltDir+'shear_Delta_a_model_2d.eps')
+        plt.savefig(self.config.pltDir+'%s_Delta_a_model_2d.eps'%(self.prefix))
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -549,7 +573,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(self.config.pltDir+'shear_a_model_signif_2d.eps')
+        plt.savefig(self.config.pltDir+'%s_a_model_signif_2d.eps'%(self.prefix))
         return
 
 

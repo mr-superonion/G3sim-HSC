@@ -1007,6 +1007,133 @@ def get_weight_model(catalog):
     erms = get_erms_model(catalog)
     return 1./(sigmae_meas**2 + erms**2)
 
+def get_m_model(catalog, weight_bias=True):
+    """
+    Routine to get a model for calibration bias m given some input snr
+    and resolution values or arrays.
+    """
+    # Get the necessary quantities.
+    snr = get_snr(catalog)
+    log_snr = np.log10(snr)
+    res = get_res(catalog)
+    # Fix interpolation for NaN/inf
+    m = np.isnan(log_snr) | np.isinf(log_snr)
+    log_snr[m] = 1. # set to minimum value that passes nominal cut
+    snr[m] = 10.
+
+    #m = -0.1408*((snr/20.)**-1.23)*((res/0.5)**1.76) - 0.0214
+    m = -0.1398*((snr/20.)**-1.35)*((res/0.5)**1.95) - 0.0332
+    data_file = "./plot/shearCalib/shear_m_a_2d.dat"
+
+    dat = np.loadtxt(data_file).transpose()
+    saved_snr = dat[0,:]
+    log_saved_snr = np.log10(saved_snr)
+    saved_res = dat[1,:]
+    saved_m = dat[2,:]
+
+    # Interpolate the model residuals and return them.  These are additional
+    # biases beyond the power-law model and so should be added to the power-law.
+    result = grid_interpolate(log_saved_snr, saved_res, saved_m, log_snr, res)
+
+    if weight_bias:
+        result += get_msel_model(catalog, data_version=data_version, sims_version=sims_version, dir=dir)
+
+    return result + m
+
+def get_msel_model(catalog):
+    """
+    Routine to get a model for calibration bias m due to weight bias, given some input snr
+    and resolution values or arrays.
+    """
+    # Get the necessary quantities.
+    snr = get_snr(catalog)
+    log_snr = np.log10(snr)
+    res = get_res(catalog)
+    # Fix interpolation for NaN/inf
+    m = np.isnan(log_snr) | np.isinf(log_snr)
+    log_snr[m] = 1. # set to minimum value that passes nominal cut
+    snr[m] = 10.
+
+    m = -1.31 + (27.26 + (snr/20.)**-1.22) / (res + 20.8)
+    data_file = "model_msel_asel_correction_%s.dat" % sims_version
+
+    data_file = os.path.join(dir, data_version, data_file)
+
+    dat = np.loadtxt(data_file).transpose()
+    saved_snr = dat[0,:]
+    log_saved_snr = np.log10(saved_snr)
+    saved_res = dat[1,:]
+    saved_m = dat[2,:]
+
+    # Interpolate the model residuals and return them.  These are additional
+    # biases beyond the power-law model and so should be added to the power-law.
+    result = grid_interpolate(log_saved_snr, saved_res, saved_m, log_snr, res)
+
+    return result + m
+
+def get_a_model(catalog,weight_bias=True):
+    """
+    Routine to get a model for additive bias coefficient a given some input snr
+    and resolution values or arrays.
+    """
+    # Get the necessary quantities.
+    snr = get_snr(catalog)
+    log_snr = np.log10(snr)
+    res = get_res(catalog)
+    # Fix interpolation for NaN/inf
+    m = np.isnan(log_snr) | np.isinf(log_snr)
+    
+    
+    log_snr[m] = 1. # set to minimum value that passes nominal cut
+    snr[m] = 10.
+
+    #a = 0.175 * ((snr/20.)**-1.07) * (res - 0.508)
+    a = 0.214 * ((snr/20.)**-0.97) * (res - 0.580)
+    data_file = "plot/shearCalib/shear_m_a_2d.dat"
+
+    data_file = os.path.join(dir, data_version, data_file)
+    dat = np.loadtxt(data_file).transpose()
+    saved_snr = dat[0,:]
+    log_saved_snr = np.log10(saved_snr)
+    saved_res = dat[1,:]
+    saved_a = dat[4,:]
+
+    # Interpolate the model residuals and return them.  These are additional
+    # biases beyond the power-law model and so should be added to the power-law.
+    result = grid_interpolate(log_saved_snr, saved_res, saved_a, log_snr, res)
+    if weight_bias:
+        result += get_asel_model(catalog, data_version=data_version, sims_version=sims_version, dir=dir)
+    return result + a
+
+def get_asel_model(catalog):
+    """
+    Routine to get a model for additive bias coefficient a due to weight bias given some input snr
+    and resolution values or arrays.
+    """
+    # Get the necessary quantities.
+    snr = get_snr(catalog)
+    log_snr = np.log10(snr)
+    res = get_res(catalog)
+    # Fix interpolation for NaN/inf
+    m = np.isnan(log_snr) | np.isinf(log_snr)
+    log_snr[m] = 1. # set to minimum value that passes nominal cut
+    snr[m] = 10.
+
+    a = -0.089 * (res-0.71) * ((snr/20.)**-2.2)
+    data_file = "model_msel_asel_correction_%s.dat" % sims_version
+
+    data_file = os.path.join(dir, data_version, data_file)
+    dat = np.loadtxt(data_file).transpose()
+    saved_snr = dat[0,:]
+    log_saved_snr = np.log10(saved_snr)
+    saved_res = dat[1,:]
+    saved_a = dat[4,:]
+
+    # Interpolate the model residuals and return them.  These are additional
+    # biases beyond the power-law model and so should be added to the power-law.
+    result = grid_interpolate(log_saved_snr, saved_res, saved_a, log_snr, res)
+    return result + a
+
 
 def grid_interpolate(x, y, z, eval_x, eval_y):
     """
