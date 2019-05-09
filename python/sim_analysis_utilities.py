@@ -3,7 +3,7 @@ try:
 except:
     import pyfits
 
-from astropy.table import Table, join
+from astropy.table import Table, join,vstack
 import os
 import numpy as np
 import matplotlib
@@ -32,6 +32,50 @@ plot_colors = {
     'WIDE12H' : '#91bfdb',
     'XMM' : '#4575b4'
     }
+
+def m_func(x, b, c, d, e):
+    """
+    Empirically-motivated model we are trying to fit for m(SNR, res).
+
+    x[0,:] is SNR, x[1,:] is resolution.
+    """
+    model = (x[0,:]/20.)**d
+    model *= b*((x[1,:]/0.5)**c)
+    return model+e
+
+
+def a_func(x, b, c, d):
+    """
+    Empirically-motivated model we are trying to fit for a(SNR, res).
+
+    x[0,:] is SNR, x[1,:] is resolution.
+    """
+    model = b*(x[1,:]-c)
+    model *= (x[0,:]/20.)**d
+    return model
+
+def prepare_slide_catalog(anaDir):
+    outFname    =   os.path.join(anaDir,'slide_cat.fits')
+    if os.path.exists(outFname):
+        return Table.read(outFname)
+    colnames    =   ['modelfit_CModel_flux', 'modelfit_CModel_fluxSigma','Mag',
+        'ishape_hsm_regauss_e1','ishape_hsm_regauss_e2','weak_lensing_flag',
+        'ishape_hsm_regauss_resolution','ishape_hsm_regauss_sigma',
+        'base_SdssShape_psf_xx','base_SdssShape_psf_yy','base_SdssShape_psf_xy',
+        'reweight_s16a','ishape_hsm_regauss_derived_shape_weight','paired']
+    catList =   []
+    for key in field_keys:
+        fieldname=  field_keys[key]
+        if fieldname==  'AEGIS':
+            continue
+        fname   =   os.path.join(anaDir,fieldname,'%s.fits'%(fieldname))
+        catalog =   Table.read(fname)[colnames]
+        catList.append(catalog)
+    slide_cat   =   vstack(catList)
+    slide_cat.write(outFname)
+    return slide_cat
+
+
 
 def prepare_catalog(filename,isim=-1):
     catalog =   Table.read(filename)
@@ -156,8 +200,9 @@ def prepare_catalog(filename,isim=-1):
 def galaxy_selector(catalog, min_snr=None, max_snr=None,
                     min_res=None, max_res=None,
                     max_sigma_e=None, max_e=None, max_mag=None,
+                    lower_psf_size=0.,upper_psf_size=100.,
                     min_multiband_snr_data=None, n_pass_multiband=2,
-                    cancel_shape_noise=True, bright_star_mask=False,
+                    force_90_pair=True, bright_star_mask=False,
                     cut_griddist=5.0, background_cut=-0.015,
                     use_wl_flag=False, max_blendedness=None,
                     applyboth="", use_res_round=False):
@@ -203,7 +248,7 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
         ignored otherwise (require snr above this for r or z or y). Uses forced
         cmodel photometry for these bands.
 
-    cancel_shape_noise: bool (default: True)
+    force_90_pair: bool (default: True)
         If set to true, impose selection in a way that preserves 90 degree
         rotated pais. Only applies to the simulated data loaded with
         `load_sims_catalog`.
@@ -242,18 +287,18 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
     each other in the catalog -- i.e., catalog indices 0 and 1 are 90 degree
     rotated pairs, as are indices 2 and 3, etc.).
 
-    `cancel_shape_noise` is used to decide whether we impose the selection
+    `force_90_pair` is used to decide whether we impose the selection
     in a way that maintains 90 degree rotated pairs or not. This option only
     """
     mask = np.ones(len(catalog)).astype(bool)
     # Tests if the catalog contains the `paired` column which allows us to
     # apply cuts and keep the noise cancellation.
     cols = catalog.dtype.names
-    if cancel_shape_noise and 'paired' not in cols:
+    if force_90_pair and 'paired' not in cols:
         warnings.warn("Noise cancellation requested on real data")
-        cancel_shape_noise = False
+        force_90_pair = False
 
-    if cancel_shape_noise:
+    if force_90_pair:
         ind_pair = np.where(catalog['paired'])[0]
         ind_pair1 = ind_pair[0::2]
         ind_pair2 = ind_pair[1::2]
@@ -321,7 +366,7 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
     # Since NaN's make the data unusable, we have to self-consistently impose
     # this across both 90-degree-rotated pairs (if we're using shape noise
     # cancellation):
-    if cancel_shape_noise:
+    if force_90_pair:
         mask[ind_pair1] = mask[ind_pair1] & mask[ind_pair2]
         mask[ind_pair2] = mask[ind_pair1]
 
@@ -362,10 +407,19 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
     if background_cut is not None and 'background' in catalog.dtype.names:
         mask[mask] &= catalog['background'][mask] > background_cut
 
+    #For PSF size 
+    psf_size = get_psf_size(catalog[mask])
+    if lower_psf_size > 0.:
+        cut_val = np.percentile(psf_size, lower_psf_size)
+        mask[mask] &= (psf_size >= cut_val)
+    if upper_psf_size < 100.:
+        cut_val = np.percentile(psf_size, upper_psf_size)
+        mask[mask] &= (psf_size < cut_val)
+
     # For noise cancellation, apply the cut only to the first element of the
     # pair to avoid funny selection biases.
     # But enable introduction of selection bias due to single cuts through applyboth.
-    if cancel_shape_noise:
+    if force_90_pair:
         mask[ind_pair2] = mask[ind_pair1]
         if applyboth != "":
             if 'resolution' in applyboth:
@@ -392,7 +446,20 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
     return mask
 
 
-def sliding_window_def(snr, res, n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
+def weighted_percentile(data,percents,weights=None):
+    ''' percents in units of 1%
+        weights specifies the frequency (count) of data.
+    '''
+    if weights is None:
+        return np.percentile(data, percents)
+    ind=np.argsort(data)
+    d=data[ind]
+    w=weights[ind]
+    p=1.*w.cumsum()/w.sum()*100
+    y=np.interp(percents, p, d)
+    return y
+
+def sliding_window_def(snr,res,weights,n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
     """
     A routine to define 2d bins in a sample based on its (snr, res)
     using a sliding window.  `n_gal` sets the minimum number of
@@ -415,8 +482,8 @@ def sliding_window_def(snr, res, n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
         upper_percentiles = np.linspace(0.,100.,n_bin_1d+1)[1:]
         upper_percentiles += (0.5*(snr_overlap-1.))*delta_perc
         upper_percentiles[-1] = 100.
-        snr_lower = np.percentile(snr, lower_percentiles)
-        snr_upper = np.percentile(snr, upper_percentiles)
+        snr_lower = weighted_percentile(snr,lower_percentiles,weights)
+        snr_upper = weighted_percentile(snr,upper_percentiles,weights)
         res_lower = np.zeros((n_bin_1d, n_bin_1d))
         res_upper = np.zeros((n_bin_1d, n_bin_1d))
         # Now loop over the bins in SNR.
@@ -424,16 +491,20 @@ def sliding_window_def(snr, res, n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
             snr_bin_mask = (snr >= snr_lower[snr_bin]) & \
                 (snr < snr_upper[snr_bin])
             tmp_res = res[snr_bin_mask]
+            if weights  is not None:
+                tmp_wt  =   weights[snr_bin_mask]
+            else:
+                tmp_wt  =   None
             if len(tmp_res) < 1.1*n_gal:
                 raise RuntimeError("Not enough objects to make "+
                                    "sliding window")
             delta_perc = 100*float(n_gal) / len(tmp_res) # width of bin in percentiles
             lower_percentiles = np.linspace(0.,100.-delta_perc,n_bin_1d)
             upper_percentiles = lower_percentiles + delta_perc
-            res_lower[snr_bin, :] = np.percentile(tmp_res,
-                                                        lower_percentiles)
-            res_upper[snr_bin, :] = np.percentile(tmp_res,
-                                                        upper_percentiles)
+            res_lower[snr_bin, :] = weighted_percentile(tmp_res,
+                                                lower_percentiles,tmp_wt)
+            res_upper[snr_bin, :] = weighted_percentile(tmp_res,
+                                                upper_percentiles,tmp_wt)
 
     else:
         # Otherwise, just divide them up.
@@ -451,10 +522,9 @@ def sliding_window_def(snr, res, n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
             
     return snr_lower, snr_upper, res_lower, res_upper
 
-def estimate_subfield_shear(catalog, use_model=False, verbose=False, cancel_shape_noise=True,
+def estimate_subfield_shear(catalog, use_model=False, verbose=False,
                             simple_resp=True, report_resp=False, reweight_s16a=False,
-                            roundtrip_data=None,
-                            test_weight_bias=False):
+                            roundtrip_data=None,force_weight = True):
     """
     The purpose of this routine is to estimate the shear for a given subfield.
 
@@ -474,10 +544,6 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False, cancel_shap
     verbose: bool (default: False)
         Emit diagnostic statements?
 
-    cancel_shape_noise: bool (default: True)
-        Should shape noise cancellation be enforced by requiring the same
-        weight, RMS ellipticity, and sigma_e to be used for both galaxies in 90
-        degree rotated pairs?
 
     simple_resp: bool (default: True)
         Use the simpler formula for the responsivity?
@@ -518,9 +584,8 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False, cancel_shap
         sigma_e = get_sigma_e_model(catalog)
     if reweight_s16a:
         weights *= catalog['reweight_s16a']
-    # Enforce equality of weights etc. for galaxies in a pair if shape noise cancellation is
-    # requested.
-    if cancel_shape_noise and not test_weight_bias:
+    # Enforce equality of weights etc. for galaxies in a pair if shape noise cancellation is requested.
+    if force_weight:
         weights[1::2] = weights[0::2]
         e_rms[1::2] = e_rms[0::2]
         sigma_e[1::2] = sigma_e[0::2]
@@ -538,33 +603,31 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False, cancel_shap
     shear_num_2 = np.sum(weights * e2)
     sum_weight = np.sum(weights)
     if roundtrip_data is None:
-        bias_num = np.sum(weights*catalog['ishape_hsm_regauss_derived_shear_bias_m'])
-        add_num_1 = np.sum(weights*catalog['ishape_hsm_regauss_derived_shear_bias_c1'])
-        add_num_2 = np.sum(weights*catalog['ishape_hsm_regauss_derived_shear_bias_c2'])
+        bias_num =  0. 
+        add_num_1 = 0. 
+        add_num_2 = 0. 
     else:
         bias_num = np.sum(weights*model_m)
         add_num_1 = np.sum(weights*model_c1)
         add_num_2 = np.sum(weights*model_c2)
+    bias = bias_num / sum_weight
 
     if simple_resp:
         resp_num = np.sum(weights * e_rms**2)
+        responsivity = 1.0 - resp_num/sum_weight
     else:
         f = e_rms**2 * weights # e_rms^2 / (e_rms^2 + sigma_e^2)
         k0 = (1.0-f) * e_rms**2
         k1 = f**2
         resp_num = np.sum(weights * (1.0 - k0 - 0.5*k1*(e1**2 + e2**2)))
-
-    if simple_resp:
-        responsivity = 1.0 - resp_num/sum_weight
-    else:
         responsivity = resp_num / sum_weight
+
 
     if responsivity > 2. or responsivity < 0.:
         raise RuntimeError(
             "Error: responsivity is %f with sum_weight %f"%(responsivity,sum_weight))
     if verbose:
         print("Shear responsivity: %f" % responsivity)
-    bias = bias_num / sum_weight
     if verbose:
         print("Bias: %f, %f, %f" %(bias,bias_num,sum_weight))
     g1 = shear_num_1 / (2.0*responsivity*sum_weight*(1.0+bias)) \
@@ -761,8 +824,6 @@ def systematics_func(x, m, a):
     return m * x[0, :] + a * x[1, :]
 
 
-
-
 def get_m_c_a(g1, g2, g1_true, g2_true, psf_e1, psf_e2, sigma_vals, separate_components=True):
     """
     This routine takes a list/tuple/NumPy array of values for estimated shear (`g1`, `g2`), true
@@ -797,35 +858,21 @@ def get_m_c_a(g1, g2, g1_true, g2_true, psf_e1, psf_e2, sigma_vals, separate_com
     import scipy.optimize
     if separate_components:
         popt1, pcov1 = scipy.optimize.curve_fit(systematics_func,
-                                                np.vstack((g1_true,psf_e1)), g1-g1_true,
-                                                sigma=sigma_vals)
+                                                np.vstack((g1_true,psf_e1)), 
+                                                g1-g1_true,sigma=sigma_vals)
         popt2, pcov2 = scipy.optimize.curve_fit(systematics_func,
-                                                np.vstack((g2_true,psf_e2)), g2-g2_true,
-                                                sigma=sigma_vals)
+                                                np.vstack((g2_true,psf_e2)),
+                                                g2-g2_true,sigma=sigma_vals)
         # Return everything: (m, a, sigma_m, sigma_a) first for component 1 then for
-        # component 2, followed by plots.
+        # component 2.
         return popt1[0], popt1[1], math.sqrt(pcov1[0][0]), math.sqrt(pcov1[1][1]), \
-            popt2[0], popt2[1], math.sqrt(pcov2[0][0]), math.sqrt(pcov2[1][1]), \
-            show_shear_bias(g1[to_use], g1_true[to_use], m=popt1[0], merr=math.sqrt(pcov1[0][0])), \
-            show_shear_bias(g2[to_use], g2_true[to_use], m=popt2[0], merr=math.sqrt(pcov2[0][0])), \
-            show_shear_additive_bias(g1[to_use]-(1.0+popt1[0])*g1_true[to_use],
-                                     psf_e1[to_use], popt1[1], math.sqrt(pcov1[1][1])), \
-                                     show_shear_additive_bias(g2[to_use]-(1.0+popt2[0])*g2_true[to_use],
-                                                              psf_e2[to_use], popt2[1], math.sqrt(pcov2[1][1]))
+            popt2[0], popt2[1], math.sqrt(pcov2[0][0]), math.sqrt(pcov2[1][1])
     else:
         popt, pcov = scipy.optimize.curve_fit(systematics_func,
-                                              np.vstack((g_true,
-                                                         psf_e)),
-                                              g-g_true,
-                                              sigma=sigma_vals)
-        # Return everything: (m, a, sigma_m, sigma_a), followed by plots.
-        return popt[0], popt[1], math.sqrt(pcov[0][0]), math.sqrt(pcov[1][1]), \
-            show_shear_bias(g[to_use], g_true[to_use], m=popt[0], merr=math.sqrt(pcov[0][0])), \
-            show_shear_additive_bias(g[to_use]-(1.0+popt[0])*g_true[to_use],
-                                     psf_e[to_use], popt[1], math.sqrt(pcov[1][1]))
-
-
-
+                                              np.vstack((g_true,psf_e)),
+                                              g-g_true,sigma=sigma_vals)
+        # Return everything: (m, a, sigma_m, sigma_a).
+        return popt[0], popt[1], math.sqrt(pcov[0][0]), math.sqrt(pcov[1][1]) 
 
 def get_snr(catalog):
     """
@@ -1022,25 +1069,28 @@ def get_m_model(catalog, weight_bias=True):
     snr[m] = 10.
 
     #m = -0.1408*((snr/20.)**-1.23)*((res/0.5)**1.76) - 0.0214
-    m = -0.1398*((snr/20.)**-1.35)*((res/0.5)**1.95) - 0.0332
-    data_file = "./plot/shearCalib/shear_m_a_2d.dat"
-
-    dat = np.loadtxt(data_file).transpose()
-    saved_snr = dat[0,:]
+    maFname =   './plot/reGausCalib/shear_m_a_model_par.npy'
+    m_opt   =   np.load(maFname).item()['m_opt']
+    fake_x  =   np.vstack((snr,res))
+    model_m =   m_func(fake_x,*m_opt)
+    
+    data_file = "plot/reGausCalib/shear_dm_da_2d.csv"
+    dat = Table.read(data_file)
+    saved_snr = dat['snr']
     log_saved_snr = np.log10(saved_snr)
-    saved_res = dat[1,:]
-    saved_m = dat[2,:]
-
+    saved_res = dat['res']
+    saved_m = dat['dm']
     # Interpolate the model residuals and return them.  These are additional
     # biases beyond the power-law model and so should be added to the power-law.
     result = grid_interpolate(log_saved_snr, saved_res, saved_m, log_snr, res)
 
     if weight_bias:
-        result += get_msel_model(catalog, data_version=data_version, sims_version=sims_version, dir=dir)
+        result += get_mwt_model(catalog)
 
-    return result + m
+    model_m   = model_m + result
+    return model_m
 
-def get_msel_model(catalog):
+def get_mwt_model(catalog):
     """
     Routine to get a model for calibration bias m due to weight bias, given some input snr
     and resolution values or arrays.
@@ -1054,24 +1104,24 @@ def get_msel_model(catalog):
     log_snr[m] = 1. # set to minimum value that passes nominal cut
     snr[m] = 10.
 
-    m = -1.31 + (27.26 + (snr/20.)**-1.22) / (res + 20.8)
-    data_file = "model_msel_asel_correction_%s.dat" % sims_version
-
-    data_file = os.path.join(dir, data_version, data_file)
-
-    dat = np.loadtxt(data_file).transpose()
-    saved_snr = dat[0,:]
+    #m = -1.31 + (27.26 + (snr/20.)**-1.22) / (res + 20.8)
+    maFname =   './plot/reGausCalib/weightBias_m_a_model_par.npy'
+    m_opt   =   np.load(maFname).item()['m_opt']
+    fake_x  =   np.vstack((snr,res))
+    model_m =   m_func(fake_x,*m_opt)
+    
+    data_file = "plot/reGausCalib/weightBias_dm_da_2d.csv"
+    dat = Table.read(data_file)
+    saved_snr = dat['snr']
     log_saved_snr = np.log10(saved_snr)
-    saved_res = dat[1,:]
-    saved_m = dat[2,:]
-
+    saved_res = dat['res']
+    saved_m = dat['dm']
     # Interpolate the model residuals and return them.  These are additional
     # biases beyond the power-law model and so should be added to the power-law.
     result = grid_interpolate(log_saved_snr, saved_res, saved_m, log_snr, res)
+    return result + model_m
 
-    return result + m
-
-def get_a_model(catalog,weight_bias=True):
+def get_c_model(catalog,weight_bias=True):
     """
     Routine to get a model for additive bias coefficient a given some input snr
     and resolution values or arrays.
@@ -1088,24 +1138,30 @@ def get_a_model(catalog,weight_bias=True):
     snr[m] = 10.
 
     #a = 0.175 * ((snr/20.)**-1.07) * (res - 0.508)
-    a = 0.214 * ((snr/20.)**-0.97) * (res - 0.580)
-    data_file = "plot/shearCalib/shear_m_a_2d.dat"
 
-    data_file = os.path.join(dir, data_version, data_file)
-    dat = np.loadtxt(data_file).transpose()
-    saved_snr = dat[0,:]
+    maFname =   './plot/reGausCalib/shear_m_a_model_par.npy'
+    a_opt   =   np.load(maFname).item()['a_opt']
+    fake_x  =   np.vstack((snr,res))
+    model_a =   a_func(fake_x,*a_opt)
+    
+    data_file = "plot/reGausCalib/shear_dm_da_2d.csv"
+    dat = Table.read(data_file)
+    saved_snr = dat['snr']
     log_saved_snr = np.log10(saved_snr)
-    saved_res = dat[1,:]
-    saved_a = dat[4,:]
-
+    saved_res = dat['res']
+    saved_a = dat['da']
     # Interpolate the model residuals and return them.  These are additional
     # biases beyond the power-law model and so should be added to the power-law.
     result = grid_interpolate(log_saved_snr, saved_res, saved_a, log_snr, res)
     if weight_bias:
-        result += get_asel_model(catalog, data_version=data_version, sims_version=sims_version, dir=dir)
-    return result + a
+        result += get_awt_model(catalog)
+    model_a =  model_a +  result
+    psf_e1, psf_e2 = get_psf_ellip(catalog)
+    model_c1 = model_a*psf_e1
+    model_c2 = model_a*psf_e2
+    return model_c1,model_c2 
 
-def get_asel_model(catalog):
+def get_awt_model(catalog):
     """
     Routine to get a model for additive bias coefficient a due to weight bias given some input snr
     and resolution values or arrays.
@@ -1119,20 +1175,22 @@ def get_asel_model(catalog):
     log_snr[m] = 1. # set to minimum value that passes nominal cut
     snr[m] = 10.
 
-    a = -0.089 * (res-0.71) * ((snr/20.)**-2.2)
-    data_file = "model_msel_asel_correction_%s.dat" % sims_version
-
-    data_file = os.path.join(dir, data_version, data_file)
-    dat = np.loadtxt(data_file).transpose()
-    saved_snr = dat[0,:]
+    #a = -0.089 * (res-0.71) * ((snr/20.)**-2.2)
+    maFname =   './plot/reGausCalib/weightBias_m_a_model_par.npy'
+    a_opt   =   np.load(maFname).item()['a_opt']
+    fake_x  =   np.vstack((snr,res))
+    model_a =   a_func(fake_x,*a_opt)
+    
+    data_file = "plot/reGausCalib/weightBias_dm_da_2d.csv"
+    dat = Table.read(data_file)
+    saved_snr = dat['snr']
     log_saved_snr = np.log10(saved_snr)
-    saved_res = dat[1,:]
-    saved_a = dat[4,:]
-
+    saved_res = dat['res']
+    saved_a = dat['da']
     # Interpolate the model residuals and return them.  These are additional
     # biases beyond the power-law model and so should be added to the power-law.
     result = grid_interpolate(log_saved_snr, saved_res, saved_a, log_snr, res)
-    return result + a
+    return result + model_a
 
 
 def grid_interpolate(x, y, z, eval_x, eval_y):
@@ -1147,5 +1205,3 @@ def grid_interpolate(x, y, z, eval_x, eval_y):
     mask = np.isnan(result)
     result[mask] = nn_result[mask]
     return result
-
-

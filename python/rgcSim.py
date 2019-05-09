@@ -59,9 +59,9 @@ class rgcSimTask(pipeBase.CmdLineTask):
 
     
     @pipeBase.timeMethod
-    def run(self,ifield,rgc):
+    def run(self,ifield,rgcs):
+        badIDENT    =   [78798,276775,908556,81452,200743]
         self.log.info('begining for field %04d' %(ifield))
-        badIdList   =  [148999,152315,100999] 
         #Output 
         outputdir   =  './expSim/' 
         if not os.path.exists(outputdir):
@@ -90,10 +90,24 @@ class rgcSimTask(pipeBase.CmdLineTask):
         # Get the shear information
         g1          =   noiseHead['g1']
         g2          =   noiseHead['g2']
-        
+        fwhm        =   noiseHead['fwhm'] 
+        if fwhm <0.6 and fwhm>0.1:
+            rgc =   rgcs[0]
+        elif fwhm<=0.85 and fwhm>=0.6:
+            rgc =   rgcs[1]
+        elif fwhm>0.85:
+            rgc=    rgcs[1]
+        else:
+            self.log.info('incorrect PSF fwhm')
+            return
+
         variance    =   noiseHead['var']
         ud          =   galsim.UniformDeviate(ifield*10000+1)
         np.random.seed(ifield*10000+1)
+        if iparent  ==  1: 
+            badIdList   =   [148999,100999] 
+        else:
+            badIdList   =   []
 
         # setup the galaxy image and the noise image
         gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
@@ -116,7 +130,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
             if i%nrot==0:
                 while True:
                     index   =   np.random.randint(0,nrgcDat)
-                    if index not in badIdList:
+                    if (index not in badIdList) and (rgcCat[index]['IDENT'] not in badIDENT):
                         break
                 self.log.info('%d %d'%(ifield,index))
                 gal0    =   galsim.RealGalaxy(rgc,index=index,gsparams=bigfft)
@@ -259,8 +273,8 @@ class rgcSimBatchTask(BatchPoolTask):
         return
         
     def process(self,cache,ifield):
-        rgc =   cache.rgcs[ifield%3]
-        self.rgcSim.run(ifield,rgc)
+        rgcs    =   cache.rgcs
+        self.rgcSim.run(ifield,rgcs)
         try:
             self.log.info('finish field %04d' %(ifield))
         except:
