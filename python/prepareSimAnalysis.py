@@ -87,7 +87,7 @@ class prepareSimAnalysisTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        simList =   Table.read('noiVar_rPsf_s18a.csv')
+        simList =   Table.read('psfPre/info.csv')
         simList =   simList[simList['field']==fieldKey]['num']
         outcomes    =   pool.map(self.process,simList)
         outcomes    =   [x for x in outcomes if x is not None]

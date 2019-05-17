@@ -26,7 +26,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_shearCalibConfig(pexConfig.Config):
     anaDir      =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
-    pltDir      =   pexConfig.Field(dtype=str, default='plot/reGausCalib/', doc = 'plot directory')
+    pltDir      =   pexConfig.Field(dtype=str, default='plot2/reGausCalib/', doc = 'plot directory')
     nbin_1d     =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
     ngal_bin    =   pexConfig.Field(dtype=int, default=150000, doc = 'number of bins for 1-D parameter space')
     use_model   =   pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
@@ -172,8 +172,8 @@ class reGaus_shearCalibTask(BatchPoolTask):
         
     
     def process(self,cache,row):
-        isim    =   row['ifield']
-        fN      =   row['field_name']
+        isim    =   row['num']
+        fN      =   row['field']
         self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
         catFname=   os.path.join(self.config.anaDir,'%s'%fN,'simCat','%d.fits' %isim)
         catalog =   Table.read(catFname)
@@ -261,7 +261,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         pool.cacheClear()
         pool.storeSet(snr_lower=self.snr_lower,snr_upper=self.snr_upper,
                     res_lower=self.res_lower,res_upper=self.res_upper)
-        rows    =   Table.read('noiVar_rPsf_sim.csv')
+        rows    =   Table.read('psfPre/info.csv')
         outcomes=   pool.map(self.process,rows)
         outcomes=   [x for x in outcomes if x is not None]
         nsim    =   len(outcomes)

@@ -25,7 +25,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 class reGaus_sigmaEConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
     obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot/sigmae/', doc = 'plot directory')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot2/sigmae/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
     max_snr =   pexConfig.Field(dtype=float, default=80., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
@@ -96,7 +96,6 @@ class reGaus_sigmaETask(BatchPoolTask):
     @abortOnError
     def run(self,Id):
         #Prepare the pool
-        rows    =   Table.read('noiVar_rPsf_s18a.csv')
         pool    =   Pool("reGaus_sigmaE")
         pool.cacheClear()
         outcomes=   pool.map(self.process,utilities.field_keys)
@@ -135,7 +134,7 @@ class reGaus_sigmaETask(BatchPoolTask):
                                          use_wl_flag=use_wl_flag,
                                          bright_star_mask=False,
                                          max_snr=self.max_snr,
-                                         cancel_shape_noise=True,
+                                         force_90_pair=True,
                                          max_e=self.max_e,
                                          max_sigma_e=self.max_sigma_e)
                                          

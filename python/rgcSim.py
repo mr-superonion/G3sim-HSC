@@ -46,9 +46,20 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
 class rgcSimConfig(pexConfig.Config):
-    "config"
+    expDir      =   pexConfig.Field(dtype=str, default='expDir', doc = 'directory to store exposures')
+    catPre      =   pexConfig.Field(dtype=str, default='catPre', doc = 'directory to store pre-catalog')
+    psfPre      =   pexConfig.Field(dtype=str, default='psfPre', doc = 'directory to store pre-PSF')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
+    
+    def validate(self):
+        pexConfig.Config.validate(self)
+        if not os.path.exists(self.expDir):
+            os.mkdir(self.expDir)
+        if not os.path.exists(self.catPre):
+            os.mkdir(self.catPre)
+        if not os.path.exists(self.psfPre):
+            raise RuntimeError("Cannot find PSF images")
 
 class rgcSimTask(pipeBase.CmdLineTask):
     _DefaultName = "rgcSim"
@@ -56,24 +67,19 @@ class rgcSimTask(pipeBase.CmdLineTask):
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
 
-
     
     @pipeBase.timeMethod
-    def run(self,ifield,rgcs):
+    def run(self,ifield):
         badIDENT    =   [78798,276775,908556,81452,200743]
         self.log.info('begining for field %04d' %(ifield))
-        #Output 
-        outputdir   =  './expSim/' 
-        if not os.path.exists(outputdir):
-           os.mkdir(outputdir)
-        outFname    =   os.path.join(outputdir,'image-%04d.fits' %(ifield))
+        outFname    =   os.path.join(self.config.expDir,'image-%04d.fits' %(ifield))
         if os.path.exists(outFname):
             self.log.info('Already have the outcome')
             return
         self.log.info('simulating field %s' %(ifield))
         # Basic parameters
         ngrid       =   64
-        nx          =   50 
+        nx          =   100 
         ny          =   nx
         ndata       =   nx*ny
         nrot        =   2
@@ -83,7 +89,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         flux_scaling=   2.587
         
         # Get the psf and nosie information 
-        psfFname    =   'psfPre/psf%04d.fits'%(ifield)
+        psfFname    =   os.path.join(self.config.psfPre,'psf%04d.fits'%(ifield))
         psfImg      =   galsim.fits.read(psfFname)
         noiseHead   =   pyfits.getheader(psfFname)
         psfInt      =   galsim.InterpolatedImage(psfImg,scale=scale,flux = 1.) 
@@ -91,35 +97,46 @@ class rgcSimTask(pipeBase.CmdLineTask):
         g1          =   noiseHead['g1']
         g2          =   noiseHead['g2']
         fwhm        =   noiseHead['fwhm'] 
-        if fwhm <0.6 and fwhm>0.1:
-            rgc =   rgcs[0]
+        if fwhm <0.6 and fwhm>0.2:
+            iparent =   0
         elif fwhm<=0.85 and fwhm>=0.6:
-            rgc =   rgcs[1]
+            iparent =   0
         elif fwhm>0.85:
-            rgc=    rgcs[1]
+            iparent =   0
         else:
             self.log.info('incorrect PSF fwhm')
             return
-
-        variance    =   noiseHead['var']
-        ud          =   galsim.UniformDeviate(ifield*10000+1)
-        np.random.seed(ifield*10000+1)
+        # Get the  galaxy generator      
+        # Load data
+        Xnames      =   ['best','median','worst']
+        Xname       =   Xnames[iparent]
+        catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
+        directory   =   '/work/xiangchong.li/work/galsim_train/parent_%s_processed' %(Xname)
+        rgc         =   galsim.RealGalaxyCatalog(catName,dir=directory)
+        rgcCat      =   rgc.cat
+        nrgcDat     =   len(rgcCat)
         if iparent  ==  1: 
             badIdList   =   [148999,100999] 
         else:
             badIdList   =   []
+        extFname    =   '/work/xiangchong.li/work/galsim_train/cosmos_extinction_HSC.hdf5'
+        extTab      =   Table.read(extFname,"/%s" %iparent)
+        assert  len(extTab)==nrgcDat, 'number of galaxies in extinction file does not math that of rgc catalog'
+
+        variance    =   noiseHead['var']
+        rescale     =   noiseHead['rescale']
+        ud          =   galsim.UniformDeviate(ifield*10000+1)
+        np.random.seed(ifield*10000+1)
 
         # setup the galaxy image and the noise image
         gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
         gal_image.setOrigin(0,0)
         var_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
         var_image.setOrigin(0,0)
-        rgcCat      =   rgc.cat
-        nrgcDat     =   len(rgcCat)
         data_rows   =   []
         i           =   0
         while i <ndata:
-            self.log.info('processing stamp %d of field %d' %(i,ifield))
+            #self.log.info('processing stamp %d of field %d' %(i,ifield))
             # Prepare the subimage
             ix      =   i%nx
             iy      =   i//nx
@@ -132,7 +149,6 @@ class rgcSimTask(pipeBase.CmdLineTask):
                     index   =   np.random.randint(0,nrgcDat)
                     if (index not in badIdList) and (rgcCat[index]['IDENT'] not in badIDENT):
                         break
-                self.log.info('%d %d'%(ifield,index))
                 gal0    =   galsim.RealGalaxy(rgc,index=index,gsparams=bigfft)
                 gal0    *=  flux_scaling
                 # rotate the galaxy
@@ -141,6 +157,8 @@ class rgcSimTask(pipeBase.CmdLineTask):
             else:
                 gal0    =   gal0.rotate(1./nrot*np.pi*galsim.radians)
             ss      =   rgcCat[index]
+            ssExt   =   extTab[index]
+            assert ssExt['IDENT']==ss['IDENT'], 'IDENT does not match'
             # Shear the galaxy
             gal     =   gal0.shear(g1=g1,g2=g2)
             final   =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
@@ -149,7 +167,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
             #whiten the noise
             galNoiVar   =   sub_gal_image.whitenNoise(final.noise)
             sub_var_image+=  galNoiVar
-            row=(i,ss['IDENT'],ss['RA'],ss['DEC'],ss['MAG'],ss['BAND'])
+            row=(i,index,ss['IDENT'],ss['RA'],ss['DEC'],ss['MAG'],ssExt['a_i'],iparent)
             data_rows.append(row)
             i   +=  1
         self.log.info('Adding correlated noise')
@@ -164,7 +182,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         corNoise.applyTo(gal_image)
         exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
         exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
+        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance*rescale
         del gal_image
         del var_image
         #Set the PSF
@@ -192,8 +210,10 @@ class rgcSimTask(pipeBase.CmdLineTask):
         self.log.info('writing exposure')
         exposure.writeFits(outFname)
         del exposure
-        t = Table(rows=data_rows, names=('ipos','IDENT','RA','DEC','MAG','BAND'))
-        t.write('./catPre/catalog-%04d.fits' %(ifield),overwrite=True)
+        t = Table(rows=data_rows, names=('ipos','COSMOS_INDEX','IDENT','RA','DEC','COSMOS_MAG','a_i','parent_seeing'))
+        catPreName  =   os.path.join(self.config.catPre,'catalog-%04d.fits' %(ifield))
+        t.write(catPreName,overwrite=True)
+        del t
         return
 
     @classmethod
@@ -251,30 +271,19 @@ class rgcSimBatchTask(BatchPoolTask):
     @abortOnError
     def run(self,Id):
         self.log.info('beginning group %d' %(Id))
-        # Get the  galaxy generator      
-        # Load data
-        Xnames      =   ['best','median','worst']
-        rgcs        =   []
-        for iXn in range(3):
-            Xname       =   Xnames[iXn]
-            catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
-            directory   =   '/work/xiangchong.li/work/galsim_train/parent_%s_processed' %(Xname)
-            rgcs.append(galsim.RealGalaxyCatalog(catName,dir=directory))
         perGroup=   self.config.perGroup
         fMin    =   perGroup*Id
         fMax    =   perGroup*(Id+1)
         #Prepare the pool
         pool    =   Pool("rgcSim")
         pool.cacheClear()
-        pool.storeSet(rgcs=rgcs)
         fieldList=  range(fMin,fMax)
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return
         
     def process(self,cache,ifield):
-        rgcs    =   cache.rgcs
-        self.rgcSim.run(ifield,rgcs)
+        self.rgcSim.run(ifield)
         try:
             self.log.info('finish field %04d' %(ifield))
         except:

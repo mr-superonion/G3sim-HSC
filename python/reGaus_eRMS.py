@@ -25,7 +25,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 class reGaus_eRMSConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
     obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot/eRMS/', doc = 'plot directory')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot2/eRMS/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
     max_snr =   pexConfig.Field(dtype=float, default=200., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
@@ -81,7 +81,6 @@ class reGaus_eRMSTask(BatchPoolTask):
     @abortOnError
     def run(self,Id):
         #Prepare the pool
-        rows    =   Table.read('noiVar_rPsf_s18a.csv')
         pool    =   Pool("reGaus_eRMS")
         pool.cacheClear()
         outcomes=   pool.map(self.process,utilities.field_keys)
@@ -108,7 +107,7 @@ class reGaus_eRMSTask(BatchPoolTask):
                                          use_wl_flag=use_wl_flag,
                                          bright_star_mask=False,
                                          max_snr=self.max_snr,
-                                         cancel_shape_noise=False)
+                                         force_90_pair=False)
         dataTab =   []
         # Store NumPy arrays for e1,e2,sigma_e,model_sigma_e,
         # model_cc,resolution,snr,weight

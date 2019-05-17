@@ -125,7 +125,7 @@ def prepare_catalog(filename,isim=-1):
         catalog['g2']=  psfInfo['g2']
         catalog['field_name']   = np.string_(field_keys[psfInfo['field']])
         # Add a gridIndex column instead of using the index column, for compatibility
-        catalog['ipos']     =   (catalog['base_SdssCentroid_y']//64)*50 +(catalog['base_SdssCentroid_x']//64)
+        catalog['ipos']     =   (catalog['base_SdssCentroid_y']//64)*100 +(catalog['base_SdssCentroid_x']//64)
         catalog['ipos']     =   catalog['ipos'].astype(np.int)
         catalog['centDist'] =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
                                 (catalog['base_SdssCentroid_x']%64-32)**2.)
@@ -141,7 +141,6 @@ def prepare_catalog(filename,isim=-1):
         catInfo     =   Table.read(catFname)
         # Join catalogs on grid index
         catalog = join(catalog, catInfo, 'ipos')
-        catalog['BAND'].dtype   =   'S20'
         # Add extinction file
         #filename_extinction = 'cosmos_extinction.fits'
         #extinction_table = Table.read(filename_extinction)
@@ -150,7 +149,7 @@ def prepare_catalog(filename,isim=-1):
         #catalog     =   join(catalog, extinction_table,'IDENT')   
            
         # Now, identify pairs based on their input ipos values
-        n = 50*50 # Number of grid points
+        n = 100*100 # Number of grid points
         mask_even = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int'), assume_unique=True)
         mask_odd  = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int')+1, assume_unique=True)
 
@@ -459,7 +458,7 @@ def weighted_percentile(data,percents,weights=None):
     y=np.interp(percents, p, d)
     return y
 
-def sliding_window_def(snr,res,weights,n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
+def sliding_window_def(snr,res,weights=None,n_gal=100*100, n_bin_1d=20, snr_overlap=1.4):
     """
     A routine to define 2d bins in a sample based on its (snr, res)
     using a sliding window.  `n_gal` sets the minimum number of

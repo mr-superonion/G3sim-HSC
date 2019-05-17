@@ -27,13 +27,13 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 class psfNoiDisAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs directory')
     obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs directory')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot/psfNoi/', doc = 'plot directory')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot2/psfNoi/', doc = 'plot directory')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
     def validate(self):
         pexConfig.Config.validate(self)
-       # Checks that the paths provided are valid
+        # Checks that the paths provided are valid
         if not os.path.isdir(self.anaDir):
             raise RuntimeError("Simulation catalog directory %s does not exist "
                          "or is not a directory" % (self.anaDir))
@@ -41,7 +41,7 @@ class psfNoiDisAnalysisConfig(pexConfig.Config):
             raise RuntimeError("Data catalog directory %s does not exist "
                          "or is not a directory" % (self.anaDir))
         if not os.path.exists(self.pltDir):
-            os.mkdir(self.plotDir)
+            os.mkdir(self.pltDir)
 
 class psfNoiDisAnalysisRunner(TaskRunner):
     @staticmethod
