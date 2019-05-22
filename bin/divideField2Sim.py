@@ -22,7 +22,7 @@ def run(fieldKey):
     outDir  =   os.path.join(anaDir,fieldname,'simCat')
     if not os.path.exists(outDir):
         os.mkdir(outDir)
-    simList =   Table.read('noiVar_rPsf_s18a.csv')
+    simList =   Table.read('psfPre/info.csv')
     numList =   simList[simList['field']==fieldKey]['num']
     for isim in numList:
         outname =   os.path.join(outDir,'%s.fits' %(isim))
@@ -31,7 +31,6 @@ def run(fieldKey):
         del dataSub
 
     return
-
 
 if __name__=='__main__':
     main()

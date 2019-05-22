@@ -173,7 +173,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
     
     def process(self,cache,row):
         isim    =   row['num']
-        fN      =   row['field']
+        fN      =   utilities.field_keys[row['field']]
         self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
         catFname=   os.path.join(self.config.anaDir,'%s'%fN,'simCat','%d.fits' %isim)
         catalog =   Table.read(catFname)

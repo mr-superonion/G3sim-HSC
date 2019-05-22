@@ -944,9 +944,9 @@ def get_psf_size(catalog, type='fwhm-arcsec'):
 
     """
     if 'base_SdssShape_psf_xx' in catalog.dtype.names:
-        psf_mxx = catalog['base_SdssShape_psf_xx']*0.168
-        psf_myy = catalog['base_SdssShape_psf_yy']*0.168
-        psf_mxy = catalog['base_SdssShape_psf_xy']*0.168
+        psf_mxx = catalog['base_SdssShape_psf_xx']*0.168**2.
+        psf_myy = catalog['base_SdssShape_psf_yy']*0.168**2.
+        psf_mxy = catalog['base_SdssShape_psf_xy']*0.168**2.
     else:
         psf_mxx = catalog['ishape_sdss_psf_ixx']
         psf_myy = catalog['ishape_sdss_psf_iyy']

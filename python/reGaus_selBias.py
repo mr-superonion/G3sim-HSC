@@ -84,8 +84,8 @@ class reGaus_selBiasTask(BatchPoolTask):
         return
     
     def process(self,cache,row):
-        isim    =   row['ifield']
-        fN      =   row['field_name']
+        isim    =   row['num']
+        fN      =   utilities.field_keys[row['field']]
         self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
         catFname=   os.path.join(self.config.anaDir,'%s'%fN,'simCat','%d.fits' %isim)
         catalog =   Table.read(catFname)
@@ -143,7 +143,7 @@ class reGaus_selBiasTask(BatchPoolTask):
         self.log.info('Estimating bias for each bin')
         pool    =   Pool("reGaus_selBias")
         pool.cacheClear()
-        rows    =   Table.read('noiVar_rPsf_sim.csv')
+        rows    =   Table.read('psfPre/info.csv')
         outcomes=   pool.map(self.process,rows)
         outcomes=   [x for x in outcomes if x is not None]
         nsim    =   len(outcomes)
