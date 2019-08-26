@@ -204,11 +204,6 @@ class reGaus_TestTask(BatchPoolTask):
                 division_val[division_val<1.e-6] = 1.e-6
                 sigma_vals /= division_val
             tmp_use = (sigma_vals < 1.e8)
-            print(len(self.g1_bins[i,tmp_use]))
-            print(self.g1_bins[i,tmp_use])
-            print(self.g2_bins[i,tmp_use])
-            print(self.g1_true[tmp_use])
-            print(self.g2_true[tmp_use])
             self.m1_bins[i],self.a1_bins[i],\
             self.sigm1_bins[i],self.siga1_bins[i]=\
                 utilities.get_m_c_a(self.g1_bins[i,tmp_use],
