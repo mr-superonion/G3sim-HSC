@@ -22,8 +22,6 @@ def prepareBWeight(ngrid,wFname):
 def main():
     #Load the weight caused by boundary
     outFname=   './corPre/noiPows.npy'
-    if os.path.exists(outFname):
-        return
     ngrid   =   64
     inWname =   './corPre/boundaryWeight.npy'
     if not os.path.exists(inWname):
@@ -31,9 +29,11 @@ def main():
     weights =   np.load(inWname)
     corNoise=   pyfits.getdata('./corPre/correlation.fits')
     ngridC  =   corNoise.shape[0]
-    shift   =   (ngrid-ngridC)//2
+    print(ngridC)
+    shift   =   int((ngrid-ngridC)//2)+1
     weiCor0 =   np.zeros((ngrid,ngrid))
     weiCor0[shift:shift+ngridC,shift:shift+ngridC]=corNoise[:,:]
+    print(np.unravel_index(np.argmax(weiCor0),(64,64)))
     outPows =   np.zeros((24,1,ngrid,ngrid))
     for irad in range(8,32):
         iweiCor =   weiCor0*weights[irad-8,:,:]
