@@ -49,6 +49,7 @@ class rgcSimConfig(pexConfig.Config):
     expDir      =   pexConfig.Field(dtype=str, default='expDir', doc = 'directory to store exposures')
     catPre      =   pexConfig.Field(dtype=str, default='catPre', doc = 'directory to store pre-catalog')
     psfPre      =   pexConfig.Field(dtype=str, default='psfPre', doc = 'directory to store pre-PSF')
+    corPre      =   pexConfig.Field(dtype=str, default='corPre', doc = 'directory to store pre-PSF')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     
@@ -60,6 +61,8 @@ class rgcSimConfig(pexConfig.Config):
             os.mkdir(self.catPre)
         if not os.path.exists(self.psfPre):
             raise RuntimeError("Cannot find PSF images")
+        if not os.path.exists(self.corPre):
+            raise RuntimeError("Cannot find noise correlations images")
 
 class rgcSimTask(pipeBase.CmdLineTask):
     _DefaultName = "rgcSim"
@@ -71,8 +74,8 @@ class rgcSimTask(pipeBase.CmdLineTask):
     @pipeBase.timeMethod
     def run(self,ifield):
         badIDENT    =   [78798,276775,908556,81452,200743]
-        self.log.info('begining for field %04d' %(ifield))
-        outFname    =   os.path.join(self.config.expDir,'image-%04d.fits' %(ifield))
+        self.log.info('begining for field %05d' %(ifield))
+        outFname    =   os.path.join(self.config.expDir,'image-%05d.fits' %(ifield))
         if os.path.exists(outFname):
             self.log.info('Already have the outcome')
             return
@@ -89,7 +92,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         flux_scaling=   2.587
         
         # Get the psf and nosie information 
-        psfFname    =   os.path.join(self.config.psfPre,'psf%04d.fits'%(ifield))
+        psfFname    =   os.path.join(self.config.psfPre,'psf-%05d.fits'%(ifield))
         psfImg      =   galsim.fits.read(psfFname)
         noiseHead   =   pyfits.getheader(psfFname)
         psfInt      =   galsim.InterpolatedImage(psfImg,scale=scale,flux = 1.) 
@@ -97,6 +100,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         g1          =   noiseHead['g1']
         g2          =   noiseHead['g2']
         fwhm        =   noiseHead['fwhm'] 
+        group       =   noiseHead['group']
         if fwhm <0.6 and fwhm>0.2:
             iparent =   0
         elif fwhm<=0.85 and fwhm>=0.6:
@@ -124,7 +128,6 @@ class rgcSimTask(pipeBase.CmdLineTask):
         assert  len(extTab)==nrgcDat, 'number of galaxies in extinction file does not math that of rgc catalog'
 
         variance    =   noiseHead['var']
-        rescale     =   noiseHead['rescale']
         ud          =   galsim.UniformDeviate(ifield*10000+1)
         np.random.seed(ifield*10000+1)
 
@@ -176,13 +179,14 @@ class rgcSimTask(pipeBase.CmdLineTask):
         var_image   =   max_variance - var_image
         vn          =   galsim.VariableGaussianNoise(rng,var_image)
         gal_image.addNoise(vn)
-        corNoise    =   galsim.getCOSMOSNoise(file_name='./corPre/correlation.fits',rng=rng,cosmos_scale=scale,variance=variance)
+        corFname    =   os.path.join(self.config.corPre,'corGroup-%02d.fits' %group)
+        corNoise    =   galsim.getCOSMOSNoise(file_name=corFname,rng=rng,cosmos_scale=scale,variance=variance)
         unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
         corNoise    =   corNoise-unCorNoise
         corNoise.applyTo(gal_image)
         exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
         exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance*rescale
+        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
         del gal_image
         del var_image
         #Set the PSF
@@ -211,7 +215,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         exposure.writeFits(outFname)
         del exposure
         t = Table(rows=data_rows, names=('ipos','COSMOS_INDEX','IDENT','RA','DEC','COSMOS_MAG','a_i','parent_seeing'))
-        catPreName  =   os.path.join(self.config.catPre,'catalog-%04d.fits' %(ifield))
+        catPreName  =   os.path.join(self.config.catPre,'catalog-%05d.fits' %(ifield))
         t.write(catPreName,overwrite=True)
         del t
         return
@@ -237,7 +241,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         pass
 
 class rgcSimBatchConfig(pexConfig.Config):
-    perGroup =   pexConfig.Field(dtype=int, default=80, doc = 'data per field')
+    perGroup =   pexConfig.Field(dtype=int, default=112, doc = 'data per field')
     rgcSim = pexConfig.ConfigurableField(
         target = rgcSimTask,
         doc = "rgcSim task to run on multiple cores"
@@ -285,9 +289,9 @@ class rgcSimBatchTask(BatchPoolTask):
     def process(self,cache,ifield):
         self.rgcSim.run(ifield)
         try:
-            self.log.info('finish field %04d' %(ifield))
+            self.log.info('finish field %05' %(ifield))
         except:
-            self.log.info('fail to finish field %04d'%(ifield) )
+            self.log.info('fail to finish field %05d'%(ifield) )
         return 
 
     @classmethod
