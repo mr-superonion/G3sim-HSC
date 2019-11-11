@@ -241,7 +241,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         pass
 
 class rgcSimBatchConfig(pexConfig.Config):
-    perGroup =   pexConfig.Field(dtype=int, default=112, doc = 'data per field')
+    perGroup =   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
     rgcSim = pexConfig.ConfigurableField(
         target = rgcSimTask,
         doc = "rgcSim task to run on multiple cores"
