@@ -115,7 +115,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         Xnames      =   ['best','median','worst']
         Xname       =   Xnames[iparent]
         catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
-        directory   =   '/work/xiangchong.li/work/galsim_train/parent_%s_processed' %(Xname)
+        directory   =   '../../galsim_train/parent_%s_processed' %(Xname)
         rgc         =   galsim.RealGalaxyCatalog(catName,dir=directory)
         rgcCat      =   rgc.cat
         nrgcDat     =   len(rgcCat)
@@ -123,7 +123,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
             badIdList   =   [148999,100999] 
         else:
             badIdList   =   []
-        extFname    =   '/work/xiangchong.li/work/galsim_train/cosmos_extinction_HSC.hdf5'
+        extFname    =   '../../galsim_train/cosmos_extinction_HSC.hdf5'
         extTab      =   Table.read(extFname,"/%s" %iparent)
         assert  len(extTab)==nrgcDat, 'number of galaxies in extinction file does not math that of rgc catalog'
 
