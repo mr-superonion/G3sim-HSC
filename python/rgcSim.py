@@ -287,9 +287,9 @@ class rgcSimBatchTask(BatchPoolTask):
         return
         
     def process(self,cache,ifield):
-        self.rgcSim.run(ifield)
         try:
-            self.log.info('finish field %05' %(ifield))
+            self.rgcSim.run(ifield)
+            self.log.info('finish field %05d' %(ifield))
         except:
             self.log.info('fail to finish field %05d'%(ifield) )
         return 
