@@ -241,7 +241,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         pass
 
 class rgcSimBatchConfig(pexConfig.Config):
-    perGroup =   pexConfig.Field(dtype=int, default=112, doc = 'data per field')
+    perGroup =   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
     rgcSim = pexConfig.ConfigurableField(
         target = rgcSimTask,
         doc = "rgcSim task to run on multiple cores"
@@ -287,9 +287,9 @@ class rgcSimBatchTask(BatchPoolTask):
         return
         
     def process(self,cache,ifield):
-        self.rgcSim.run(ifield)
         try:
-            self.log.info('finish field %05' %(ifield))
+            self.rgcSim.run(ifield)
+            self.log.info('finish field %05d' %(ifield))
         except:
             self.log.info('fail to finish field %05d'%(ifield) )
         return 
