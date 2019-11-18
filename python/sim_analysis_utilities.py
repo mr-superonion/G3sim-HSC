@@ -16,13 +16,22 @@ import math
 import warnings
 
 # Field keys used in the noise variance file for simulations
-field_keys = {'aegis': 'AEGIS',
-              'gama9': 'GAMA09H',
-              'gama15': 'GAMA15H',
-              'hect': 'HECTOMAP',
-              'vvds': 'VVDS',
-              'wide12': 'WIDE12H',
-              'xmm': 'XMM'}
+field_keys = {'W02': 'XMM',
+              'W03': 'GAMA09H',
+              'W04-12': 'WIDE12H',
+              'W04-15': 'GAMA15H',
+              'W05': 'VVDS',
+              'W06': 'HECTOMAP'}
+
+
+field_names = {'XMM': 'W02',
+              'GAMA09H': 'W03',
+              'WIDE12H': 'W04_WIDE12H',
+              'GAMA15H': 'W04_GAMA15H',
+              'VVDS': 'W05',
+              'HECTOMAP': 'W06'}
+
+
 # Hex keys for the color scheme for shear catalog paper
 plot_colors = {
     'GAMA09H' : '#d73027',
@@ -59,10 +68,10 @@ def prepare_slide_catalog(anaDir):
     if os.path.exists(outFname):
         return Table.read(outFname)
     colnames    =   ['modelfit_CModel_flux', 'modelfit_CModel_fluxSigma','Mag',
-        'ishape_hsm_regauss_e1','ishape_hsm_regauss_e2','weak_lensing_flag',
-        'ishape_hsm_regauss_resolution','ishape_hsm_regauss_sigma',
+        'i_hsmshaperegauss_e1','i_hsmshaperegauss_e2','weak_lensing_flag',
+        'i_hsmshaperegauss_resolution','i_hsmshaperegauss_sigma',
         'base_SdssShape_psf_xx','base_SdssShape_psf_yy','base_SdssShape_psf_xy',
-        'reweight_s16a','ishape_hsm_regauss_derived_shape_weight','paired']
+        'reweight_s16a','i_hsmshaperegauss_derived_shape_weight','paired']
     catList =   []
     for key in field_keys:
         fieldname=  field_keys[key]
@@ -76,17 +85,19 @@ def prepare_slide_catalog(anaDir):
     return slide_cat
 
 
-
-def prepare_catalog(filename,isim=-1):
+def prepare_catalog(filename,fieldname,isim=-1):
+    """
+    # Read the catalog data
+    """
     catalog =   Table.read(filename)
     colNames=   catalog.colnames
-    
+ 
     # Load the header to get proper name of flags
     header = pyfits.getheader(filename, 1)
     n_flag = catalog["flags"].shape[1]
     for i in range(n_flag):
         catalog[header["TFLAG%s" % (i+1)]] = catalog["flags"][:, i]
-    
+ 
     # Then, apply mask for permissive cuts
     mask =  (~(catalog['base_SdssCentroid_flag'])) &\
             (~catalog['ext_shapeHSM_HsmShapeRegauss_flag']) &\
@@ -106,49 +117,60 @@ def prepare_catalog(filename,isim=-1):
     if len(catalog)==0:
         return None
     catalog =   catalog[colNames]
+
     # Add columns with names matching the real data
     cols = []
-    data_fields = {'ext_shapeHSM_HsmShapeRegauss_e1': 'ishape_hsm_regauss_e1',
-                   'ext_shapeHSM_HsmShapeRegauss_e2': 'ishape_hsm_regauss_e2',
-                   'ext_shapeHSM_HsmShapeRegauss_sigma': 'ishape_hsm_regauss_sigma',
-                   'ext_shapeHSM_HsmShapeRegauss_resolution': 'ishape_hsm_regauss_resolution'}
+    data_fields = {'ext_shapeHSM_HsmShapeRegauss_e1': 'i_hsmshaperegauss_e1',
+                   'ext_shapeHSM_HsmShapeRegauss_e2': 'i_hsmshaperegauss_e2',
+                   'ext_shapeHSM_HsmShapeRegauss_sigma': 'i_hsmshaperegauss_sigma',
+                   'ext_shapeHSM_HsmShapeRegauss_resolution': 'i_hsmshaperegauss_resolution'}
     for i in data_fields:
         catalog[data_fields[i]] = catalog[i]
 
-    # For simulation
+    # Add field name infomation
+    catalog['field_name']   = np.string_(fieldname)
     if isim>=0:
+        """
+        # For simulation
+        """
+        #Reweight factor to be determined
         catalog['reweight_s16a']    =  0.
-        # Load information from psfPre
-        psfFname    =   'psfPre/psf%04d.fits' % isim
-        psfInfo     =   pyfits.getheader(psfFname)
-        catalog['g1']=  psfInfo['g1']
-        catalog['g2']=  psfInfo['g2']
-        catalog['field_name']   = np.string_(field_keys[psfInfo['field']])
+
         # Add a gridIndex column instead of using the index column, for compatibility
         catalog['ipos']     =   (catalog['base_SdssCentroid_y']//64)*100 +(catalog['base_SdssCentroid_x']//64)
         catalog['ipos']     =   catalog['ipos'].astype(np.int)
         catalog['centDist'] =   ((catalog['base_SdssCentroid_y']%64-32)**2. +
                                 (catalog['base_SdssCentroid_x']%64-32)**2.)
         catalog['centDist'] =   np.sqrt(catalog['centDist'])
+
         # First, keep only detections that are the closest to the grid point
         # Get sorted index by grid index and grid distance
         inds        =   np.lexsort([catalog['centDist'], catalog['ipos']])
         inds_unique =   np.unique(catalog['ipos'][inds], return_index=True)[1]
         catalog     =   catalog[inds[inds_unique]]
         catalog     =   catalog[(catalog['centDist']<5.)]
+
+        """
+        # Load information from psfPre
+        """
+        psfFname    =   'psfPre/psf-%05d.fits' % isim
+        psfInfo     =   pyfits.getheader(psfFname)
+        catalog['g1']=  psfInfo['g1']
+        catalog['g2']=  psfInfo['g2']
+
+        """
         # Load information from catPre
-        catFname    =   'catPre/catalog-%04d.fits' % isim
+        """
+        catFname    =   'catPre/catalog-%05d.fits' % isim
         catInfo     =   Table.read(catFname)
         # Join catalogs on grid index
+        # Extinction information is contained in catInfo 
         catalog = join(catalog, catInfo, 'ipos')
-        # Add extinction file
-        #filename_extinction = 'cosmos_extinction.fits'
-        #extinction_table = Table.read(filename_extinction)
-        
-        # Join tables on cosmos_index
-        #catalog     =   join(catalog, extinction_table,'IDENT')   
-           
-        # Now, identify pairs based on their input ipos values
+
+        """
+        ***
+        # Identify pairs based on their input ipos values
+        """
         n = 100*100 # Number of grid points
         mask_even = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int'), assume_unique=True)
         mask_odd  = np.in1d(catalog['ipos'] % n, 2*np.arange(n/2).astype('int')+1, assume_unique=True)
@@ -169,32 +191,31 @@ def prepare_catalog(filename,isim=-1):
     #     resolution factor
     #     i-band SNR
     sig_e = get_sigma_e(catalog)
-    e= np.sqrt(catalog['ishape_hsm_regauss_e1']**2 +
-               catalog['ishape_hsm_regauss_e2']**2)
+    e= np.sqrt(catalog['i_hsmshaperegauss_e1']**2 +
+               catalog['i_hsmshaperegauss_e2']**2)
 
     catalog['weak_lensing_flag'] = ((get_imag(catalog)) < 24.5) & \
         (e <= 2.) & \
-        (catalog['ishape_hsm_regauss_resolution'] >= 0.3) & \
+        (catalog['i_hsmshaperegauss_resolution'] >= 0.3) & \
         (get_snr(catalog) >= 10.)
         #(sig_e > 0.0) & \
         #(sig_e < 0.4) &
 
     # add a bunch of columns that get used for WL analysis - fake it for now!
-    catalog['ishape_hsm_regauss_derived_sigma_e'] = catalog['ishape_hsm_regauss_sigma']
-    catalog['ishape_hsm_regauss_derived_rms_e'] = 0.365
+    catalog['i_hsmshaperegauss_derived_sigma_e'] = catalog['i_hsmshaperegauss_sigma']
+    catalog['i_hsmshaperegauss_derived_rms_e'] = 0.365
 
-    wt =  1./(catalog['ishape_hsm_regauss_derived_rms_e']**2 + \
-                 catalog['ishape_hsm_regauss_derived_sigma_e']**2)
-    catalog['ishape_hsm_regauss_derived_shape_weight'] = wt
+    wt =  1./(catalog['i_hsmshaperegauss_derived_rms_e']**2 + \
+                 catalog['i_hsmshaperegauss_derived_sigma_e']**2)
+    catalog['i_hsmshaperegauss_derived_shape_weight'] = wt
     # Unpleasant discovery: the lines below used to say "= 0" and it turns out that meant those
     # columns were ints, which led to all kinds of issues later on.  This fix is for the next time a
     # sims catalog gets turned into HDF5.
-    catalog['ishape_hsm_regauss_derived_shear_bias_m'] = 0.
-    catalog['ishape_hsm_regauss_derived_shear_bias_c1'] = 0.
-    catalog['ishape_hsm_regauss_derived_shear_bias_c2'] = 0.
+    catalog['i_hsmshaperegauss_derived_shear_bias_m'] = 0.
+    catalog['i_hsmshaperegauss_derived_shear_bias_c1'] = 0.
+    catalog['i_hsmshaperegauss_derived_shear_bias_c2'] = 0.
     
     return catalog
-
 
 def galaxy_selector(catalog, min_snr=None, max_snr=None,
                     min_res=None, max_res=None,
@@ -307,25 +328,25 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
     # Basic sanity checks: none of the quantities that we want to use should
     # be NaN. We also impose the sigma_e and e cuts here, because even just
     # a few bad values can totally mess stuff up.
-    mask &= (~np.isnan(catalog['ishape_hsm_regauss_e1'])) & \
-            (~np.isnan(catalog['ishape_hsm_regauss_e2'])) & \
-            (~np.isnan(catalog['ishape_hsm_regauss_sigma'])) & \
-            (~np.isnan(catalog['ishape_hsm_regauss_resolution'])) & \
+    mask &= (~np.isnan(catalog['i_hsmshaperegauss_e1'])) & \
+            (~np.isnan(catalog['i_hsmshaperegauss_e2'])) & \
+            (~np.isnan(catalog['i_hsmshaperegauss_sigma'])) & \
+            (~np.isnan(catalog['i_hsmshaperegauss_resolution'])) & \
             (~np.isnan(get_snr(catalog))) & \
             (~np.isnan(get_imag(catalog)))
     # For real data, also check valid psf measurements
-    if 'ishape_sdss_psf_ixx' in catalog.dtype.names:
-        mask &= (~np.isnan(catalog['ishape_sdss_psf_ixx'])) & \
-                (~np.isnan(catalog['ishape_sdss_psf_iyy'])) & \
-                (~np.isnan(catalog['ishape_sdss_psf_iyy']))
+    if 'i_sdssshape_psf_shape11' in catalog.dtype.names:
+        mask &= (~np.isnan(catalog['i_sdssshape_psf_shape11'])) & \
+                (~np.isnan(catalog['i_sdssshape_psf_shape22'])) & \
+                (~np.isnan(catalog['i_sdssshape_psf_shape22']))
 
     if max_sigma_e is not None:
         sigma_e = get_sigma_e(catalog[mask])
         mask[mask] &= sigma_e <= max_sigma_e
 
     if max_e is not None:
-        e = np.sqrt(catalog['ishape_hsm_regauss_e1'][mask]**2 +
-                    catalog['ishape_hsm_regauss_e2'][mask]**2)
+        e = np.sqrt(catalog['i_hsmshaperegauss_e1'][mask]**2 +
+                    catalog['i_hsmshaperegauss_e2'][mask]**2)
         mask[mask] &= (e <= max_e)
 
     if min_multiband_snr_data is not None:
@@ -381,10 +402,10 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
     # We should only try to make the cuts on the galaxies that passed the flag
     # cuts, otherwise we get lots of warnings about invalid values etc.
     if min_res is not None:
-        mask[mask] &= catalog['ishape_hsm_regauss_resolution'][mask] >= min_res
+        mask[mask] &= catalog['i_hsmshaperegauss_resolution'][mask] >= min_res
 
     if max_res is not None:
-        mask[mask] &= catalog['ishape_hsm_regauss_resolution'][mask] <= max_res
+        mask[mask] &= catalog['i_hsmshaperegauss_resolution'][mask] <= max_res
 
     if min_snr is not None:
         snr = get_snr(catalog[mask])
@@ -571,10 +592,10 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False,
     # The calculation below follows the agreed-upon procedure from
     # http://hscsurvey.pbworks.com/w/page/113068663/notes%20on%20lensing%20signal%20calculation%20with%20S16A%20catalog
     if not use_model:
-        weights = catalog['ishape_hsm_regauss_derived_shape_weight']
-        e_rms = catalog['ishape_hsm_regauss_derived_rms_e']
-        if 'ishape_hsm_regauss_derived_sigma_e' in catalog.dtype.names:
-            sigma_e = catalog['ishape_hsm_regauss_derived_sigma_e']
+        weights = catalog['i_hsmshaperegauss_derived_shape_weight']
+        e_rms = catalog['i_hsmshaperegauss_derived_rms_e']
+        if 'i_hsmshaperegauss_derived_sigma_e' in catalog.dtype.names:
+            sigma_e = catalog['i_hsmshaperegauss_derived_sigma_e']
         else:
             sigma_e = get_sigma_e(catalog)
     else:
@@ -596,8 +617,8 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False,
         else:
             return 0, 0, 0
 
-    e1 = catalog['ishape_hsm_regauss_e1']
-    e2 = catalog['ishape_hsm_regauss_e2']
+    e1 = catalog['i_hsmshaperegauss_e1']
+    e2 = catalog['i_hsmshaperegauss_e2']
     shear_num_1 = np.sum(weights * e1)
     shear_num_2 = np.sum(weights * e2)
     sum_weight = np.sum(weights)
@@ -665,8 +686,8 @@ def getMeanAbsEllip(catalog, weight=None):
     if weight is None:
         weight = np.ones(len(catalog))
 
-    mean_e = np.mean(weight * np.sqrt(catalog['ishape_hsm_regauss_e1']**2 +
-                                      catalog['ishape_hsm_regauss_e2']**2))
+    mean_e = np.mean(weight * np.sqrt(catalog['i_hsmshaperegauss_e1']**2 +
+                                      catalog['i_hsmshaperegauss_e2']**2))
 
     return mean_e
 
@@ -695,7 +716,7 @@ def getMeanRes(catalog, weight=None):
     if weight is None:
         weight = np.ones(len(catalog))
 
-    return np.mean(weight * catalog['ishape_hsm_regauss_resolution'])
+    return np.mean(weight * catalog['i_hsmshaperegauss_resolution'])
 
 
 def getMeanSnr(catalog, weight=None):
@@ -881,9 +902,11 @@ def get_snr(catalog):
     In the case of GREAT3-like simulations, the noise rescaling factor is applied
     to match the data.
     """
-    snr     =   catalog['modelfit_CModel_flux']/catalog['modelfit_CModel_fluxSigma']
+    if 'i_cmodel_flux' in catalog.dtype.names:
+        snr     =   catalog['i_cmodel_flux']/catalog['i_cmodel_fluxsigma']
+    else:
+        snr     =   catalog['modelfit_CModel_flux']/catalog['modelfit_CModel_fluxSigma']
     return snr
-
 
 def get_imag(catalog):
     """
@@ -891,26 +914,33 @@ def get_imag(catalog):
     simulation catalog. Does not apply any cuts and returns NaNs for invalid
     values.
     """
-    mag     =   catalog['Mag']
-    #return -2.5 * np.log10(catalog['modelfit_CModel_flux']) + 27.
-    return mag
-
+    if 'i_cmodel_mag' in catalog.dtype.names:
+        magnitude   =   catalog['i_cmodel_mag']
+    else:
+        magnitude   =   -2.5 * np.log10(catalog['modelfit_CModel_flux']) + 27.
+    return magnitude
 
 def get_abs_ellip(catalog):
     """
     Returns the modulus of galaxy distortions.
     """
-    absE    =   catalog['ext_shapeHSM_HsmShapeRegauss_e1']**2.+catalog['ext_shapeHSM_HsmShapeRegauss_e2']**2.
+    if 'i_hsmshaperegauss_e1' in catalog.dtype.names:
+        absE    =   catalog['i_hsmshaperegauss_e1']**2.+catalog['i_hsmshaperegauss_e2']**2.
+    else:
+        absE    =   catalog['ext_shapeHSM_HsmShapeRegauss_e1']**2.+catalog['ext_shapeHSM_HsmShapeRegauss_e2']**2.
+    absE    =   np.sqrt(absE)
     return absE 
-
 
 def get_res(catalog):
     """
     Returns the resolution
     """
-    return catalog['ishape_hsm_regauss_resolution']
-    
-    
+    if 'i_hsmshaperegauss_resolution' in catalog.dtype.names:
+        resolution  =   catalog['i_hsmshaperegauss_resolution']
+    else:
+        resolution  =   catalog['ext_shapeHSM_HsmShapeRegauss_resolution']
+    return resolution 
+
 def get_sigma_e(catalog):
     """
     This utility returns the hsm_regauss_sigma values for the catalog, without
@@ -918,8 +948,7 @@ def get_sigma_e(catalog):
     In the case of GREAT3-like simulations, the noise rescaling factor is applied
     to match the data.
     """
-    sigma_e = catalog['ishape_hsm_regauss_sigma']
-
+    sigma_e = catalog['i_hsmshaperegauss_sigma']
     return sigma_e
 
 def get_true_shear(catalog):
@@ -927,7 +956,7 @@ def get_true_shear(catalog):
     This routine accesses the truth tables to get the true shear.
     """
     return catalog['g1'], catalog['g2']
-    
+
 def get_psf_size(catalog, type='fwhm-arcsec'):
     """
     This utility gets the PSF size from a data or sims catalog using the
@@ -948,9 +977,9 @@ def get_psf_size(catalog, type='fwhm-arcsec'):
         psf_myy = catalog['base_SdssShape_psf_yy']*0.168**2.
         psf_mxy = catalog['base_SdssShape_psf_xy']*0.168**2.
     else:
-        psf_mxx = catalog['ishape_sdss_psf_ixx']
-        psf_myy = catalog['ishape_sdss_psf_iyy']
-        psf_mxy = catalog['ishape_sdss_psf_ixy']
+        psf_mxx = catalog['i_sdssshape_psf_shape11']
+        psf_myy = catalog['i_sdssshape_psf_shape22']
+        psf_mxy = catalog['i_sdssshape_psf_shape12']
 
     if type == 'trace':
         size = psf_mxx + psf_myy
@@ -971,9 +1000,9 @@ def get_psf_ellip(catalog):
         psf_myy = catalog['base_SdssShape_psf_yy']*0.168
         psf_mxy = catalog['base_SdssShape_psf_xy']*0.168
     else:
-        psf_mxx = catalog['ishape_sdss_psf_ixx']
-        psf_myy = catalog['ishape_sdss_psf_iyy']
-        psf_mxy = catalog['ishape_sdss_psf_ixy']
+        psf_mxx = catalog['i_sdssshape_psf_shape11']
+        psf_myy = catalog['i_sdssshape_psf_shape22']
+        psf_mxy = catalog['i_sdssshape_psf_shape12']
     return (psf_mxx - psf_myy) / (psf_mxx + psf_myy), 2. * \
         psf_mxy / (psf_mxx + psf_myy)
 

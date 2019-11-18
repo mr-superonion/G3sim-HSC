@@ -3,6 +3,12 @@ import os
 import numpy as np
 import astropy.io.fits as pyfits
 
+
+"""
+#Note
+This subroutine is only for FPFS and not for reGauss
+"""
+
 def prepareBWeight(ngrid,wFname):
     Bweights=np.zeros((26,ngrid,ngrid))
     for rCut in range(8,32):

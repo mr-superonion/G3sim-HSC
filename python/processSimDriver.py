@@ -47,14 +47,23 @@ from readDataSim import readDataSimTask
 
 class processSimConfig(pexConfig.Config):
     "config"
+
+    doFPFS   = pexConfig.Field(
+        dtype=bool, 
+        default=False, 
+        doc="Whether do FPFS shape measurement",
+    )
+
     readDataSim= pexConfig.ConfigurableField(
         target  = readDataSimTask,
         doc     = "Subtask to run measurement of fpfs method"
     )
+
     fpfsBase = pexConfig.ConfigurableField(
         target = fpfsBaseTask,
         doc = "Subtask to run measurement of fpfs method"
     )
+
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
@@ -69,26 +78,31 @@ class processSimTask(pipeBase.CmdLineTask):
         
     @pipeBase.timeMethod
     def run(self,ifield):
-        self.log.info('begining for field %04d' %(ifield))
-        inputdir=  './expSim/' 
-        inFname    =   os.path.join(inputdir,'image-%04d.fits' %(ifield))
+        self.log.info('begining for field %05d' %(ifield))
+        inputdir=  './expDir/' 
+
+        inFname    =   os.path.join(inputdir,'image-%05d.fits' %(ifield))
         if not os.path.exists(inFname):
             self.log.info('Cannot find the input exposure')
             return
-        outputdir   =  './outcomeFPFS/' 
-        outFname    =   'src-%04d.fits'  %(ifield)
-        outFname    =   os.path.join(outputdir,outFname)
-        if os.path.exists(outFname):
-            self.log.info('Already have the output file')
-            return
-        dataStruct  =  self.readDataSim.readData(ifield)
+        dataStruct  =  self.readDataSim.readData('-%05d' %ifield)
         if dataStruct is None:
             self.log.info('failed to read data')
             return
         else:
             self.log.info('successed in reading data')
-        self.fpfsBase.run(dataStruct)
-        dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
+
+        if self.config.doFPFS:    
+            assert dataStruct.noiPows != None,\
+                    self.log.info('do not have noiPows')
+            self.fpfsBase.run(dataStruct)
+            outputdir   =  './outcomeFPFS/' 
+            outFname    =   'src-%05d.fits'  %(ifield)
+            outFname    =   os.path.join(outputdir,outFname)
+            if os.path.exists(outFname):
+                self.log.info('Already have the output file')
+                return
+            dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
         return
     
     @classmethod
@@ -97,34 +111,32 @@ class processSimTask(pipeBase.CmdLineTask):
         """
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
         return parser
-
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeMetadata(self, ifield):
         pass
-
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
         
 
 class processSimDriverConfig(pexConfig.Config):
-    minField =   pexConfig.Field(dtype=int, default=0, doc = 'minField')
-    maxField =   pexConfig.Field(dtype=int, default=800, doc = 'minField')
+    perGroup =   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
     processSim = pexConfig.ConfigurableField(
         target = processSimTask,
         doc = "processSim task to run on multiple cores"
     )
+
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
 class processSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in range(1)] 
+        minGroup    =  parsedCmd.minGroup 
+        maxGroup    =  parsedCmd.maxGroup 
+        return [(ref, kwargs) for ref in range(minGroup,maxGroup)] 
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -143,53 +155,48 @@ class processSimDriverTask(BatchPoolTask):
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.makeSubtask("processSim")
-    
+
     @abortOnError
     def run(self,Id):
-        # Get the  galaxy generator      
-        # Load data
+        self.log.info('beginning group %d' %(Id))
+        perGroup=   self.config.perGroup
+        fMin    =   perGroup*Id
+        fMax    =   perGroup*(Id+1)
+        fieldList=  range(fMin,fMax)
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        fieldList=  range(self.config.minField,self.config.maxField)
         pool.map(self.process,fieldList)
         return
         
     def process(self,cache,ifield):
-        try:
-            self.processSim.run(ifield)
-            self.log.info('finish field %04d' %(ifield))
-        except:
-            self.log.info('fail to finish field %04d' %(ifield))
+        self.processSim.run(ifield)
+        self.log.info('finish field %05d' %(ifield))
         return 
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
+        parser.add_argument('--minGroup', type= int, 
+                        default=0,
+                        help='minimum group number')
+        parser.add_argument('--maxGroup', type= int, 
+                        default=10,
+                        help='maximum group number')
         return parser
-    
-    @classmethod
-    def batchWallTime(cls, time, parsedCmd, numCpus):
-        return None
 
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-    
     def writeMetadata(self, ifield):
         pass
-    
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-    
     def _getConfigName(self):
         return None
-   
     def _getEupsVersionsName(self):
         return None
-    
     def _getMetadataName(self):
         return None

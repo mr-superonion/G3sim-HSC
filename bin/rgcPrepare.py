@@ -4,8 +4,11 @@ import galsim
 import glob
 import numpy as np
 import astropy.io.fits as pyfits
-from astropy.table import Table
+from astropy.table import Table,vstack 
+import astropy.io.ascii as ascii
+
 ngroup  =   8
+
 
 def PreparePSF():
     print('Preparing PSF')
@@ -79,8 +82,6 @@ def PreparePSF():
     table.write('./info.csv',overwrite=True)
     return
  
-
-
 def PrepareNoiCor():
     print("preparing noise correaltions")
     #Do for tract
@@ -118,6 +119,7 @@ def PrepareNoiCor():
     for ig in range(ngroup):
         pyfits.writeto('./corPre/corGroup-%02d.fits' %ig,corGroup[ig]/nPG[ig])
     return
+
 
 def main():
     if not os.path.exists('./info.csv'):

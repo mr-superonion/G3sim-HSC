@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os
 import sys
 import glob
@@ -24,11 +23,10 @@ from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
-
 class galDisAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs directory')
-    obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs directory')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot2/galDis/', doc = 'plot directory')
+    obsDir  =   pexConfig.Field(dtype=str, default='/gpfs02/work/miyatake/S18AL/with_new_star_mask_updated20191117/', doc = 'observed catalogs directory')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot/galDis/', doc = 'plot directory')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
@@ -47,6 +45,7 @@ class galDisAnalysisConfig(pexConfig.Config):
 class galDisAnalysisRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
+        #only 1 group
         return [(ref, kwargs) for ref in range(1)] 
 
 def unpickle(factory, args, kwargs):
@@ -77,12 +76,12 @@ class galDisAnalysisTask(BatchPoolTask):
         self.absE_bin_0 =   self.absE_bin[:-1]
         self.absE_bin_1 =   self.absE_bin[1:]
         self.absEGrid   =   (self.absE_bin_0+self.absE_bin_1)/2.
-        self.datanames   =   ['gridRes','histRes','gridSnr','histSnr','gridMag','histMag','gridAbsE','histAbsE','num']
+        self.datanames  =   ['gridRes','histRes','gridSnr','histSnr','gridMag','histMag','gridAbsE','histAbsE','num']
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
                 parentTask=self._parentTask, log=self.log))
-    
+
     @abortOnError
     def run(self,Id):
         #Prepare the pool
@@ -91,24 +90,22 @@ class galDisAnalysisTask(BatchPoolTask):
         pool.map(self.process,utilities.field_keys.keys())
         self.finalPlot()
         return
-    
+
     def process(self,cache,fieldKey):
-        if fieldKey=='aegis':
-            return
         fieldname   =   utilities.field_keys[fieldKey]
         self.log.info('Processing field: %s' %(fieldname))
         anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
-        
-        self.log.info('Achieving the distriutions from observations')
-        obsFname =  os.path.join(self.config.obsDir,'%s.fits' %(fieldname))
+
+        self.log.info('Achieving the galax distributions from observations')
+        obsFname =  os.path.join(self.config.obsDir,'%s.fits' %(utilities.field_names[fieldname]))
         obsOFname=  os.path.join(anaFieldDir,'galDisObs.csv')
         if not os.path.exists(obsOFname):
             t_dis_obs   =   self.getObsGalDis(obsFname)
             t_dis_obs.write(obsOFname,overwrite=True)
         else:
             t_dis_obs   =   Table.read(obsOFname)
-        
-        self.log.info('Achieving the distriutions from simulations')
+
+        self.log.info('Achieving the galaxy distributions from simulations')
         simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
         simOFname   =   os.path.join(anaFieldDir,'galDisSim.csv')
         if not os.path.exists(simOFname):
@@ -116,28 +113,17 @@ class galDisAnalysisTask(BatchPoolTask):
             t_dis_sim.write(simOFname,overwrite=True)
         else:
             t_dis_sim   =   Table.read(simOFname)
-            
+
         self.plotGalDis(t_dis_obs,t_dis_sim,anaFieldDir)
         return
-    
+
     def getObsGalDis(self,obsFname):
         data    =   fitsio.read(obsFname)
         mask    =   np.ones(len(data)).astype(bool)
-        mask    =   mask&(~np.isnan(data['reGaus_resolution']))
-        mask    =   mask&(~np.isnan(data['CModel_snr']))
-        mask    =   mask&(~np.isnan(data['CModel_mag']))
-        mask    =   mask&(~np.isnan(data['reGaus_sigmaE']))
-        mask    =   mask&((data['CModel_mag'])<24.5)
-        mask    =   mask&(data['extendness']>0)
-        mask    =   mask&(data['reGaus_resolution']>0.3)
-        mask    =   mask&(data['CModel_snr']>10.)
-        mask    =   mask&(data['reGaus_sigmaE']<2.)
-        mask    =   mask&(data['fdfc'])
-        data    =   data[mask]
-        absE    =   data['reGaus_sigmaE']
-        Res     =   data['reGaus_resolution']
-        mag     =   data['CModel_mag']
-        snr     =   data['CModel_snr']
+        absE    =   utilities.get_abs_ellip(data)
+        Res     =   utilities.get_res(data)
+        mag     =   utilities.get_imag(data)
+        snr     =   utilities.get_snr(data)
         ndata   =   len(data)*np.ones(self.nbin2-1)
         histRes =   np.histogram(Res,bins=self.resolution_bin,density=True)[0]
         histSnr =   np.histogram(snr,bins=self.snr_bin,density=True)[0]
@@ -145,20 +131,18 @@ class galDisAnalysisTask(BatchPoolTask):
         histAbsE=   np.histogram(absE,bins=self.absE_bin,density=True)[0]
         obscols = [self.resGrid,histRes,self.snrGrid,histSnr,self.magGrid,histMag,self.absEGrid,histAbsE,ndata]
         t_dis_obs=   Table(data=obscols,names=self.datanames)
-        
         return t_dis_obs
-        
+
     def getSimGalDis(self,simFname):
         #Get the noise variance and psf information
         data    =   fitsio.read(simFname)
         mask    =   data['weak_lensing_flag']
         data    =   data[mask]
         ndata   =   len(data)*np.ones(self.nbin2-1)
-        Res     =   data['ext_shapeHSM_HsmShapeRegauss_resolution']
-        snr     =   data['modelfit_CModel_flux']/data['modelfit_CModel_fluxSigma']
-        absE    =   data['ext_shapeHSM_HsmShapeRegauss_e1']**2.+data['ext_shapeHSM_HsmShapeRegauss_e2']**2.
-        absE    =   np.sqrt(absE)
-        mag     =   data['Mag']
+        absE    =   utilities.get_abs_ellip(data)
+        Res     =   utilities.get_res(data)
+        mag     =   utilities.get_imag(data)
+        snr     =   utilities.get_snr(data)
         weight  =   data['reweight_s16a']
         histRes =   np.histogram(Res,bins=self.resolution_bin,weights=weight,density=True)[0]
         histSnr =   np.histogram(snr,bins=self.snr_bin,weights=weight,density=True)[0]
@@ -167,8 +151,7 @@ class galDisAnalysisTask(BatchPoolTask):
         obscols = [self.resGrid,histRes,self.snrGrid,histSnr,self.magGrid,histMag,self.absEGrid,histAbsE,ndata]
         t_dis_sim=   Table(data=obscols,names=self.datanames)
         return t_dis_sim
-    
-    
+
     def plotGalDis(self,t_dis_obs,t_dis_rw,anaFieldDir):
         fig =   plt.figure()
         ax  =   fig.add_subplot(111)
@@ -211,21 +194,20 @@ class galDisAnalysisTask(BatchPoolTask):
         plt.savefig(os.path.join(anaFieldDir,'absEHist.png'))
         plt.close()
         return
-    
+ 
     def finalPlot(self):
         obsDis_snr  =   np.zeros(self.nbin2-1)
         obsDis_res  =   np.zeros(self.nbin2-1)
         obsDis_mag  =   np.zeros(self.nbin2-1)
         obsDis_abs  =   np.zeros(self.nbin2-1)
         obsNum      =   np.zeros(self.nbin2-1)
-        
+
         simRDis_snr =   np.zeros(self.nbin2-1)
         simRDis_res =   np.zeros(self.nbin2-1)
         simRDis_mag =   np.zeros(self.nbin2-1)
         simRDis_abs =   np.zeros(self.nbin2-1)
         simRNum     =   np.zeros(self.nbin2-1)
-        
-        
+
         figN=   plt.figure()
         figP=   plt.figure()
         figM=   plt.figure()
@@ -236,8 +218,7 @@ class galDisAnalysisTask(BatchPoolTask):
             
             fieldname   =   utilities.field_keys[fieldKey]
             anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
-            
-            
+
             disnameObs  =   os.path.join(anaFieldDir,'galDisObs.csv')
             t_dis_obs   =   Table.read(disnameObs)
             obsDis_snr  +=  t_dis_obs['histSnr']*t_dis_obs['num']
@@ -253,27 +234,26 @@ class galDisAnalysisTask(BatchPoolTask):
             simRDis_mag +=  t_dis_rw['histMag']*t_dis_rw['num']
             simRDis_abs +=  t_dis_rw['histAbsE']*t_dis_rw['num']
             simRNum     +=  t_dis_rw['num']
-            
-            
-            axN =   figN.add_subplot(3,3,ii)
+
+            axN =   figN.add_subplot(3,3,ii+1)
             axN.plot(t_dis_obs['gridSnr'],t_dis_obs['histSnr'],'-',label='obs',c='b')
             axN.plot(t_dis_rw['gridSnr'],t_dis_rw['histSnr'],'--',label='reweight',c='r')
             axN.set_xlabel('CModel SNR')
             axN.set_title(fieldname)
-            
-            axP =   figP.add_subplot(3,3,ii)
+
+            axP =   figP.add_subplot(3,3,ii+1)
             axP.plot(t_dis_obs['gridRes'],t_dis_obs['histRes'],'-',label='obs',c='b')
             axP.plot(t_dis_rw['gridRes'],t_dis_rw['histRes'],'--',label='reweight',c='r')
             axP.set_xlabel('reGaus resolution')
             axP.set_title(fieldname)
-            
-            axM =   figM.add_subplot(3,3,ii)
+
+            axM =   figM.add_subplot(3,3,ii+1)
             axM.plot(t_dis_obs['gridMag'],t_dis_obs['histMag'],'-',label='obs',c='b')
             axM.plot(t_dis_rw['gridMag'],t_dis_rw['histMag'],'--',label='reweight',c='r')
             axM.set_xlabel('CModel mag')
             axM.set_title(fieldname)
-            
-            axA =   figA.add_subplot(3,3,ii)
+
+            axA =   figA.add_subplot(3,3,ii+1)
             axA.plot(t_dis_obs['gridAbsE'],t_dis_obs['histAbsE'],'-',label='obs',c='b')
             axA.plot(t_dis_rw['gridAbsE'],t_dis_rw['histAbsE'],'--',label='reweight',c='r')
             axA.set_xlabel(r'reGaus $|e|$')
@@ -282,77 +262,68 @@ class galDisAnalysisTask(BatchPoolTask):
         obsDis_res /=   obsNum
         obsDis_mag /=   obsNum
         obsDis_abs /=   obsNum
-        
-        
+
         simRDis_snr /=  simRNum
         simRDis_res /=  simRNum
         simRDis_mag /=  simRNum
         simRDis_abs /=  simRNum
-        
+
         axN =   figN.add_subplot(3,3,7)
         axN.plot(self.snrGrid,obsDis_snr,'-',label='obs',c='b')
         axN.plot(self.snrGrid,simRDis_snr,'--',label='reweight',c='r')
         axN.set_xlabel('CModel SNR')
         axN.set_title('All')
-        axN.legend(loc='center left', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figN.tight_layout()
-        figN.savefig(os.path.join(self.config.pltDir,'snrDis.eps'))
+        axN.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        figN.savefig(os.path.join(self.config.pltDir,'snrDis.pdf'))
             
         axP =   figP.add_subplot(3,3,7)
         axP.plot(self.resGrid,obsDis_res,'-',label='obs',c='b')
         axP.plot(self.resGrid,simRDis_res,'--',label='reweight',c='r')
         axP.set_xlabel('reGaus resolution')
         axP.set_title('All')
-        axP.legend(loc='center left', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figP.tight_layout()
-        figP.savefig(os.path.join(self.config.pltDir,'resolutionDis.eps'))
+        axP.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        figP.savefig(os.path.join(self.config.pltDir,'resolutionDis.pdf'))
 
         axM =   figM.add_subplot(3,3,7)
         axM.plot(self.magGrid,obsDis_mag,'-',label='obs',c='b')
         axM.plot(self.magGrid,simRDis_mag,'--',label='reweight',c='r')
         axM.set_xlabel('CModel mag')
         axM.set_title('All')
-        axM.legend(loc='center left', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figM.tight_layout()
-        figM.savefig(os.path.join(self.config.pltDir,'magDis.eps'))
+        axM.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        figM.savefig(os.path.join(self.config.pltDir,'magDis.pdf'))
             
         axA =   figA.add_subplot(3,3,7)
         axA.plot(self.absEGrid,obsDis_abs,'-',label='obs',c='b')
         axA.plot(self.absEGrid,simRDis_abs,'--',label='reweight',c='r')
         axA.set_xlabel(r'reGaus $|e|$')
         axA.set_title('All')
-        axA.legend(loc='center left', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figA.tight_layout()
-        figA.savefig(os.path.join(self.config.pltDir,'absEDis.eps'))
+        axA.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        figA.savefig(os.path.join(self.config.pltDir,'absEDis.pdf'))
         return
-    
+
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
         return parser
-    
     @classmethod
     def batchWallTime(cls, time, parsedCmd, numCpus):
         return None
-
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-    
     def writeMetadata(self, ifield):
         pass
-    
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-    
     def _getConfigName(self):
         return None
-   
     def _getEupsVersionsName(self):
         return None
-    
     def _getMetadataName(self):
         return None

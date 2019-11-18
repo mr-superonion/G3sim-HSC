@@ -40,7 +40,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class prepareSimAnalysisConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'output catalogs')
-    simDir  =   pexConfig.Field(dtype=str, default='outcomeFPFS', doc = 'input catalogs')
+    simDir  =   pexConfig.Field(dtype=str, default='outcomeHSM', doc = 'input catalogs')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
@@ -49,8 +49,6 @@ class prepareSimAnalysisConfig(pexConfig.Config):
         if not os.path.exists(self.anaDir):
             os.mkdir(self.anaDir)
         for key in utilities.field_keys:
-            if key=='aegis':
-                continue
             fN  =   utilities.field_keys[key]
             tmN =   os.path.join(self.anaDir,fN)
             if not os.path.exists(tmN):
@@ -80,28 +78,31 @@ class prepareSimAnalysisTask(BatchPoolTask):
     
     @abortOnError
     def run(self,fieldKey):
-        if fieldKey=='aegis':
-            return
         fieldname   =   utilities.field_keys[fieldKey]
         self.log.info('Processing field: %s' %(fieldname))
+        outFname    =   os.path.join(self.config.anaDir,fieldname,'%s.fits'%(fieldname))
+        if os.path.exists(outFname):
+            self.log.info('already have output file for filed: %s' %outFname)
+            return
+        
         #Prepare the pool
-        pool    =   Pool("processSim")
+        pool        =   Pool("processSim")
         pool.cacheClear()
-        simList =   Table.read('psfPre/info.csv')
-        simList =   simList[simList['field']==fieldKey]['num']
+        pool.storeSet(fieldname=fieldname)
+        simList     =   Table.read('info2.csv')[:1600]
+        simList     =   simList[simList['field']==fieldKey]['num']
         outcomes    =   pool.map(self.process,simList)
         outcomes    =   [x for x in outcomes if x is not None]
         catalogAll  =   vstack(outcomes)
-        outFname    =   os.path.join(self.config.anaDir,fieldname,'%s.fits'%(fieldname))
         catalogAll.write(outFname)
         return
-        
+
     def process(self,cache,ifield):
         self.log.info('Processing subfield %s' %(ifield))
         # Load the catalog from fits file
-        filename    =   os.path.join(self.config.simDir,'src-%04d.fits' % ifield)
+        filename    =   os.path.join(self.config.simDir,'src-%05d.fits' % ifield)
         # If the file does not exist, an IOError will be raised
-        catalog     =   utilities.prepare_catalog(filename,isim=ifield)
+        catalog     =   utilities.prepare_catalog(filename,fieldname=cache.fieldname,isim=ifield)
         if catalog is None:
             self.log.info('failed to process subfield %d' %(ifield))
         return catalog 
@@ -111,28 +112,20 @@ class prepareSimAnalysisTask(BatchPoolTask):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
         return parser
-    
     @classmethod
     def batchWallTime(cls, time, parsedCmd, numCpus):
         return None
-
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-    
     def writeMetadata(self, ifield):
         pass
-    
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-    
     def _getConfigName(self):
         return None
-   
     def _getEupsVersionsName(self):
         return None
-    
     def _getMetadataName(self):
         return None

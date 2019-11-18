@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Xiangchong Li" />
+  <title>Calibration for reGauss</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">Calibration for reGauss</h1>
+<p class="author">Xiangchong Li</p>
+<p class="date">2019-11</p>
+</header>
+<h1 id="preparation">Preparation</h1>
+<h2 id="read-the-catalog-data">Read the catalog data</h2>
+<p>/work/xiangchong.li/work/S18ASimHSC/s18</p>
+<h2 id="apply-mask-for-permissive-cuts">Apply mask for permissive cuts</h2>
+<ul>
+<li>Extendness&gt;0</li>
+<li>Deblend Nchild==0</li>
+<li>centDist &lt; 5</li>
+</ul>
+<h2 id="add-columns">Add Columns</h2>
+<ul>
+<li><span class="math inline"><em>e</em><sub>1</sub></span>, <span class="math inline"><em>e</em><sub>2</sub></span> etc.</li>
+<li>psfInfo,catInfo,matched with ipos</li>
+</ul>
+<h2 id="identify-pairs-based-on-their-input-ipos-values">Identify pairs based on their input ipos values</h2>
+<p>’’’pythonscript n = 100<em>100 # Number of grid points mask_even = np.in1d(catalog[“ipos”] % n, 2</em>np.arang“(n/2).astype(”int&quot;), assume_unique=True) mask_odd = np.in1d(catalog[“ipos”] % n, 2*np.arange(n/2).astype(“int”)+1, assume_unique=True)</p>
+<p>broken_pairs = np.setxor1d(catalog[“ipos”][mask_even] % n, catalog[“ipos”][mask_odd] % n - 1) mask_pairs = ~np.in1d(catalog[“ipos”] % n, np.concatenate([broken_pairs, broken_pairs+1]), assume_unique=True) catalog[“paired”] = mask_pairs ’’’</p>
+<h1 id="match-psf-and-noise">Match PSF and Noise</h1>
+<ul>
+<li>Determine the variance distribution and FWHM distribution of data and sim</li>
+<li>Determine the ratio between data and sim</li>
+<li>Reweight sim to match FWHM and Variance to the data</li>
+</ul>
+<figure>
+<embed src="work/plot/psfNoi/noiVar2.pdf" /><figcaption>variance reweight</figcaption>
+</figure>
+<figure>
+<embed src="work/plot/psfNoi/psfFWHM2.pdf" /><figcaption>FWHM reweight</figcaption>
+</figure>
+</body>
+</html>

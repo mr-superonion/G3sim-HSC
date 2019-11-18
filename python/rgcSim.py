@@ -271,7 +271,8 @@ class rgcSimBatchTask(BatchPoolTask):
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.makeSubtask("rgcSim")
-    
+        return
+
     @abortOnError
     def run(self,Id):
         self.log.info('beginning group %d' %(Id))
@@ -285,7 +286,7 @@ class rgcSimBatchTask(BatchPoolTask):
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return
-        
+
     def process(self,cache,ifield):
         try:
             self.rgcSim.run(ifield)
