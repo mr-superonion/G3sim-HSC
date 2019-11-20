@@ -65,7 +65,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
 
     @abortOnError
     def run(self,Id):
-        if not os.path.exists(os.path.join(self.config.anaDir,'allSim4.csv')):
+        if not os.path.exists(os.path.join(self.config.anaDir,'allSim4.fits')):
             #Prepare the pool
             pool        =   Pool("galDisAnalysis2D")
             pool.cacheClear()
@@ -78,11 +78,11 @@ class galDisAnalysis2DTask(BatchPoolTask):
                 allSim.append(outcome[1])
             allSim      =   vstack(allSim)
             allObs      =   vstack(allObs)
-            allSim.save(os.path.join(self.config.anaDir,'allSim4.csv'))
-            allObs.save(os.path.join(self.config.anaDir,'allObs4.csv'))
+            allSim.write(os.path.join(self.config.anaDir,'allSim4.fits'))
+            allObs.write(os.path.join(self.config.anaDir,'allObs4.fits'))
         else:
-            allSim=Table.read(os.path.join(self.config.anaDir,'allSim4.csv'))
-            allObs=Table.read(os.path.join(self.config.anaDir,'allObs4.csv'))
+            allSim=Table.read(os.path.join(self.config.anaDir,'allSim4.fits'))
+            allObs=Table.read(os.path.join(self.config.anaDir,'allObs4.fits'))
         self.finalPlot(allSim,allObs)
         return
 

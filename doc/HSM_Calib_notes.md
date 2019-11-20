@@ -12,6 +12,9 @@ date: 2019-11
     * 1600 fields (PSF and noise variance)
     * But only have 8 different noise correlation function
 + rescaling noise variance or not?
+    * No rescaling:
+        * [one patch](http://member.ipmu.jp/xiangchong.li/s18a_G3sim_hsm/var_varPlane_coadd.html)
+        * [one tract](http://member.ipmu.jp/xiangchong.li/s18a_G3sim_hsm/var_varPlane_coadd_8524.html)
 
 # Processing
 + hscpipe 6.7
