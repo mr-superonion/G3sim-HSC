@@ -112,7 +112,7 @@ def prepare_catalog(filename,fieldname,isim=-1):
             (~np.isnan(catalog['modelfit_CModel_flux']))&\
             (~np.isnan(catalog['modelfit_CModel_fluxSigma']))&\
             (~np.isnan(catalog['ext_shapeHSM_HsmShapeRegauss_resolution']))&\
-            (catalog['deblend_nChild']==0)
+            (catalog['deblend_nChild']  ==  0)
     catalog =   catalog[mask]
     if len(catalog)==0:
         return None
@@ -190,16 +190,16 @@ def prepare_catalog(filename,fieldname,isim=-1):
     #     |e|<2
     #     resolution factor
     #     i-band SNR
-    sig_e = get_sigma_e(catalog)
-    e= np.sqrt(catalog['i_hsmshaperegauss_e1']**2 +
+    sig_e   =   get_sigma_e(catalog)
+    e       =   np.sqrt(catalog['i_hsmshaperegauss_e1']**2 +
                catalog['i_hsmshaperegauss_e2']**2)
 
-    catalog['weak_lensing_flag'] = ((get_imag(catalog)) < 24.5) & \
+    catalog['weak_lensing_flag'] = ((get_imag(catalog)-catalog['a_i']) < 24.5) & \
         (e <= 2.) & \
         (catalog['i_hsmshaperegauss_resolution'] >= 0.3) & \
-        (get_snr(catalog) >= 10.)
-        #(sig_e > 0.0) & \
-        #(sig_e < 0.4) &
+        (get_snr(catalog) >= 10.) &\
+        (sig_e > 0.0) & \
+        (sig_e < 0.4)
 
     # add a bunch of columns that get used for WL analysis - fake it for now!
     catalog['i_hsmshaperegauss_derived_sigma_e'] = catalog['i_hsmshaperegauss_sigma']
@@ -214,7 +214,6 @@ def prepare_catalog(filename,fieldname,isim=-1):
     catalog['i_hsmshaperegauss_derived_shear_bias_m'] = 0.
     catalog['i_hsmshaperegauss_derived_shear_bias_c1'] = 0.
     catalog['i_hsmshaperegauss_derived_shear_bias_c2'] = 0.
-    
     return catalog
 
 def galaxy_selector(catalog, min_snr=None, max_snr=None,
@@ -1220,7 +1219,6 @@ def get_awt_model(catalog):
     result = grid_interpolate(log_saved_snr, saved_res, saved_a, log_snr, res)
     return result + model_a
 
-
 def grid_interpolate(x, y, z, eval_x, eval_y):
     """
     This is a utility for interpolating a 2D function z(x, y) linearly to values
@@ -1233,3 +1231,15 @@ def grid_interpolate(x, y, z, eval_x, eval_y):
     mask = np.isnan(result)
     result[mask] = nn_result[mask]
     return result
+
+def update_wl_flags_sim(catalog):
+    sig_e   =   get_sigma_e(catalog)
+    e       =   np.sqrt(catalog['i_hsmshaperegauss_e1']**2 +
+                catalog['i_hsmshaperegauss_e2']**2)
+    catalog['weak_lensing_flag'] = ((get_imag(catalog)-catalog['a_i']) < 24.5) & \
+        (e <= 2.) & \
+        (catalog['i_hsmshaperegauss_resolution'] >= 0.3) & \
+        (get_snr(catalog) >= 10.) &\
+        (sig_e > 0.0) & \
+        (sig_e < 0.4)
+    return catalog 

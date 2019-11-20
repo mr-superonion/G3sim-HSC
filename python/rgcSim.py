@@ -52,7 +52,6 @@ class rgcSimConfig(pexConfig.Config):
     corPre      =   pexConfig.Field(dtype=str, default='corPre', doc = 'directory to store pre-PSF')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-    
     def validate(self):
         pexConfig.Config.validate(self)
         if not os.path.exists(self.expDir):
@@ -70,7 +69,6 @@ class rgcSimTask(pipeBase.CmdLineTask):
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
 
-    
     @pipeBase.timeMethod
     def run(self,ifield):
         badIDENT    =   [78798,276775,908556,81452,200743]
@@ -90,7 +88,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         ngridTot    =   ngrid*nx
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         flux_scaling=   2.587
-        
+
         # Get the psf and nosie information 
         psfFname    =   os.path.join(self.config.psfPre,'psf-%05d.fits'%(ifield))
         psfImg      =   galsim.fits.read(psfFname)
@@ -173,17 +171,29 @@ class rgcSimTask(pipeBase.CmdLineTask):
             row=(i,index,ss['IDENT'],ss['RA'],ss['DEC'],ss['MAG'],ssExt['a_i'],iparent)
             data_rows.append(row)
             i   +=  1
+
         self.log.info('Adding correlated noise')
+        """
+        Make the original noise on image uniform
+        """
         rng = galsim.BaseDeviate(ifield)
         max_variance=   np.max(var_image.array)
         var_image   =   max_variance - var_image
         vn          =   galsim.VariableGaussianNoise(rng,var_image)
         gal_image.addNoise(vn)
+        unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
+
+        """
+        Make noise correlated and match to the input variance
+        """
         corFname    =   os.path.join(self.config.corPre,'corGroup-%02d.fits' %group)
         corNoise    =   galsim.getCOSMOSNoise(file_name=corFname,rng=rng,cosmos_scale=scale,variance=variance)
-        unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
         corNoise    =   corNoise-unCorNoise
         corNoise.applyTo(gal_image)
+
+        """
+        Generate the image
+        """
         exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
         exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
         exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
@@ -227,16 +237,12 @@ class rgcSimTask(pipeBase.CmdLineTask):
         doBatch = kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
         return parser
-
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeMetadata(self, dataRef):
         pass
-
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
 
@@ -246,14 +252,12 @@ class rgcSimBatchConfig(pexConfig.Config):
         target = rgcSimTask,
         doc = "rgcSim task to run on multiple cores"
     )
-    
 class rgcSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         minGroup    =  parsedCmd.minGroup 
         maxGroup    =  parsedCmd.maxGroup 
         return [(ref, kwargs) for ref in range(minGroup,maxGroup)] 
-
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
@@ -262,12 +266,10 @@ class rgcSimBatchTask(BatchPoolTask):
     ConfigClass = rgcSimBatchConfig
     RunnerClass = rgcSimRunner
     _DefaultName = "rgcSimBatch"
-
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
                 parentTask=self._parentTask, log=self.log))
-
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.makeSubtask("rgcSim")
@@ -306,25 +308,18 @@ class rgcSimBatchTask(BatchPoolTask):
                         default=10,
                         help='maximum group number')
         return parser
-    
     @classmethod
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-    
     def writeMetadata(self, dataRef):
         pass
-    
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-    
     def _getConfigName(self):
         return None
-   
     def _getEupsVersionsName(self):
         return None
-    
     def _getMetadataName(self):
         return None

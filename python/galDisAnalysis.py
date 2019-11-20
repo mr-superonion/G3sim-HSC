@@ -56,7 +56,7 @@ class galDisAnalysisTask(BatchPoolTask):
     ConfigClass     =   galDisAnalysisConfig
     RunnerClass     =   galDisAnalysisRunner
     _DefaultName    =   "galDisAnalysis"
-    
+
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.nbin2      =   60
@@ -119,7 +119,11 @@ class galDisAnalysisTask(BatchPoolTask):
 
     def getObsGalDis(self,obsFname):
         data    =   fitsio.read(obsFname)
+        """
         mask    =   np.ones(len(data)).astype(bool)
+        mask    =   mask&(utilities.get_snr(data) < 80.)
+        data    =   data[mask]
+        """
         absE    =   utilities.get_abs_ellip(data)
         Res     =   utilities.get_res(data)
         mag     =   utilities.get_imag(data)
@@ -136,7 +140,9 @@ class galDisAnalysisTask(BatchPoolTask):
     def getSimGalDis(self,simFname):
         #Get the noise variance and psf information
         data    =   fitsio.read(simFname)
+        data    =   utilities.update_wl_flags_sim(data)
         mask    =   data['weak_lensing_flag']
+        #mask    =   mask&(utilities.get_snr(data) < 80.)
         data    =   data[mask]
         ndata   =   len(data)*np.ones(self.nbin2-1)
         absE    =   utilities.get_abs_ellip(data)
@@ -212,10 +218,8 @@ class galDisAnalysisTask(BatchPoolTask):
         figP=   plt.figure()
         figM=   plt.figure()
         figA=   plt.figure()
+
         for ii,fieldKey in enumerate(utilities.field_keys):
-            if fieldKey=='aegis':
-                continue
-            
             fieldname   =   utilities.field_keys[fieldKey]
             anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
 
@@ -226,7 +230,7 @@ class galDisAnalysisTask(BatchPoolTask):
             obsDis_mag  +=  t_dis_obs['histMag']*t_dis_obs['num']
             obsDis_abs  +=  t_dis_obs['histAbsE']*t_dis_obs['num']
             obsNum      +=  t_dis_obs['num'] 
-            
+ 
             disnameRw   =   os.path.join(anaFieldDir,'galDisSim.csv')
             t_dis_rw    =   Table.read(disnameRw)
             simRDis_snr +=  t_dis_rw['histSnr']*t_dis_rw['num']
@@ -235,29 +239,58 @@ class galDisAnalysisTask(BatchPoolTask):
             simRDis_abs +=  t_dis_rw['histAbsE']*t_dis_rw['num']
             simRNum     +=  t_dis_rw['num']
 
-            axN =   figN.add_subplot(3,3,ii+1)
-            axN.plot(t_dis_obs['gridSnr'],t_dis_obs['histSnr'],'-',label='obs',c='b')
-            axN.plot(t_dis_rw['gridSnr'],t_dis_rw['histSnr'],'--',label='reweight',c='r')
-            axN.set_xlabel('CModel SNR')
-            axN.set_title(fieldname)
+            ax      =   figN.add_subplot(3,3,ii+1)
+            gg1     =   t_dis_obs['gridSnr']
+            hh1     =   t_dis_obs['histSnr'] 
+            gg2     =   t_dis_rw['gridSnr']
+            hh2     =   t_dis_rw['histSnr'] 
+            dg      =   gg1[1]-gg1[0]
+            ax.plot(gg1,hh1,'-',label='obs',c='b')
+            ax.plot(gg2,hh2,'--',label='reweight',c='r')
+            ax.axvline(x=sum(gg1*hh1)*dg,ls='-',c='blue')
+            ax.axvline(x=sum(gg2*hh2)*dg,ls='--',c='red')
+            ax.set_xlabel('CModel SNR')
+            ax.set_title(fieldname)
 
-            axP =   figP.add_subplot(3,3,ii+1)
-            axP.plot(t_dis_obs['gridRes'],t_dis_obs['histRes'],'-',label='obs',c='b')
-            axP.plot(t_dis_rw['gridRes'],t_dis_rw['histRes'],'--',label='reweight',c='r')
-            axP.set_xlabel('reGaus resolution')
-            axP.set_title(fieldname)
+            ax      =   figP.add_subplot(3,3,ii+1)
+            ax.set_xlabel('reGaus resolution')
+            gg1     =   t_dis_obs['gridRes']
+            hh1     =   t_dis_obs['histRes'] 
+            gg2     =   t_dis_rw['gridRes']
+            hh2     =   t_dis_rw['histRes'] 
+            dg      =   gg1[1]-gg1[0]
+            ax.plot(gg1,hh1,'-',label='obs',c='b')
+            ax.plot(gg2,hh2,'--',label='reweight',c='r')
+            ax.axvline(x=sum(gg1*hh1)*dg,ls='-',c='blue')
+            ax.axvline(x=sum(gg2*hh2)*dg,ls='--',c='red')
+            ax.set_title(fieldname)
 
-            axM =   figM.add_subplot(3,3,ii+1)
-            axM.plot(t_dis_obs['gridMag'],t_dis_obs['histMag'],'-',label='obs',c='b')
-            axM.plot(t_dis_rw['gridMag'],t_dis_rw['histMag'],'--',label='reweight',c='r')
-            axM.set_xlabel('CModel mag')
-            axM.set_title(fieldname)
+            ax      =   figM.add_subplot(3,3,ii+1)
+            ax.set_xlabel('CModel mag')
+            gg1     =   t_dis_obs['gridMag']
+            hh1     =   t_dis_obs['histMag'] 
+            gg2     =   t_dis_rw['gridMag']
+            hh2     =   t_dis_rw['histMag'] 
+            dg      =   gg1[1]-gg1[0]
+            ax.plot(gg1,hh1,'-',label='obs',c='b')
+            ax.plot(gg2,hh2,'--',label='reweight',c='r')
+            ax.axvline(x=sum(gg1*hh1)*dg,ls='-',c='blue')
+            ax.axvline(x=sum(gg2*hh2)*dg,ls='--',c='red')
+            ax.set_title(fieldname)
 
-            axA =   figA.add_subplot(3,3,ii+1)
-            axA.plot(t_dis_obs['gridAbsE'],t_dis_obs['histAbsE'],'-',label='obs',c='b')
-            axA.plot(t_dis_rw['gridAbsE'],t_dis_rw['histAbsE'],'--',label='reweight',c='r')
-            axA.set_xlabel(r'reGaus $|e|$')
-            axA.set_title(fieldname)
+            ax      =   figA.add_subplot(3,3,ii+1)
+            ax.set_xlabel(r'reGaus $|e|$')
+            gg1     =   t_dis_obs['gridAbsE']
+            hh1     =   t_dis_obs['histAbsE'] 
+            gg2     =   t_dis_rw['gridAbsE']
+            hh2     =   t_dis_rw['histAbsE'] 
+            dg      =   gg1[1]-gg1[0]
+            ax.plot(gg1,hh1,'-',label='obs',c='b')
+            ax.plot(gg2,hh2,'--',label='reweight',c='r')
+            ax.axvline(x=sum(gg1*hh1)*dg,ls='-',c='blue')
+            ax.axvline(x=sum(gg2*hh2)*dg,ls='--',c='red')
+            ax.set_title(fieldname)
+
         obsDis_snr /=   obsNum
         obsDis_res /=   obsNum
         obsDis_mag /=   obsNum
@@ -268,40 +301,64 @@ class galDisAnalysisTask(BatchPoolTask):
         simRDis_mag /=  simRNum
         simRDis_abs /=  simRNum
 
-        axN =   figN.add_subplot(3,3,7)
-        axN.plot(self.snrGrid,obsDis_snr,'-',label='obs',c='b')
-        axN.plot(self.snrGrid,simRDis_snr,'--',label='reweight',c='r')
-        axN.set_xlabel('CModel SNR')
-        axN.set_title('All')
+        ax      =   figN.add_subplot(3,3,7)
+        gg      =   self.snrGrid
+        hh1     =   obsDis_snr
+        hh2     =   simRDis_snr
+        dg      =   gg[1]-gg[0]
+        ax.plot(gg,hh1,'-',label='obs',c='b')
+        ax.plot(gg,hh2,'--',label='reweight',c='r')
+        ax.axvline(x=sum(gg*hh1)*dg,ls='-',c='blue')
+        ax.axvline(x=sum(gg*hh2)*dg,ls='--',c='red')
+        ax.set_xlabel('CModel SNR')
+        ax.set_title('All')
         figN.tight_layout()
-        axN.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figN.savefig(os.path.join(self.config.pltDir,'snrDis.pdf'))
-            
-        axP =   figP.add_subplot(3,3,7)
-        axP.plot(self.resGrid,obsDis_res,'-',label='obs',c='b')
-        axP.plot(self.resGrid,simRDis_res,'--',label='reweight',c='r')
-        axP.set_xlabel('reGaus resolution')
-        axP.set_title('All')
+ 
+        ax      =   figP.add_subplot(3,3,7)
+        gg      =   self.resGrid
+        hh1     =   obsDis_res
+        hh2     =   simRDis_res
+        dg      =   gg[1]-gg[0]
+        ax.plot(gg,hh1,'-',label='obs',c='b')
+        ax.plot(gg,hh2,'--',label='reweight',c='r')
+        ax.axvline(x=sum(gg*hh1)*dg,ls='-',c='blue')
+        ax.axvline(x=sum(gg*hh2)*dg,ls='--',c='red')
+        ax.set_xlabel('reGaus resolution')
+        ax.set_title('All')
         figP.tight_layout()
-        axP.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figP.savefig(os.path.join(self.config.pltDir,'resolutionDis.pdf'))
 
-        axM =   figM.add_subplot(3,3,7)
-        axM.plot(self.magGrid,obsDis_mag,'-',label='obs',c='b')
-        axM.plot(self.magGrid,simRDis_mag,'--',label='reweight',c='r')
-        axM.set_xlabel('CModel mag')
-        axM.set_title('All')
+        ax      =   figM.add_subplot(3,3,7)
+        gg      =   self.magGrid
+        hh1     =   obsDis_mag
+        hh2     =   simRDis_mag
+        dg      =   gg[1]-gg[0]
+        ax.plot(gg,hh1,'-',label='obs',c='b')
+        ax.plot(gg,hh2,'--',label='reweight',c='r')
+        ax.axvline(x=sum(gg*hh1)*dg,ls='-',c='blue')
+        ax.axvline(x=sum(gg*hh2)*dg,ls='--',c='red')
+        ax.set_xlabel('CModel mag')
+        ax.set_title('All')
         figM.tight_layout()
-        axM.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figM.savefig(os.path.join(self.config.pltDir,'magDis.pdf'))
             
-        axA =   figA.add_subplot(3,3,7)
-        axA.plot(self.absEGrid,obsDis_abs,'-',label='obs',c='b')
-        axA.plot(self.absEGrid,simRDis_abs,'--',label='reweight',c='r')
-        axA.set_xlabel(r'reGaus $|e|$')
-        axA.set_title('All')
+        ax      =   figA.add_subplot(3,3,7)
+        gg      =   self.absEGrid
+        hh1     =   obsDis_abs
+        hh2     =   simRDis_abs
+        dg      =   gg[1]-gg[0]
+        ax.plot(gg,hh1,'-',label='obs',c='b')
+        ax.plot(gg,hh2,'--',label='reweight',c='r')
+        ax.axvline(x=sum(gg*hh1)*dg,ls='-',c='blue')
+        ax.axvline(x=sum(gg*hh2)*dg,ls='--',c='red')
+        ax.set_xlabel(r'reGaus $|e|$')
+        ax.set_title('All')
         figA.tight_layout()
-        axA.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
+        ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figA.savefig(os.path.join(self.config.pltDir,'absEDis.pdf'))
         return
 

@@ -30,7 +30,6 @@ class psfNoiDisAnalysisConfig(pexConfig.Config):
     pltDir  =   pexConfig.Field(dtype=str, default='plot/psfNoi/', doc = 'plot directory')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-
     def validate(self):
         pexConfig.Config.validate(self)
         # Checks that the paths provided are valid
@@ -42,13 +41,11 @@ class psfNoiDisAnalysisConfig(pexConfig.Config):
                          "or is not a directory" % (self.anaDir))
         if not os.path.exists(self.pltDir):
             os.mkdir(self.pltDir)
-
 class psfNoiDisAnalysisRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         #only 1 group
         return [(ref, kwargs) for ref in range(1)] 
-
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
@@ -61,7 +58,6 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.nbin1      =   20
-        self.varPsfnames=   ('ifield','rpsf_trace','rpsf_det','epsf1','epsf2','var_meas')
         self.disnames   =   ('gridNoi','histNoi','gridPsf','histPsf','num')
         self.fwhm_bin   =   np.linspace(0.3,0.9,self.nbin1)
         self.fwhm_bin_0 =   self.fwhm_bin[:-1]
@@ -71,12 +67,11 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         self.var_bin_0  =   self.var_bin[:-1]
         self.var_bin_1  =   self.var_bin[1:]
         self.gridNoi    =   (self.var_bin_0+self.var_bin_1)/2.
-
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
                 parentTask=self._parentTask, log=self.log))
-    
+
     @abortOnError
     def run(self,Id):
         #Prepare the pool
@@ -88,7 +83,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
             pool.map(self.process,utilities.field_keys.keys())
         self.finalPlot()
         return
-    
+
     def process(self,cache,fieldKey):
         fieldname   =   utilities.field_keys[fieldKey]
         self.log.info('Processing field: %s' %(fieldname))
@@ -124,7 +119,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         pyfits.writeto(simFname,dataSim,overwrite=True)
         self.plotNoiPsf(t_dis_sim,t_dis_obs,t_dis_rw,anaFieldDir)
         return
-    
+
     def getObsHist(self,data):
         mask    =   np.ones(len(data)).astype(bool)
         mask    =   mask&(~np.isnan(data['i_variance_value']))
@@ -138,26 +133,22 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0] 
         return Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(data)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
-    
-    
+
     def getSimHist(self,data):
         #Get the noise variance and psf information
+        data    =   utilities.update_wl_flags_sim(data)
+        mask    =   data['weak_lensing_flag']
+        data    =   data[mask]
         varNois =   data['base_Variance_value']
-        rpsf_det=   (data['ext_shapeHSM_HsmPsfMoments_xx']*data['ext_shapeHSM_HsmPsfMoments_yy']-data['ext_shapeHSM_HsmPsfMoments_xy']**2.)**(0.25)
-        fwhms   =   rpsf_det*0.168*2.355
-        epsf1   =   (data['ext_shapeHSM_HsmPsfMoments_xx']-data['ext_shapeHSM_HsmPsfMoments_yy'])/(data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])
-        epsf2   =   2.*data['ext_shapeHSM_HsmPsfMoments_xy']/(data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])
-        rpsf_trace  =   np.sqrt((data['ext_shapeHSM_HsmPsfMoments_xx']+data['ext_shapeHSM_HsmPsfMoments_yy'])/2.)
+        fwhms   =   (data['base_SdssShape_psf_xx']*data['base_SdssShape_psf_yy']-data['base_SdssShape_psf_xy']**2.)**(0.25)*0.168*2.355
         histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
         histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0]
         return Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(data)*np.ones(len(self.gridNoi))],\
-                    names=self.disnames)
-      
-    
+        names=self.disnames)
+
     def reWeight(self,data,t_dis,t_dis_obs):
         varNois =   data['base_Variance_value']
-        rpsf_det=   (data['ext_shapeHSM_HsmPsfMoments_xx']*data['ext_shapeHSM_HsmPsfMoments_yy']-data['ext_shapeHSM_HsmPsfMoments_xy']**2.)**(0.25)
-        fwhms   =   rpsf_det*0.168*2.355
+        fwhms   =   (data['base_SdssShape_psf_xx']*data['base_SdssShape_psf_yy']-data['base_SdssShape_psf_xy']**2.)**(0.25)*0.168*2.355
         #reweight for noise
         ratio_noi=   np.array(t_dis_obs['histNoi']/t_dis['histNoi'])
         weightNoi=  np.zeros(len(data))
@@ -180,7 +171,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
                 ind     =   np.where((rp>self.fwhm_bin_0) & (rp<self.fwhm_bin_1))[0][0]
                 ratio   =   ratios[ind]
                 if np.isnan(ratio) or abs(ratio)==np.inf:
-                    weightPsf[ii]   =   10.
+                    weightPsf[ii]   =   0.
                 else:
                     weightPsf[ii]   =   ratio
         reweight    =   weightPsf*weightNoi
@@ -188,12 +179,12 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         histNoi_rp  =   np.histogram(varNois,bins=self.var_bin,weights=data['reweight_s16a'],density=True)[0]
         histPsf_rp  =   np.histogram(fwhms,bins=self.fwhm_bin,weights=data['reweight_s16a'],density=True)[0]
         return Table(data=[self.gridNoi,histNoi_rp,self.gridPsf,histPsf_rp,len(data)*np.ones(len(self.gridNoi))],\
-                    names=self.disnames)
-    
+        names=self.disnames)
+
     def plotNoiPsf(self,t_dis,t_dis_obs,t_dis_rw,anaFieldDir):
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        #ax.plot(t_dis['gridNoi'],t_dis['histNoi'],'--',label='sim',c='r')
+        ax.plot(t_dis['gridNoi'],t_dis['histNoi'],'--',label='sim',c='y')
         ax.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'-',label='obs',c='b')
         ax.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'--',label='reweight',c='r')
         ax.legend()
@@ -203,7 +194,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        #ax.plot(t_dis['gridPsf'],t_dis['histPsf'],'--',label='sim',c='r')
+        ax.plot(t_dis['gridPsf'],t_dis['histPsf'],'--',label='sim',c='y')
         ax.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'-',label='obs',c='b')
         ax.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'--',label='reweight',c='r')
         ax.legend()
@@ -227,6 +218,9 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
 
         figN=   plt.figure()
         figP=   plt.figure()
+        """
+        Plot for 6 fields
+        """
         for ii,fieldKey in enumerate(utilities.field_keys):
             fieldname   =   utilities.field_keys[fieldKey]
             anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
@@ -254,19 +248,18 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
             axN.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'--',label='reweight',c='r')
             axN.set_xlabel('noise variance')
             axN.set_title(fieldname)
-
             axP =   figP.add_subplot(3,3,ii+1)
             axP.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'-',label='obs',c='b')
             axP.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'--',label='reweight',c='r')
             axP.set_xlabel('PSF FWHM [arcsec]')
             axP.set_title(fieldname)
- 
+        """
+        Plot for all fields
+        """
         obsDis_var /=obsNum
         obsDis_fwhm/=obsNum
- 
         simDis_var /=simNum
         simDis_fwhm/=simNum
- 
         simRDis_var /=simRNum
         simRDis_fwhm/=simRNum
 
@@ -278,7 +271,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         figN.tight_layout()
         axN.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figN.savefig(os.path.join(self.config.pltDir,'noiVar2.pdf'))
-            
+
         axP =   figP.add_subplot(3,3,7)
         axP.plot(self.gridPsf,obsDis_fwhm,'-',label='obs',c='b')
         axP.plot(self.gridPsf,simRDis_fwhm,'--',label='reweight',c='r')
@@ -288,34 +281,26 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         axP.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
         figP.savefig(os.path.join(self.config.pltDir,'psfFWHM2.pdf'))
         return
-    
+
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
         return parser
-    
     @classmethod
     def batchWallTime(cls, time, parsedCmd, numCpus):
         return None
-
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-    
     def writeMetadata(self, ifield):
         pass
-    
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-    
     def _getConfigName(self):
         return None
-   
     def _getEupsVersionsName(self):
         return None
-    
     def _getMetadataName(self):
         return None

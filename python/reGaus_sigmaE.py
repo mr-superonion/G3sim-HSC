@@ -91,7 +91,7 @@ class reGaus_sigmaETask(BatchPoolTask):
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
-                parentTask=self._parentTask, log=self.log))
+        parentTask=self._parentTask, log=self.log))
     
     @abortOnError
     def run(self,Id):

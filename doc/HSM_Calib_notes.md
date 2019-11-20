@@ -5,7 +5,25 @@ date: 2019-11
 ...
 
 
-# Preparation 
+
+# Image simulation
+## Configuration
++ Input
+    * 1600 fields (PSF and noise variance)
+    * But only have 8 different noise correlation function
++ rescaling noise variance or not?
+
+# Processing
++ hscpipe 6.7
++ magnitude zero point
+```python
+magnitude   =   
+-2.5 * np.log10(catalog['modelfit_CModel_flux']) + 27.
+```
+
+
+
+# Analysis Preparation 
 
 ## Read the catalog data
 /work/xiangchong.li/work/S18ASimHSC/s18
@@ -18,6 +36,9 @@ date: 2019-11
 ## Add Columns   
 + $e_1$, $e_2$ etc.
 + psfInfo,catInfo,matched with ipos
+
+
+
 
 #
 ## Identify pairs based on their input ipos values
@@ -48,5 +69,33 @@ catalog["paired"] = mask_pairs
 ![FWHM reweight](work/plot/psfNoi/psfFWHM2.pdf)
 
 
+
 # Check galaxy number distribution
 
+## $1$-D
+Four observables: magnitude, SNR, resolution, $\left | e \right |$
+
+## $2$-D
+SNR-mag, snr-res, snr-$\left | e \right |$
+
+#
+![mag](work/plot/galDis/magDis.pdf)
+
+#
+![SNR](work/plot/galDis/snrDis.pdf)
+
+#
+![resolution](work/plot/galDis/resolutionDis.pdf)
+
+#
+![$|e|$](work/plot/galDis/absEDis.pdf)
+
+
+#
+![s16a paper](ref/s16a_v2.0_v4sims_calib_overall_distributions_1d.png){ height=85% }
+
+#
+![$2$-D](work/plot/galDis/galDis2D.pdf)
+
+#
+![s16a paper](ref/s16a_v2.0_v4sims_calib_overall_distributions_2d.png)
