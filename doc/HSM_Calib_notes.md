@@ -5,7 +5,6 @@ date: 2019-11
 ...
 
 
-
 # Image simulation
 ## Configuration
 + Input
@@ -25,7 +24,6 @@ magnitude   =
 ```
 
 
-
 # Analysis Preparation 
 
 ## Read the catalog data
@@ -39,7 +37,6 @@ magnitude   =
 ## Add Columns   
 + $e_1$, $e_2$ etc.
 + psfInfo,catInfo,matched with ipos
-
 
 
 

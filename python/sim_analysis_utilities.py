@@ -16,19 +16,19 @@ import math
 import warnings
 
 # Field keys used in the noise variance file for simulations
-field_keys = {'W02': 'XMM',
-              'W03': 'GAMA09H',
-              'W04-12': 'WIDE12H',
-              'W04-15': 'GAMA15H',
-              'W05': 'VVDS',
-              'W06': 'HECTOMAP'}
+field_keys = {'W02'     : 'XMM',
+              'W03'     : 'GAMA09H',
+              'W04-12'  : 'WIDE12H',
+              'W04-15'  : 'GAMA15H',
+              'W05'     : 'VVDS',
+              'W06'     : 'HECTOMAP'}
 
 
-field_names = {'XMM': 'W02',
-              'GAMA09H': 'W03',
-              'WIDE12H': 'W04_WIDE12H',
-              'GAMA15H': 'W04_GAMA15H',
-              'VVDS': 'W05',
+field_names = {'XMM'    : 'W02',
+              'GAMA09H' : 'W03',
+              'WIDE12H' : 'W04_WIDE12H',
+              'GAMA15H' : 'W04_GAMA15H',
+              'VVDS'    : 'W05',
               'HECTOMAP': 'W06'}
 
 
@@ -199,7 +199,8 @@ def prepare_catalog(filename,fieldname,isim=-1):
         (catalog['i_hsmshaperegauss_resolution'] >= 0.3) & \
         (get_snr(catalog) >= 10.) &\
         (sig_e > 0.0) & \
-        (sig_e < 0.4)
+        (sig_e < 0.4) & \
+        (catalog['base_Blendedness_abs_flux']<= 0.4217)
 
     # add a bunch of columns that get used for WL analysis - fake it for now!
     catalog['i_hsmshaperegauss_derived_sigma_e'] = catalog['i_hsmshaperegauss_sigma']
@@ -657,7 +658,6 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False,
         return g1, g2
     else:
         return g1, g2, responsivity
-
 
 
 def getMeanAbsEllip(catalog, weight=None):

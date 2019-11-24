@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 import os
-import sys
-import glob
 import fitsio
-import optparse
-import sim_analysis_utilities as utilities
 import numpy as np
 from astropy.table import Table, vstack
+import sim_analysis_utilities as utilities
 
 import matplotlib
 matplotlib.use('agg')
@@ -101,6 +98,9 @@ class galDisAnalysis2DTask(BatchPoolTask):
         return [obsDat,simDat]
 
     def getObsGalData(self,obsFname):
+        """
+        #load the necessary data from catalog (after FDFC, WL cut)
+        """
         data    =   fitsio.read(obsFname)
         absE    =   utilities.get_abs_ellip(data)
         res     =   utilities.get_res(data)
