@@ -190,6 +190,7 @@ def prepare_catalog(filename,fieldname,isim=-1):
     #     |e|<2
     #     resolution factor
     #     i-band SNR
+    #     blendedness cut
     sig_e   =   get_sigma_e(catalog)
     e       =   np.sqrt(catalog['i_hsmshaperegauss_e1']**2 +
                catalog['i_hsmshaperegauss_e2']**2)
@@ -197,7 +198,7 @@ def prepare_catalog(filename,fieldname,isim=-1):
     catalog['weak_lensing_flag'] = ((get_imag(catalog)-catalog['a_i']) < 24.5) & \
         (e <= 2.) & \
         (catalog['i_hsmshaperegauss_resolution'] >= 0.3) & \
-        (get_snr(catalog) >= 10.) &\
+        (get_snr(catalog) >= 10.) & \
         (sig_e > 0.0) & \
         (sig_e < 0.4) & \
         (catalog['base_Blendedness_abs_flux']<= 0.4217)
@@ -1241,5 +1242,6 @@ def update_wl_flags_sim(catalog):
         (catalog['i_hsmshaperegauss_resolution'] >= 0.3) & \
         (get_snr(catalog) >= 10.) &\
         (sig_e > 0.0) & \
-        (sig_e < 0.4)
+        (sig_e < 0.4) & \
+        (catalog['base_Blendedness_abs_flux']<= 0.4217)
     return catalog 

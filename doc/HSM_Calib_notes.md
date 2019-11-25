@@ -95,7 +95,10 @@ SNR-mag, snr-res, snr-$\left | e \right |$
 ![s16a paper](ref/s16a_v2.0_v4sims_calib_overall_distributions_1d.png){ height=85% }
 
 #
-![$2$-D](work/plot/galDis/galDis2D.pdf)
+![$2$-D](work/plot/galDis/galDis2D.png)
 
 #
 ![s16a paper](ref/s16a_v2.0_v4sims_calib_overall_distributions_2d.png)
+
+
+# Definiation of blendedness_abs_flux has Changed?

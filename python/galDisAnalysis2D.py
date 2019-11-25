@@ -54,7 +54,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
     _DefaultName    =   "galDisAnalysis2D"
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-        self.datanames   =   ['res','snr','mag','absE','weight']
+        self.datanames   =   ['res','snr','mag','absE','logb','weight']
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
@@ -80,6 +80,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         else:
             allSim=Table.read(os.path.join(self.config.anaDir,'allSim4.fits'))
             allObs=Table.read(os.path.join(self.config.anaDir,'allObs4.fits'))
+        self.logbPlot(allSim,allObs)
         self.finalPlot(allSim,allObs)
         return
 
@@ -106,8 +107,9 @@ class galDisAnalysis2DTask(BatchPoolTask):
         res     =   utilities.get_res(data)
         mag     =   utilities.get_imag(data)
         snr     =   utilities.get_snr(data)
+        logb    =   np.log10(data['i_blendedness_abs_flux'])
         weight  =   np.ones(len(data))
-        dataTab =   [res,snr,mag,absE,weight]
+        dataTab =   [res,snr,mag,absE,logb,weight]
         return Table(data=dataTab,names=self.datanames)
 
     def getSimGalData(self,simFname):
@@ -123,13 +125,51 @@ class galDisAnalysis2DTask(BatchPoolTask):
         res     =   utilities.get_res(data)
         mag     =   utilities.get_imag(data)
         snr     =   utilities.get_snr(data)
+        logb    =   np.log10(np.maximum(data['base_Blendedness_abs_flux'],1.e-6))
         weight  =   data['reweight_s16a']
-        dataTab =   [res,snr,mag,absE,weight]
+        dataTab =   [res,snr,mag,absE,logb,weight]
         return Table(data=dataTab,names=self.datanames)
 
+    def logbPlot(self,sims,data):
+        """
+        # Plot the snr - (res,mag.|e|) Joint distributions 
+        """
+        fig =   plt.figure(figsize=(6, 6))
+        ax  =   fig.add_subplot(1,1,1)
+
+        """
+        # Problematic data (extended faint galaxies)
+        """
+        mask=   (data['res']>0.9)&(data['snr']<15.)
+        data2=  data[mask]
+        counts,xbins,ybins,image = ax.hist2d(data2['logb'], data2['res'],8, weights=data2['weight'], range=[[-2,-.375],[0.9,1]], cmap='gray_r', normed=True)
+        c   =   ax.contour(counts.T,extent=[-2,-0.375,0.9,1], cmap='gray_r',linestyles='dashed')
+        print(c.levels)
+
+        """
+        # All of the data
+        """
+        hd  =   ax.hist2d(data['logb'], data['res'], 64, weights=data['weight'], range=[[-2,-0.375],[0.3,1]], cmap='jet', normed=True,alpha=0.8)
+        ax.set_xlabel('log10(b)')
+        ax.set_ylabel('reGaus resolution')
+        cbar=   fig.colorbar(hd[3],ax=ax)
+
+        """
+        # Plot
+        """
+        plt.tight_layout()
+        fig.savefig(os.path.join(self.config.pltDir,'logb-res.png'))
+        return
+
     def finalPlot(self,sims,data):
-        # Second plot with
+        """
+        # Plot the snr - (res,mag.|e|) Joint distributions 
+        """
         fig2 = plt.figure(figsize=(15, 5))
+
+        """
+        # The First Panel
+        """
         ax = fig2.add_subplot(1,3,1)
         counts2,xbins2,ybins2,image = ax.hist2d(sims['snr'], sims['res'], 32, weights=sims['weight'], range=[[10,80],[0.3,1]], cmap='gray', normed=True,vmax=0.08);
         counts1,xbins1,ybins1,image = ax.hist2d(data['snr'], data['res'], 32, weights=data['weight'], range=[[10,80],[0.3,1]], cmap='gray_r', normed=True,vmax=0.08);
@@ -142,36 +182,49 @@ class galDisAnalysis2DTask(BatchPoolTask):
         ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%d'))
         ax.xaxis.set_minor_formatter(mtick.FormatStrFormatter('%d'))
 
+        """
+        # The Second Panel
+        """
         ax = fig2.add_subplot(1,3,2)
         counts2,xbins2,ybins2,image = ax.hist2d(sims['snr'], sims['absE'], 32, weights=sims['weight'], range=[[10,80],[0.,2]], cmap='gray', normed=True,vmax=0.045);
         counts1,xbins1,ybins1,image = ax.hist2d(data['snr'], data['absE'], 32, weights=data['weight'], range=[[10,80],[0.,2]], cmap='gray_r', normed=True,vmax=0.045);
         ax.hist2d(data['snr'], data['absE'], 128, weights=data['weight'], range=[[10,80],[0.,2]], cmap='gray_r', normed=True,alpha=0.8,norm=LogNorm(vmin=0.0002,vmax=0.2));
-        c = ax.contour(counts1.T,extent=[10,80,0.,2],cmap='viridis', levels=[0.0065, 0.012, 0.025, 0.035],label='data')
-        c = ax.contour(counts2.T,extent=[10,80,0.,2], cmap='viridis', levels=[0.0065, 0.012, 0.025, 0.035], linestyles='dashed',label='simulation')
+        c = ax.contour(counts1.T,extent=[10,80,0.,2],cmap='viridis', levels=[0.0065, 0.012, 0.025, 0.035])
+        c = ax.contour(counts2.T,extent=[10,80,0.,2], cmap='viridis', levels=[0.0065, 0.012, 0.025, 0.035], linestyles='dashed')
         ax.set_xlabel('CModel SNR')
         ax.set_ylabel(r'reGaus $|e|$')
         #ax.set_xscale('log')
         ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%d'))
         ax.xaxis.set_minor_formatter(mtick.FormatStrFormatter('%d'))
+
+        """
         #  Adding legend
+        """
         data_line = mlines.Line2D([], [], color='black', ls='-', label='Data')
         sims_line = mlines.Line2D([], [], color='black', ls='--',label='Simulation')
         ax.legend(handles=[data_line,sims_line])
+
+        """
+        # The third panel
+        """
         ax = fig2.add_subplot(1,3,3)
         counts2,xbins2,ybins2,image = ax.hist2d(sims['snr'], sims['mag'], 32, weights=sims['weight'], range=[[10,80],[22,24.5]], cmap='gray', normed=True,vmax=0.1);
         counts1,xbins1,ybins1,image = ax.hist2d(data['snr'], data['mag'], 32, weights=data['weight'], range=[[10,80],[22,24.5]], cmap='gray_r', normed=True,vmax=0.1);
         ax.hist2d(data['snr'], data['mag'], 128, weights=data['weight'], range=[[10,80],[22,24.5]], cmap='gray_r', normed=True,vmax=0.1,alpha=0.8,norm=LogNorm(vmin=0.005,vmax=0.1));
         c = ax.contour(counts1.T,extent=[10,80,22,24.5],cmap='viridis', levels=[0.01, 0.025, 0.05, 0.075])
         c = ax.contour(counts2.T,extent=[10,80,22,24.5], cmap='viridis', levels=[0.01, 0.025, 0.05, 0.075], linestyles='dashed')
-
         ax.set_xlabel('CModel SNR')
         ax.set_ylabel('CModel mag')
         ax.set_ylim(24.5, 22)
         #ax.set_xscale('log')
         ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%d'))
         ax.xaxis.set_minor_formatter(mtick.FormatStrFormatter('%d'))
+
+        """
+        # Save figure
+        """
         plt.tight_layout()
-        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D.pdf'))
+        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D.png'))
         return
 
     @classmethod
