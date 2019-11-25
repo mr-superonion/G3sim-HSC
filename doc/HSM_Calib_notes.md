@@ -1,5 +1,5 @@
 ---
-title: Calibration for reGauss
+title: S18A Simulation
 author: Xiangchong Li
 date: 2019-11
 ...
@@ -101,4 +101,17 @@ SNR-mag, snr-res, snr-$\left | e \right |$
 ![s16a paper](ref/s16a_v2.0_v4sims_calib_overall_distributions_2d.png)
 
 
+# Images
+![Image](./outcome/gals.png){ width=50% }
+![Image](./outcome/msks.png){ width=50% }
+
+
 # Definiation of blendedness_abs_flux has Changed?
+![](./ref/blendedness_cut.png){ width=50% }
+![](./ref/blendedness_define_change1.png){ width=50% }
+
+# Blendedness vs. Resolution
+![](./work/plot/galDis/logb-res.png){ height=85% }
+
+# Number loss with blendedness cut
+![](./work/plot/galDis/frac-logb.png){ height=85% }

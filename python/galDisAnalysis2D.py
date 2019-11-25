@@ -2,6 +2,7 @@
 import os
 import fitsio
 import numpy as np
+import catSelect
 from astropy.table import Table, vstack
 import sim_analysis_utilities as utilities
 
@@ -78,9 +79,11 @@ class galDisAnalysis2DTask(BatchPoolTask):
             allSim.write(os.path.join(self.config.anaDir,'allSim4.fits'))
             allObs.write(os.path.join(self.config.anaDir,'allObs4.fits'))
         else:
+            self.log.info('already have prepared catalog')
             allSim=Table.read(os.path.join(self.config.anaDir,'allSim4.fits'))
             allObs=Table.read(os.path.join(self.config.anaDir,'allObs4.fits'))
-        self.logbPlot(allSim,allObs)
+        #self.logbNumPlot(allSim,allObs)
+        #self.logbPlot2D(allSim,allObs)
         self.finalPlot(allSim,allObs)
         return
 
@@ -107,10 +110,14 @@ class galDisAnalysis2DTask(BatchPoolTask):
         res     =   utilities.get_res(data)
         mag     =   utilities.get_imag(data)
         snr     =   utilities.get_snr(data)
+        badPsf  =   data['i_pixelflags_inexact_psf']
+        badPsfC =   data['i_pixelflags_inexact_psfcenter']
+        bO_rep  =   data['i_pixelflags_bright_object_ireprocess']
+        bO_repC =   data['i_pixelflags_bright_objectcenter_ireprocess']
         logb    =   np.log10(data['i_blendedness_abs_flux'])
         weight  =   np.ones(len(data))
-        dataTab =   [res,snr,mag,absE,logb,weight]
-        return Table(data=dataTab,names=self.datanames)
+        dataTab =   [res,snr,mag,absE,logb,weight,badPsf,badPsfC,bO_rep,bO_repC]
+        return Table(data=dataTab,names=self.datanames+['badPsf','badPsfC','bO_rep','bO_repC'])
 
     def getSimGalData(self,simFname):
         #Get the noise variance and psf information
@@ -130,9 +137,33 @@ class galDisAnalysis2DTask(BatchPoolTask):
         dataTab =   [res,snr,mag,absE,logb,weight]
         return Table(data=dataTab,names=self.datanames)
 
-    def logbPlot(self,sims,data):
+    def logbNumPlot(self,sims,data):
         """
-        # Plot the snr - (res,mag.|e|) Joint distributions 
+        # Plot the galaxy  number loss vs. logNum
+        """
+        fig =   plt.figure(figsize=(6, 6))
+        ax  =   fig.add_subplot(1,1,1)
+
+        """
+        # Prepare 
+        """
+        numAll  =   len(data)
+        thres   =   np.arange(-1.2,-0.375,0.05)
+        frac    =   np.array([np.sum(data['logb']<t) for t in thres])/numAll
+        ax.plot(thres,frac)
+        ax.set_xlabel('log10(b)')
+        ax.set_ylabel('fraction')
+        ax.grid()
+        """
+        # Plot
+        """
+        plt.tight_layout()
+        fig.savefig(os.path.join(self.config.pltDir,'frac-logb.png'))
+        return
+
+    def logbPlot2D(self,sims,data):
+        """
+        # Plot the logb vs. resolution
         """
         fig =   plt.figure(figsize=(6, 6))
         ax  =   fig.add_subplot(1,1,1)
@@ -162,6 +193,13 @@ class galDisAnalysis2DTask(BatchPoolTask):
         return
 
     def finalPlot(self,sims,data):
+        """
+        sims    =   sims[sims['logb']<-.375]
+        data    =   data[data['logb']<-.375]
+        data    =   data[~data['badPsfC']]
+        """
+        data    =   data[~data['bO_rep']]
+
         """
         # Plot the snr - (res,mag.|e|) Joint distributions 
         """
@@ -224,7 +262,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # Save figure
         """
         plt.tight_layout()
-        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D.png'))
+        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_pixFlagBO.png'))
         return
 
     @classmethod

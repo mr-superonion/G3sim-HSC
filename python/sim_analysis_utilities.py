@@ -691,7 +691,6 @@ def getMeanAbsEllip(catalog, weight=None):
 
     return mean_e
 
-
 def getMeanRes(catalog, weight=None):
     """
     Routine for estimating the mean resolution from a catalog.
@@ -717,7 +716,6 @@ def getMeanRes(catalog, weight=None):
         weight = np.ones(len(catalog))
 
     return np.mean(weight * catalog['i_hsmshaperegauss_resolution'])
-
 
 def getMeanSnr(catalog, weight=None):
     """
@@ -747,7 +745,6 @@ def getMeanSnr(catalog, weight=None):
 
     return np.mean(tmp_snr)
 
-
 def fitline(xarr, yarr):
     """Fit a line y = a + b * x to input x and y arrays by least squares.
 
@@ -774,7 +771,6 @@ def fitline(xarr, yarr):
     var_b = sigma2 * S / Del
     return (a, b, var_a, cov_ab, var_b)
 
-
 def _calculateSvalues(xarr, yarr, sigma2=1.):
     """Calculates the intermediate S values required for basic linear regression.
 
@@ -791,7 +787,6 @@ def _calculateSvalues(xarr, yarr, sigma2=1.):
     Sxx = np.sum(xarr * xarr / sigma2)
     Sxy = np.sum(xarr * yarr / sigma2)
     return (S, Sx, Sy, Sxx, Sxy)
-
 
 def show_shear_bias(g, g_true, m=None, merr=None, c=None):
     """
@@ -814,7 +809,6 @@ def show_shear_bias(g, g_true, m=None, merr=None, c=None):
     plt.ylabel('g - true g')
     return fig
 
-
 def show_shear_additive_bias(residual, e_psf, a, aerr):
     """
     This is a routine for showing additive bias.  It takes a NumPy array of the residuals,
@@ -832,17 +826,14 @@ def show_shear_additive_bias(residual, e_psf, a, aerr):
     plt.ylabel('Residual additive error')
     return fig
 
-
 def get_true_shear(catalog):
     """
     This routine accesses the truth tables to get the true shear.
     """
     return catalog['g1'], catalog['g2']
 
-
 def systematics_func(x, m, a):
     return m * x[0, :] + a * x[1, :]
-
 
 def get_m_c_a(g1, g2, g1_true, g2_true, psf_e1, psf_e2, sigma_vals, separate_components=True):
     """
@@ -1070,7 +1061,6 @@ def get_erms_model(catalog):
     # Interpolate the e_rms values and return them.
     result = grid_interpolate(log_saved_snr, saved_res, saved_model, log_snr, res)
     return result
-
 
 def get_weight_model(catalog):
     """
