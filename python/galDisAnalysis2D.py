@@ -194,11 +194,11 @@ class galDisAnalysis2DTask(BatchPoolTask):
 
     def finalPlot(self,sims,data):
         """
-        sims    =   sims[sims['logb']<-.375]
-        data    =   data[data['logb']<-.375]
         data    =   data[~data['badPsfC']]
-        """
         data    =   data[~data['bO_rep']]
+        """
+        sims    =   sims[sims['logb']<-0.8]
+        data    =   data[data['logb']<-0.8]
 
         """
         # Plot the snr - (res,mag.|e|) Joint distributions 
@@ -262,7 +262,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # Save figure
         """
         plt.tight_layout()
-        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_pixFlagBO.png'))
+        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_logb_lt_m080.png'))
         return
 
     @classmethod

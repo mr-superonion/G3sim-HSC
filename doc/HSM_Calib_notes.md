@@ -1,6 +1,7 @@
 ---
 title: S18A Simulation
-author: Xiangchong Li
+author: Xiangchong Li;
+        HSC Collaboration
 date: 2019-11
 ...
 
@@ -101,10 +102,12 @@ SNR-mag, snr-res, snr-$\left | e \right |$
 ![s16a paper](ref/s16a_v2.0_v4sims_calib_overall_distributions_2d.png)
 
 
-# Images
+# Checking Images
 ![Image](./outcome/gals.png){ width=50% }
 ![Image](./outcome/msks.png){ width=50% }
 
++ Blending?
++ Bad pixels (Mask plane)?
 
 # Definiation of blendedness_abs_flux has Changed?
 ![](./ref/blendedness_cut.png){ width=50% }
@@ -115,3 +118,44 @@ SNR-mag, snr-res, snr-$\left | e \right |$
 
 # Number loss with blendedness cut
 ![](./work/plot/galDis/frac-logb.png){ height=85% }
+
+
+# After blendedness cut..
+![$logb<-0.4$](./work/plot/galDis/galDis2D_logb_lt_m040.png)
+
+
+# After blendedness cut..
+![$logb<-0.6$](./work/plot/galDis/galDis2D_logb_lt_m060.png)
+
+
+# After blendedness cut..
+![$logb<-0.8$](./work/plot/galDis/galDis2D_logb_lt_m080.png)
+
+
+# After blendedness cut..
+![$logb<-1.0$](./work/plot/galDis/galDis2D_logb_lt_m100.png)
+
+# Bad pixels
+BAD 0
+SAT 1
+INTRP 2
+CR 3
+EDGE 4
+
+DETECTED 5
+DETECTED_NEGATIVE 6
+SUSPECT 7
+NO_DATA 8
+
+BRIGHT_OBJECT 9
+CLIPPED 10
+CROSSTALK 11
+INEXACT_PSF 12
+
+NOT_DEBLENDED 13
+REJECTED 14
+SENSOR_EDGE 15
+UNMASKEDNAN 16
+
+# Bad pixels
+![histogram](./work/plot/galDis/badBitHist.png)
