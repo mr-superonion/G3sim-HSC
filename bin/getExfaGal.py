@@ -18,11 +18,15 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.coord as afwCoord
 import lsst.afw.table as afwTable
 
+
+baseDir =   'exBrGal-src'
+
 def getObsGalData(obsFname):
     data    =   Table.read(obsFname)
     res     =   utilities.get_res(data)
     snr     =   utilities.get_snr(data)
-    mask    =   (res>0.9)&(snr<15.)
+    #mask    =   (res>0.9)&(snr<15.)
+    mask    =   (res>0.4)&(res<0.6)&(snr>40.)&(snr<50.)
     return data[mask][['tract','patch','i_ra','i_dec','object_id']]
 
 def cutStampFromExposure(centroid,ngrid,expBox,imDat,mskDat,psfExp):
@@ -72,7 +76,7 @@ def main():
     for fn in fieldnames:
         binField    =   process(fn)
         binAll.extend(binField)
-    np.save('exfaGal-src/binAll.npy',binAll) 
+    np.save('%s/binAll.npy' %(baseDir),binAll) 
 
     pltDir      =   'plot/galDis/'
     fig =   plt.figure()
@@ -82,13 +86,12 @@ def main():
     plt.ylabel('num')
     plt.tight_layout()
     plt.savefig(os.path.join(pltDir,'badBitHist.png'))
-    
     return
 
 def process(fieldname):
     binField    =   []
     ngrid       =   32
-    outDir      =   'exfaGal-src/%s' %(fieldname)
+    outDir      =   '%s/%s' %(baseDir,fieldname)
     if not os.path.exists(outDir):
         os.mkdir(outDir)
     obsDir      =   '/gpfs02/work/miyatake/S18AL/with_new_star_mask_updated20191117/'
@@ -97,7 +100,7 @@ def process(fieldname):
     data        =   getObsGalData(obsFname)
     TPid        =   data['tract']*1000+data['patch']
     data['TPid']=  TPid
-    data.write('exfaGal-src/%s.csv' %fieldname)
+    data.write('%s/%s.csv' %(baseDir,fieldname))
     tpName      =   os.path.join(outDir,'TPset.npy') 
     if not os.path.exists(tpName):
         tpSet   =   list(set(TPid))

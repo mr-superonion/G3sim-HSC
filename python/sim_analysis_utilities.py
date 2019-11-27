@@ -557,25 +557,18 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False,
 
     catalog: recarray
         Catalog to use for shear estimation.
-
     use_model: bool (default: False)
         Use get_X_model routines for weights, RMS ellipticity, and sigma_e?  If
         False, then will use catalog entries.
-
     verbose: bool (default: False)
         Emit diagnostic statements?
-
-
     simple_resp: bool (default: True)
         Use the simpler formula for the responsivity?
-
     report_resp: bool (default: False)
         Return the value of responsivity along with the shears?
-
     reweight_s16a: bool (default: False)
         Use the S16A reweighting?  This will be the same value for each entry
         since the routine works at the subfield level.
-
     roundtrip_data: tuple or none (default: None)
         Data to be used for a round-trip analysis given some set of calibration
         corrections that differs from the ones in the catalogs.  This should be
@@ -665,27 +658,23 @@ def getMeanAbsEllip(catalog, weight=None):
     """Routine for estimating the mean absolute ellipticity from a catalog.
     Should be used on catalogs that have already been suitably masked so
     they don't have NaN values or other garbage. Can optionally use weights.
-
     Parameters
     ----------
-
     catalog: recarray
         Catalog to process
-
     weight: ndarray (optional)
         Weight array of the same size as the catalog
 
     Returns
     -------
-
     mean_e: float
         Mean absolute ellipticity
     """
+
     # If there are no weights given, then simply use a set of weights that are
     # equal to 1.
     if weight is None:
         weight = np.ones(len(catalog))
-
     mean_e = np.mean(weight * np.sqrt(catalog['i_hsmshaperegauss_e1']**2 +
                                       catalog['i_hsmshaperegauss_e2']**2))
 
@@ -699,16 +688,13 @@ def getMeanRes(catalog, weight=None):
 
     Parameters
     ----------
-
     catalog: recarray
         Catalog to process
-
     weight: ndarray (optional)
         Weight array of the same size as the catalog
 
     Returns
     -------
-
     mean_res: float
         Mean resolution
     """
@@ -722,19 +708,15 @@ def getMeanSnr(catalog, weight=None):
     Routine for estimating the mean S/N from a catalog.
     Should be used on catalogs that have already been suitably masked so
     they don't have NaN values or other garbage. Can optionally use weights.
-
     Parameters
     ----------
-
     catalog: recarray
         Catalog to process
-
     weight: ndarray (optional)
         Weight array of the same size as the catalog
 
     Returns
     -------
-
     mean_snr: float
         Mean snr
     """
@@ -746,7 +728,8 @@ def getMeanSnr(catalog, weight=None):
     return np.mean(tmp_snr)
 
 def fitline(xarr, yarr):
-    """Fit a line y = a + b * x to input x and y arrays by least squares.
+    """
+    Fit a line y = a + b * x to input x and y arrays by least squares.
 
     Returns the tuple (a, b, Var(a), Cov(a, b), Var(b)), after performing an internal estimate of
     measurement errors from the best-fitting model residuals.
@@ -893,10 +876,14 @@ def get_snr(catalog):
     In the case of GREAT3-like simulations, the noise rescaling factor is applied
     to match the data.
     """
-    if 'i_cmodel_flux' in catalog.dtype.names:
+    if 'i_cmodel_flux' in catalog.dtype.names: # For S18A
         snr     =   catalog['i_cmodel_flux']/catalog['i_cmodel_fluxsigma']
-    else:
+    elif 'iflux_cmodel' in catalog.dtype.names: # For S16A
+        snr     =   catalog['iflux_cmodel']/catalog['iflux_cmodel_err']
+    elif 'modelfit_CModel_flux' in catalog.dtype.names: # For pipe 6.7
         snr     =   catalog['modelfit_CModel_flux']/catalog['modelfit_CModel_fluxSigma']
+    else:
+        raise ValueError("column name does not exists")
     return snr
 
 def get_imag(catalog):
@@ -905,20 +892,28 @@ def get_imag(catalog):
     simulation catalog. Does not apply any cuts and returns NaNs for invalid
     values.
     """
-    if 'i_cmodel_mag' in catalog.dtype.names:
+    if 'i_cmodel_mag' in catalog.dtype.names:# For S18A
         magnitude   =   catalog['i_cmodel_mag']
-    else:
+    elif 'imag_cmodel' in catalog.dtype.names:# For S16A
+        magnitude   =   catalog['imag_cmodel']
+    elif 'modelfit_CModel_flux' in catalog.dtype.names:# For pipe 6.7
         magnitude   =   -2.5 * np.log10(catalog['modelfit_CModel_flux']) + 27.
+    else:
+        raise ValueError("column name does not exists")
     return magnitude
 
 def get_abs_ellip(catalog):
     """
     Returns the modulus of galaxy distortions.
     """
-    if 'i_hsmshaperegauss_e1' in catalog.dtype.names:
+    if 'i_hsmshaperegauss_e1' in catalog.dtype.names:# For S18A
         absE    =   catalog['i_hsmshaperegauss_e1']**2.+catalog['i_hsmshaperegauss_e2']**2.
-    else:
+    elif 'ishape_hsm_regauss_e1' in catalog.dtype.names:# For S16A
+        absE    =   catalog['ishape_hsm_regauss_e1']**2.+catalog['ishape_hsm_regauss_e2']**2.
+    elif 'ext_shapeHSM_HsmShapeRegauss_e1' in catalog.dtype.names:# For pipe 6.7
         absE    =   catalog['ext_shapeHSM_HsmShapeRegauss_e1']**2.+catalog['ext_shapeHSM_HsmShapeRegauss_e2']**2.
+    else:
+        raise ValueError("column name does not exists")
     absE    =   np.sqrt(absE)
     return absE 
 
@@ -926,11 +921,29 @@ def get_res(catalog):
     """
     Returns the resolution
     """
-    if 'i_hsmshaperegauss_resolution' in catalog.dtype.names:
+    if 'i_hsmshaperegauss_resolution' in catalog.dtype.names:# For S18A
         resolution  =   catalog['i_hsmshaperegauss_resolution']
-    else:
+    elif 'ishape_hsm_regauss_resolution' in catalog.dtype.names:# For S16A
+        resolution  =   catalog['ishape_hsm_regauss_resolution']
+    elif 'ext_shapeHSM_HsmShapeRegauss_resolution' in catalog.dtype.names:#For pipe 6.7
         resolution  =   catalog['ext_shapeHSM_HsmShapeRegauss_resolution']
+    else:
+        raise ValueError("column name does not exists")
     return resolution 
+
+def get_logb(catalog):
+    """
+    # Returns the logb
+    """
+    if 'base_Blendedness_abs_flux' in catalog.dtype.names:
+        logb    =   np.log10(np.maximum(catalog['base_Blendedness_abs_flux'],1.e-6))
+    elif 'i_blendedness_abs_flux' in catalog.dtype.names:
+        logb    =   np.log10(np.maximum(catalog['i_blendedness_abs_flux'],1.e-6))
+    elif 'iblendedness_abs_flux' in catalog.dtype.names:
+        logb    =   np.log10(np.maximum(catalog['iblendedness_abs_flux'],1.e-6))
+    else:
+        raise ValueError("column name does not exists")
+    return logb
 
 def get_sigma_e(catalog):
     """
@@ -939,42 +952,54 @@ def get_sigma_e(catalog):
     In the case of GREAT3-like simulations, the noise rescaling factor is applied
     to match the data.
     """
-    sigma_e = catalog['i_hsmshaperegauss_sigma']
+    if 'i_hsmshaperegauss_sigma' in catalog.dtype.names:
+        sigma_e =   catalog['i_hsmshaperegauss_sigma']
+    elif 'ishape_hsm_regauss_sigma' in catalog.dtype.names:
+        sigma_e =   catalog['ishape_hsm_regauss_sigma']
+    else:
+        raise ValueError("column name does not exists")
     return sigma_e
 
 def get_true_shear(catalog):
     """
-    This routine accesses the truth tables to get the true shear.
+    This routine accesses the truth tables to get the true shear in the Simulation.
     """
-    return catalog['g1'], catalog['g2']
+    return catalog['g1'],catalog['g2']
 
-def get_psf_size(catalog, type='fwhm-arcsec'):
+def get_psf_size(catalog, type='fwhm'):
     """
     This utility gets the PSF size from a data or sims catalog using the
     specified size definition from the second moments matrix.
 
     Parameters
     ----------
-
     catalog: recarray
         Simulation or data catalog
-
     type: string
-        Type of psf size measurement in ['trace', 'det', 'fwhm-arcsec'], default: 'trace'
-
+        Type of psf size measurement in ['trace', 'fwhm'], default: 'fwhm'
+    
+    Returns
+    ----------
+    psf_size [arcsec]
     """
     if 'base_SdssShape_psf_xx' in catalog.dtype.names:
         psf_mxx = catalog['base_SdssShape_psf_xx']*0.168**2.
         psf_myy = catalog['base_SdssShape_psf_yy']*0.168**2.
         psf_mxy = catalog['base_SdssShape_psf_xy']*0.168**2.
-    else:
+    elif 'i_sdssshape_psf_shape11' in catalog.dtype.names:
         psf_mxx = catalog['i_sdssshape_psf_shape11']
         psf_myy = catalog['i_sdssshape_psf_shape22']
         psf_mxy = catalog['i_sdssshape_psf_shape12']
+    elif 'ishape_sdss_psf_ixx' in catalog.dtype.names:
+        psf_mxx = catalog['ishape_sdss_psf_ixx']
+        psf_myy = catalog['ishape_sdss_psf_iyy']
+        psf_mxy = catalog['ishape_sdss_psf_ixy']
+    else:
+        raise ValueError("column name does not exists")
 
     if type == 'trace':
         size = psf_mxx + psf_myy
-    elif type == 'fwhm-arcsec':
+    elif type == 'fwhm':
         size = 2.355 * (psf_mxx * psf_myy - psf_mxy**2)**(0.25)
     else:
         raise ValueError("Unknown PSF size type: %s"%type)
@@ -987,16 +1012,22 @@ def get_psf_ellip(catalog):
     It does not impose flag cuts, but rather assumes that has already been done
     """
     if 'base_SdssShape_psf_xx' in catalog.dtype.names:
-        psf_mxx = catalog['base_SdssShape_psf_xx']*0.168
-        psf_myy = catalog['base_SdssShape_psf_yy']*0.168
-        psf_mxy = catalog['base_SdssShape_psf_xy']*0.168
-    else:
+        psf_mxx = catalog['base_SdssShape_psf_xx']*0.168**2.
+        psf_myy = catalog['base_SdssShape_psf_yy']*0.168**2.
+        psf_mxy = catalog['base_SdssShape_psf_xy']*0.168**2.
+    elif 'i_sdssshape_psf_shape11' in catalog.dtype.names:
         psf_mxx = catalog['i_sdssshape_psf_shape11']
         psf_myy = catalog['i_sdssshape_psf_shape22']
         psf_mxy = catalog['i_sdssshape_psf_shape12']
+    elif 'ishape_sdss_psf_ixx' in catalog.dtype.names:
+        psf_mxx = catalog['ishape_sdss_psf_ixx']
+        psf_myy = catalog['ishape_sdss_psf_iyy']
+        psf_mxy = catalog['ishape_sdss_psf_ixy']
+    else:
+        raise ValueError("column name does not exists")
+
     return (psf_mxx - psf_myy) / (psf_mxx + psf_myy), 2. * \
         psf_mxy / (psf_mxx + psf_myy)
-
 
 def get_sigma_e_model(catalog):
     """

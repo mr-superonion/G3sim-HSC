@@ -159,3 +159,16 @@ UNMASKEDNAN 16
 
 # Bad pixels
 ![histogram](./work/plot/galDis/badBitHist.png)
+
+
+# Match with S16A
+## Six Observables
+![compare 6 observables](./work/plot/galDis/compareS16_6Obs.png)
+
+#
+## Spacial distribution
+ <!---
+ bin/compareS16Spacial.py  
+ -->
+![Spacial Distribution](./work/plot/galDis/compareS16_spacial.png){ width=98% }
+

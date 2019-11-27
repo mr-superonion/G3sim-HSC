@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import smatch
 import fitsio
 import numpy as np
 import catSelect
@@ -82,9 +83,10 @@ class galDisAnalysis2DTask(BatchPoolTask):
             self.log.info('already have prepared catalog')
             allSim=Table.read(os.path.join(self.config.anaDir,'allSim4.fits'))
             allObs=Table.read(os.path.join(self.config.anaDir,'allObs4.fits'))
-        #self.logbNumPlot(allSim,allObs)
-        #self.logbPlot2D(allSim,allObs)
-        self.finalPlot(allSim,allObs)
+        #self.logbNumPlot(allObs)
+        #self.logbPlot2D(allObs)
+        self.compareS16(allObs)
+        #self.finalPlot(allSim,allObs)
         return
 
     def process(self,cache,fieldKey):
@@ -93,31 +95,79 @@ class galDisAnalysis2DTask(BatchPoolTask):
         anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
  
         self.log.info('Achieving galaxy data from observations')
-        obsFname =  os.path.join(self.config.obsDir,'%s.fits' %(utilities.field_names[fieldname]))
-        obsDat      =   self.getObsGalData(obsFname)
+        obsFname    =  os.path.join(self.config.obsDir,'%s.fits' %(utilities.field_names[fieldname]))
+        obsDat      =   self.getObsGalData(obsFname,fieldname)
  
         self.log.info('Achieving galaxy data from simulations')
         simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
         simDat      =   self.getSimGalData(simFname)
         return [obsDat,simDat]
 
-    def getObsGalData(self,obsFname):
+    def getObsGalData(self,obsFname,fieldname):
         """
         #load the necessary data from catalog (after FDFC, WL cut)
         """
         data    =   fitsio.read(obsFname)
-        absE    =   utilities.get_abs_ellip(data)
+        """
+        # Match to S16A
+        """
+        obsFname16= os.path.join(os.environ['homeWrk'],\
+                'S16AStandard/S16AStandardCalibrated/field',\
+                '%s_calibrated.fits' %fieldname)
+        
+        data16  =   fitsio.read(obsFname16)
+        ra      =   data['i_ra']
+        dec     =   data['i_dec']
+        match   =   smatch.match(ra,dec,0.5/3600.,\
+                data16['ira'],data16['idec'],maxmatch=1)
+
+        """
+        # Main Column for S16A
+        """
+        inS16  =   np.zeros(len(data)).astype(bool)
+        inS16[match['i1']]  =   True
+        res16   =   np.zeros(len(data))
+        res16[match['i1']]  =   utilities.get_res(data16[match['i2']])
+        snr16   =   np.zeros(len(data))
+        snr16[match['i1']]  =   utilities.get_snr(data16[match['i2']])
+        mag16   =   np.zeros(len(data))
+        mag16[match['i1']]  =   utilities.get_imag(data16[match['i2']])
+        logb16   =   np.zeros(len(data))
+        logb16[match['i1']]  =   utilities.get_logb(data16[match['i2']])
+        absE16  =   np.zeros(len(data))
+        absE16[match['i1']] =   utilities.get_abs_ellip(data16[match['i2']])
+        fwhm16   =   np.zeros(len(data))
+        fwhm16[match['i1']]  =   utilities.get_psf_size(data16[match['i2']])
+
+        """
+        # FDFC Column for S16A
+        """
+        inS16FDFC   =   catSelect.getFDFCS16(data,'i_ra','i_dec')
+
+        """
+        # Main Column for S18A
+        """
         res     =   utilities.get_res(data)
-        mag     =   utilities.get_imag(data)
         snr     =   utilities.get_snr(data)
+        mag     =   utilities.get_imag(data)
+        absE    =   utilities.get_abs_ellip(data)
+        logb    =   utilities.get_logb(data)
+        fwhm    =   utilities.get_psf_size(data)
+        fieldnameA=[fieldname]*len(data)
+
+        """
+        # Flags for S18A
+        """
         badPsf  =   data['i_pixelflags_inexact_psf']
         badPsfC =   data['i_pixelflags_inexact_psfcenter']
         bO_rep  =   data['i_pixelflags_bright_object_ireprocess']
         bO_repC =   data['i_pixelflags_bright_objectcenter_ireprocess']
-        logb    =   np.log10(data['i_blendedness_abs_flux'])
         weight  =   np.ones(len(data))
-        dataTab =   [res,snr,mag,absE,logb,weight,badPsf,badPsfC,bO_rep,bO_repC]
-        return Table(data=dataTab,names=self.datanames+['badPsf','badPsfC','bO_rep','bO_repC'])
+        datanmA =   ['fwhm','badPsf','badPsfC','bO_rep','bO_repC','inS16','inS16FDFC',\
+                    'res16', 'snr16', 'mag16',  'absE16', 'logb16','fwhm16','fieldname','ra','dec']
+        dataTab =   [res,snr,mag,absE,logb,weight,fwhm,badPsf,badPsfC,bO_rep,bO_repC,inS16,inS16FDFC,\
+                    res16,    snr16,   mag16,    absE16,  logb16,  fwhm16,  fieldnameA,ra,dec]
+        return Table(data=dataTab,names=self.datanames+datanmA)
 
     def getSimGalData(self,simFname):
         #Get the noise variance and psf information
@@ -132,12 +182,12 @@ class galDisAnalysis2DTask(BatchPoolTask):
         res     =   utilities.get_res(data)
         mag     =   utilities.get_imag(data)
         snr     =   utilities.get_snr(data)
-        logb    =   np.log10(np.maximum(data['base_Blendedness_abs_flux'],1.e-6))
+        logb    =   utilities.get_logb(data)
         weight  =   data['reweight_s16a']
         dataTab =   [res,snr,mag,absE,logb,weight]
         return Table(data=dataTab,names=self.datanames)
 
-    def logbNumPlot(self,sims,data):
+    def logbNumPlot(self,data):
         """
         # Plot the galaxy  number loss vs. logNum
         """
@@ -161,7 +211,65 @@ class galDisAnalysis2DTask(BatchPoolTask):
         fig.savefig(os.path.join(self.config.pltDir,'frac-logb.png'))
         return
 
-    def logbPlot2D(self,sims,data):
+    def compareS16(self,data):
+        data    =   data[data['inS16']]
+        fig2 = plt.figure(figsize=(15, 10))
+
+        """
+        # SNR scatter
+        """
+        ax = fig2.add_subplot(2,3,1)
+        ax.scatter(data['snr'],data['snr16'],s=0.1)
+        ax.set_xlabel('SNR S18')
+        ax.set_ylabel('SNR S16')
+
+        """
+        # Mag scatter
+        """
+        ax = fig2.add_subplot(2,3,2)
+        ax.scatter(data['mag'],data['mag16'],s=0.1)
+        ax.set_xlabel('mag S18')
+        ax.set_ylabel('mag S16')
+
+        """
+        # logb scatter
+        """
+        ax = fig2.add_subplot(2,3,3)
+        ax.scatter(data['logb'],data['logb16'],s=0.1)
+        ax.set_xlabel('logb S18')
+        ax.set_ylabel('logb S16')
+
+        """
+        # Resolution scatter
+        """
+        ax = fig2.add_subplot(2,3,4)
+        ax.scatter(data['res'],data['res16'],s=0.1)
+        ax.set_xlabel(r'$R_2$ S18')
+        ax.set_ylabel(r'$R_2$ S16')
+
+        """
+        # FWHM scatter
+        """
+        ax = fig2.add_subplot(2,3,5)
+        ax.scatter(data['fwhm'],data['fwhm16'],s=0.1)
+        ax.set_xlabel('fwhm S18 (arcsec)')
+        ax.set_ylabel('fwhm S16 (arcsec)')
+
+        """
+        # absE scatter
+        """
+        ax = fig2.add_subplot(2,3,6)
+        ax.scatter(data['absE'],data['absE16'],s=0.1)
+        ax.set_xlabel(r'$|e|$ S18')
+        ax.set_ylabel(r'$|e|$ S16')
+        """
+        # Save figure
+        """
+        plt.tight_layout()
+        fig2.savefig(os.path.join(self.config.pltDir,'compareS16_6Obs.png'))
+        return
+
+    def logbPlot2D(self,data):
         """
         # Plot the logb vs. resolution
         """
@@ -194,15 +302,20 @@ class galDisAnalysis2DTask(BatchPoolTask):
 
     def finalPlot(self,sims,data):
         """
-        data    =   data[~data['badPsfC']]
-        data    =   data[~data['bO_rep']]
-        """
-        sims    =   sims[sims['logb']<-0.8]
-        data    =   data[data['logb']<-0.8]
-
-        """
         # Plot the snr - (res,mag.|e|) Joint distributions 
         """
+
+        """
+        # Do mask
+        data    =   data[~data['badPsfC']]
+        data    =   data[~data['bO_rep']]
+        sims    =   sims[sims['logb']<-0.8]
+        data    =   data[data['logb']<-0.8]
+        """
+        print(len(data))
+        data    =   data[data['inS16']]
+        print(len(data))
+
         fig2 = plt.figure(figsize=(15, 5))
 
         """
@@ -253,7 +366,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         c = ax.contour(counts2.T,extent=[10,80,22,24.5], cmap='viridis', levels=[0.01, 0.025, 0.05, 0.075], linestyles='dashed')
         ax.set_xlabel('CModel SNR')
         ax.set_ylabel('CModel mag')
-        ax.set_ylim(24.5, 22)
+        ax.set_ylim(24.5,22)
         #ax.set_xscale('log')
         ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%d'))
         ax.xaxis.set_minor_formatter(mtick.FormatStrFormatter('%d'))
@@ -262,7 +375,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # Save figure
         """
         plt.tight_layout()
-        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_logb_lt_m080.png'))
+        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_inS16.png'))
         return
 
     @classmethod

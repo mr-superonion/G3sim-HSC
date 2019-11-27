@@ -127,7 +127,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         mask    =   mask&(~np.isnan(data['i_sdssshape_psf_shape12']))
         mask    =   mask&(~np.isnan(data['i_sdssshape_psf_shape22']))
         data    =   data[mask]
-        fwhms   =   (data['i_sdssshape_psf_shape11']*data['i_sdssshape_psf_shape22']-data['i_sdssshape_psf_shape12']**2)**(0.25)*2.355
+        fwhms   =   utilities.get_psf_size(data)
         varNois =   data['i_variance_value']
         histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
         histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0] 
@@ -140,7 +140,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         mask    =   data['weak_lensing_flag']
         data    =   data[mask]
         varNois =   data['base_Variance_value']
-        fwhms   =   (data['base_SdssShape_psf_xx']*data['base_SdssShape_psf_yy']-data['base_SdssShape_psf_xy']**2.)**(0.25)*0.168*2.355
+        fwhms   =   utilities.get_psf_size(data)
         histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
         histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0]
         return Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(data)*np.ones(len(self.gridNoi))],\
@@ -148,7 +148,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
 
     def reWeight(self,data,t_dis,t_dis_obs):
         varNois =   data['base_Variance_value']
-        fwhms   =   (data['base_SdssShape_psf_xx']*data['base_SdssShape_psf_yy']-data['base_SdssShape_psf_xy']**2.)**(0.25)*0.168*2.355
+        fwhms   =   utilities.get_psf_size(data)
         #reweight for noise
         ratio_noi=   np.array(t_dis_obs['histNoi']/t_dis['histNoi'])
         weightNoi=  np.zeros(len(data))
