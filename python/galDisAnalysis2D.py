@@ -27,7 +27,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class galDisAnalysis2DConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs directory')
-    obsDir  =   pexConfig.Field(dtype=str, default='/gpfs02/work/miyatake/S18AL/with_new_star_mask_updated20191117/', doc = 'observed catalogs directory')
+    obsDir  =   pexConfig.Field(dtype=str, default='obsCat', doc = 'observed catalogs directory')
     pltDir  =   pexConfig.Field(dtype=str, default='plot/galDis/', doc = 'plot directory')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
@@ -70,23 +70,26 @@ class galDisAnalysis2DTask(BatchPoolTask):
             pool.cacheClear()
             outcomes    =   pool.map(self.process,utilities.field_keys.keys())
             outcomes    =   [x for x in outcomes if x is not None]
-            allObs      =   []
-            allSim      =   []
+            allObsList  =   []
+            allSimList  =   []
             for outcome in outcomes:
-                allObs.append(outcome[0])
-                allSim.append(outcome[1])
-            allSim      =   vstack(allSim)
-            allObs      =   vstack(allObs)
+                allObsList.append(outcome[0])
+                allSimList.append(outcome[1])
+            allSim      =   vstack(allSimList)
+            allObs      =   vstack(allObsList)
+            del outcomes
+            del allObsList
+            del allSimList
             allSim.write(os.path.join(self.config.anaDir,'allSim4.fits'))
             allObs.write(os.path.join(self.config.anaDir,'allObs4.fits'))
         else:
             self.log.info('already have prepared catalog')
             allSim=Table.read(os.path.join(self.config.anaDir,'allSim4.fits'))
             allObs=Table.read(os.path.join(self.config.anaDir,'allObs4.fits'))
-        #self.logbNumPlot(allObs)
-        #self.logbPlot2D(allObs)
+        self.logbNumPlot(allObs)
+        self.logbPlot2D(allObs)
         self.compareS16(allObs)
-        #self.finalPlot(allSim,allObs)
+        self.finalPlot(allSim,allObs)
         return
 
     def process(self,cache,fieldKey):
@@ -162,10 +165,11 @@ class galDisAnalysis2DTask(BatchPoolTask):
         badPsfC =   data['i_pixelflags_inexact_psfcenter']
         bO_rep  =   data['i_pixelflags_bright_object_ireprocess']
         bO_repC =   data['i_pixelflags_bright_objectcenter_ireprocess']
+        bO_S18  =   data['mask_briObj_S18']
         weight  =   np.ones(len(data))
-        datanmA =   ['fwhm','badPsf','badPsfC','bO_rep','bO_repC','inS16','inS16FDFC',\
+        datanmA =   ['fwhm','badPsf','badPsfC','bO_rep','bO_repC','bO_S18_r','inS16','inS16FDFC',\
                     'res16', 'snr16', 'mag16',  'absE16', 'logb16','fwhm16','fieldname','ra','dec']
-        dataTab =   [res,snr,mag,absE,logb,weight,fwhm,badPsf,badPsfC,bO_rep,bO_repC,inS16,inS16FDFC,\
+        dataTab =   [res,snr,mag,absE,logb,weight,fwhm,badPsf,badPsfC,bO_rep,bO_repC,bO_S18,inS16,inS16FDFC,\
                     res16,    snr16,   mag16,    absE16,  logb16,  fwhm16,  fieldnameA,ra,dec]
         return Table(data=dataTab,names=self.datanames+datanmA)
 
@@ -194,6 +198,10 @@ class galDisAnalysis2DTask(BatchPoolTask):
         fig =   plt.figure(figsize=(6, 6))
         ax  =   fig.add_subplot(1,1,1)
 
+        self.log.info('beginning logNumPlot')
+        self.log.info('%d' %len(data))
+        data    =   data[data['bO_S18_r'].astype(bool)]
+        self.log.info('%d' %len(data))
         """
         # Prepare 
         """
@@ -208,12 +216,47 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # Plot
         """
         plt.tight_layout()
-        fig.savefig(os.path.join(self.config.pltDir,'frac-logb.png'))
+        fig.savefig(os.path.join(self.config.pltDir,'frac-logb_newBriObjMsk.png'))
+        return
+
+    def logbPlot2D(self,data):
+        """
+        # Plot the logb vs. resolution
+        """
+        fig =   plt.figure(figsize=(6, 6))
+        ax  =   fig.add_subplot(1,1,1)
+
+        data    =   data[data['bO_S18_r'].astype(bool)]
+
+        """
+        # Problematic data (extended faint galaxies)
+        """
+        mask=   (data['res']>0.9)&(data['snr']<15.)
+        data2=  data[mask]
+        counts,xbins,ybins,image = ax.hist2d(data2['logb'], data2['res'],8, weights=data2['weight'], range=[[-2,-.375],[0.9,1]], cmap='gray_r', normed=True)
+        c   =   ax.contour(counts.T,extent=[-2,-0.375,0.9,1], cmap='gray_r',linestyles='dashed')
+        print(c.levels)
+
+        """
+        # All of the data
+        """
+        hd  =   ax.hist2d(data['logb'], data['res'], 64, weights=data['weight'], range=[[-2,-0.375],[0.3,1]], cmap='jet', normed=True,alpha=0.8)
+        ax.set_xlabel('log10(b)')
+        ax.set_ylabel('reGaus resolution')
+        cbar=   fig.colorbar(hd[3],ax=ax)
+
+        """
+        # Plot
+        """
+        plt.tight_layout()
+        fig.savefig(os.path.join(self.config.pltDir,'logb-res_newBriObjMsk.png'))
         return
 
     def compareS16(self,data):
-        data    =   data[data['inS16']]
-        fig2 = plt.figure(figsize=(15, 10))
+        mask    =   data['bO_S18_r'].astype(bool)
+        mask    &=  data['inS16']
+        data    =   data[mask]
+        fig2    =   plt.figure(figsize=(15, 10))
 
         """
         # SNR scatter
@@ -266,38 +309,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # Save figure
         """
         plt.tight_layout()
-        fig2.savefig(os.path.join(self.config.pltDir,'compareS16_6Obs.png'))
-        return
-
-    def logbPlot2D(self,data):
-        """
-        # Plot the logb vs. resolution
-        """
-        fig =   plt.figure(figsize=(6, 6))
-        ax  =   fig.add_subplot(1,1,1)
-
-        """
-        # Problematic data (extended faint galaxies)
-        """
-        mask=   (data['res']>0.9)&(data['snr']<15.)
-        data2=  data[mask]
-        counts,xbins,ybins,image = ax.hist2d(data2['logb'], data2['res'],8, weights=data2['weight'], range=[[-2,-.375],[0.9,1]], cmap='gray_r', normed=True)
-        c   =   ax.contour(counts.T,extent=[-2,-0.375,0.9,1], cmap='gray_r',linestyles='dashed')
-        print(c.levels)
-
-        """
-        # All of the data
-        """
-        hd  =   ax.hist2d(data['logb'], data['res'], 64, weights=data['weight'], range=[[-2,-0.375],[0.3,1]], cmap='jet', normed=True,alpha=0.8)
-        ax.set_xlabel('log10(b)')
-        ax.set_ylabel('reGaus resolution')
-        cbar=   fig.colorbar(hd[3],ax=ax)
-
-        """
-        # Plot
-        """
-        plt.tight_layout()
-        fig.savefig(os.path.join(self.config.pltDir,'logb-res.png'))
+        fig2.savefig(os.path.join(self.config.pltDir,'compareS16_6Obs_newBriObjMsk.png'))
         return
 
     def finalPlot(self,sims,data):
@@ -308,12 +320,13 @@ class galDisAnalysis2DTask(BatchPoolTask):
         """
         # Do mask
         data    =   data[~data['badPsfC']]
-        data    =   data[~data['bO_rep']]
-        sims    =   sims[sims['logb']<-0.8]
-        data    =   data[data['logb']<-0.8]
         """
         print(len(data))
-        data    =   data[data['inS16']]
+        maxlogb =   -0.4
+        sims    =   sims[sims['logb']<maxlogb]
+        mask    =   data['logb']<maxlogb
+        mask    &=   data['bO_S18_r'].astype(bool)
+        data    =   data[mask]
         print(len(data))
 
         fig2 = plt.figure(figsize=(15, 5))
@@ -375,7 +388,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # Save figure
         """
         plt.tight_layout()
-        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_inS16.png'))
+        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_logb_lt_m040_newBriObjMsk.png'))
         return
 
     @classmethod
