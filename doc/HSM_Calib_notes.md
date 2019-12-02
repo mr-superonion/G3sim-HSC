@@ -160,15 +160,29 @@ UNMASKEDNAN 16
 # Bad pixels
 ![histogram](./work/plot/galDis/badBitHist.png)
 
-
-# Match with S16A
-## Six Observables
-![compare 6 observables](./work/plot/galDis/compareS16_6Obs.png)
+# Is adding pixFlags help?
+![INEXACT_PSF_Center](./work/plot/galDis/galDis2D_inexactPSFC.png)
 
 #
-## Spacial distribution
- <!---
- bin/compareS16Spacial.py  
- -->
-![Spacial Distribution](./work/plot/galDis/compareS16_spacial.png){ width=98% }
+![INEXACT_PSF](./work/plot/galDis/galDis2D_inexactPSF.png)
 
+# Match with S16A
+![S16A matched](./work/plot/galDis/galDis2D_inS16.png)
+
+# S16A FDFC region
+![S16A matched](./work/plot/galDis/galDis2D_s16aFDFC.png)
+
+# Spacial distribution of unmatched galaxies
+ <!---
+ bin/spacialS16AReg.py
+ -->
+![Spacial Distribution](./work/plot/galDis/spacial_noInS16.png){ width=98% }
+
+# Six Observables
+![compare 6 observables](./work/plot/galDis/compareS16_6Obs.png)
+
+# Spacial distribution of extended faint galaxies
+![Spacial Distribution](./work/plot/galDis/spacial_extFaiGals.png){ width=98% }
+ 
+# number density of extended faint galaxies per bright star
+![number density](./work/plot/galDis/WL_requirement.png){ width=98% }

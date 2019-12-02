@@ -45,12 +45,14 @@ for i,field in enumerate(fields):
     mask    =   dataU['inS16']
     mask    &=  dataU['bO_S18_r'].astype(bool)
     data16  =   dataU[mask]
-    #counts,xbins,ybins,im       =   ax.hist2d(data16['ra'],data16['dec'],[xGrid,yGrid])
-    """
-    #data16N =   dataU[~dataU['inS16']]
     res     =   dataU['res']
     snr     =   dataU['snr']
     mask    =   (res>0.8)&(res<1.)&(snr>10.)&(snr<15.)
+    data16N =   dataU[mask]
+    #counts,xbins,ybins,im       =   ax.hist2d(data16['ra'],data16['dec'],[xGrid,yGrid])
+    """
+    mask    =   dataU['inS16FDFC']
+    mask    &=  (~dataU['inS16'])
     data16N =   dataU[mask]
     counts2,xbins2,ybins2   =   np.histogram2d(data16N['ra'],data16N['dec'],[xGrid,yGrid])
     im2     =   ax.imshow(counts2.T,interpolation='None',extent=[xGrid[0],xGrid[-1],yGrid[-1],yGrid[0]],norm=norm)
@@ -61,9 +63,8 @@ for i,field in enumerate(fields):
     ax.set_xlim(x1, x0)
     ax.set_ylim(y1, y0)
 
-
 cbar_ax     =   fig.add_axes([0.95, 0.1, 0.01, 0.8])
 cbar        =   fig.colorbar(im2, cax=cbar_ax,format=formatter)#,ticks=[0, 5, 10,15,20])
 plt.subplots_adjust(wspace=0.01, hspace=-0.03,left=0.05,right=0.95,bottom=0.05,top=0.95)
 pltDir  =   'plot/galDis/'
-fig.savefig(os.path.join(pltDir,'spacial_extFaiGals.png'))
+fig.savefig(os.path.join(pltDir,'spacial_noInS16.png'))
