@@ -178,11 +178,14 @@ UNMASKEDNAN 16
  -->
 ![Spacial Distribution](./work/plot/galDis/spacial_noInS16.png){ width=98% }
 
-# Six Observables
-![compare 6 observables](./work/plot/galDis/compareS16_6Obs.png)
+# Arcturus vs. Sirius
+![Arcturus vs. Sirius](./ref/s16_brightObj_Arcturus_vs_Sirius.png)
 
 # Spacial distribution of extended faint galaxies
-![Spacial Distribution](./work/plot/galDis/spacial_extFaiGals.png){ width=98% }
+![Spacial Distribution](./work/plot/galDis/spacial_extFaiGals.png){width=98% }
  
 # number density of extended faint galaxies per bright star
-![number density](./work/plot/galDis/WL_requirement.png){ width=98% }
+![number density](./work/plot/galDis/WL_requirement.png){width=98%}
+
+# Six Observables
+![compare 6 observables](./work/plot/galDis/compareS16_6Obs.png)

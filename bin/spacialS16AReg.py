@@ -20,7 +20,7 @@ def log_10_product(x, pos):
     Label ticks with the product of the exponentiation"""
     return '%d' % (x)
 formatter = plt.FuncFormatter(log_10_product)
-norm=mpl.colors.Normalize(vmin=0.,vmax=5)
+norm=mpl.colors.Normalize(vmin=0,vmax=20.)
 
 fig     =   plt.figure(figsize=(15, 9))
 fields  =   ['HECTOMAP','VVDS','WIDE12H','GAMA15H','GAMA09H','XMM']
