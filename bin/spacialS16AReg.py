@@ -10,7 +10,6 @@ mpl.rcParams['pdf.use14corefonts'] = True
 mpl.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
-
 anaDir  =   'anaCat'
 nMapDir =   os.path.join(os.environ['homeWrk'],'S16AFPFS/out/numMap/')
 data    =   astTable.Table.read(os.path.join(anaDir,'allObs4.fits'))
@@ -51,8 +50,9 @@ for i,field in enumerate(fields):
     data16N =   dataU[mask]
     #counts,xbins,ybins,im       =   ax.hist2d(data16['ra'],data16['dec'],[xGrid,yGrid])
     """
-    mask    =   dataU['inS16FDFC']
-    mask    &=  (~dataU['inS16'])
+    mask0   =   dataU['inS16FDFC']
+    mask    =   mask0&(~dataU['inS16'])
+    mask    =   mask&(dataU['inS16L'])
     data16N =   dataU[mask]
     counts2,xbins2,ybins2   =   np.histogram2d(data16N['ra'],data16N['dec'],[xGrid,yGrid])
     im2     =   ax.imshow(counts2.T,interpolation='None',extent=[xGrid[0],xGrid[-1],yGrid[-1],yGrid[0]],norm=norm)
@@ -67,4 +67,4 @@ cbar_ax     =   fig.add_axes([0.95, 0.1, 0.01, 0.8])
 cbar        =   fig.colorbar(im2, cax=cbar_ax,format=formatter)#,ticks=[0, 5, 10,15,20])
 plt.subplots_adjust(wspace=0.01, hspace=-0.03,left=0.05,right=0.95,bottom=0.05,top=0.95)
 pltDir  =   'plot/galDis/'
-fig.savefig(os.path.join(pltDir,'spacial_noInS16.png'))
+fig.savefig(os.path.join(pltDir,'spacial_bad.png'))

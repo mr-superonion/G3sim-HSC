@@ -64,7 +64,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
 
     @abortOnError
     def run(self,Id):
-        if not os.path.exists(os.path.join(self.config.anaDir,'allSim4.fits')):
+        if not os.path.exists(os.path.join(self.config.anaDir,'allObs4.fits')):
             #Prepare the pool
             pool        =   Pool("galDisAnalysis2D")
             pool.cacheClear()
@@ -86,9 +86,11 @@ class galDisAnalysis2DTask(BatchPoolTask):
             self.log.info('already have prepared catalog')
             allSim=Table.read(os.path.join(self.config.anaDir,'allSim4.fits'))
             allObs=Table.read(os.path.join(self.config.anaDir,'allObs4.fits'))
+        """
         self.logbNumPlot(allObs)
         self.logbPlot2D(allObs)
         self.compareS16(allObs)
+        """
         self.finalPlot(allSim,allObs)
         return
 
@@ -121,26 +123,42 @@ class galDisAnalysis2DTask(BatchPoolTask):
         data16  =   fitsio.read(obsFname16)
         ra      =   data['i_ra']
         dec     =   data['i_dec']
-        match   =   smatch.match(ra,dec,0.5/3600.,\
-                data16['ira'],data16['idec'],maxmatch=1)
+        """
+        # Match to S16A
+        """
+        matchL  =   smatch.match(data16['ira'],data16['idec'],20./3600.,\
+                ra,dec,maxmatch=1)
+        inS16L  =   np.zeros(len(data)).astype(bool)
+        inS16L[matchL['i2']]  =   True
+        mDist   =   np.arccos(matchL['cosdist'])*180./np.pi
+
+        matchM  =  matchL[mDist<10./3600.]
+        inS16M  =   np.zeros(len(data)).astype(bool)
+        inS16M[matchM['i2']]  =   True
+
+        matchS  =   matchL[mDist<5./3600.]
+        inS16S  =   np.zeros(len(data)).astype(bool)
+        inS16S[matchS['i2']]  =   True
+
+        match   =   matchL[mDist<0.5/3600.]
+        inS16   =   np.zeros(len(data)).astype(bool)
+        inS16[match['i2']]  =   True
 
         """
         # Main Column for S16A
         """
-        inS16  =   np.zeros(len(data)).astype(bool)
-        inS16[match['i1']]  =   True
         res16   =   np.zeros(len(data))
-        res16[match['i1']]  =   utilities.get_res(data16[match['i2']])
+        res16[match['i2']]  =   utilities.get_res(data16[match['i1']])
         snr16   =   np.zeros(len(data))
-        snr16[match['i1']]  =   utilities.get_snr(data16[match['i2']])
+        snr16[match['i2']]  =   utilities.get_snr(data16[match['i1']])
         mag16   =   np.zeros(len(data))
-        mag16[match['i1']]  =   utilities.get_imag(data16[match['i2']])
+        mag16[match['i2']]  =   utilities.get_imag(data16[match['i1']])
         logb16   =   np.zeros(len(data))
-        logb16[match['i1']]  =   utilities.get_logb(data16[match['i2']])
+        logb16[match['i2']]  =   utilities.get_logb(data16[match['i1']])
         absE16  =   np.zeros(len(data))
-        absE16[match['i1']] =   utilities.get_abs_ellip(data16[match['i2']])
+        absE16[match['i2']] =   utilities.get_abs_ellip(data16[match['i1']])
         fwhm16   =   np.zeros(len(data))
-        fwhm16[match['i1']]  =   utilities.get_psf_size(data16[match['i2']])
+        fwhm16[match['i2']]  =   utilities.get_psf_size(data16[match['i1']])
 
         """
         # FDFC Column for S16A
@@ -155,7 +173,12 @@ class galDisAnalysis2DTask(BatchPoolTask):
         mag     =   utilities.get_imag(data)
         absE    =   utilities.get_abs_ellip(data)
         logb    =   utilities.get_logb(data)
-        fwhm    =   utilities.get_psf_size(data)
+        fwhm    =   utilities.get_psf_size(data,'fwhm')
+        traceR  =   utilities.get_gal_size(data,type='trace')
+        detR    =   utilities.get_gal_size(data,type='det')
+        traceRP =   utilities.get_psf_size(data,type='trace')
+        detRP   =   utilities.get_psf_size(data,type='det')
+        absEP   =   utilities.get_abs_ellip_psf(data)
         fieldnameA=[fieldname]*len(data)
 
         """
@@ -166,15 +189,18 @@ class galDisAnalysis2DTask(BatchPoolTask):
         bO_rep  =   data['i_pixelflags_bright_object_ireprocess']
         bO_repC =   data['i_pixelflags_bright_objectcenter_ireprocess']
         bO_S18  =   data['mask_briObj_S18']
+        objId   =   data['object_id']
         weight  =   np.ones(len(data))
-        datanmA =   ['fwhm','badPsf','badPsfC','bO_rep','bO_repC','bO_S18_r','inS16','inS16FDFC',\
-                    'res16', 'snr16', 'mag16',  'absE16', 'logb16','fwhm16','fieldname','ra','dec']
-        dataTab =   [res,snr,mag,absE,logb,weight,fwhm,badPsf,badPsfC,bO_rep,bO_repC,bO_S18,inS16,inS16FDFC,\
-                    res16,    snr16,   mag16,    absE16,  logb16,  fwhm16,  fieldnameA,ra,dec]
+        datanmA =   ['fwhm', 'badPsf', 'badPsfC', 'bO_rep', 'bO_repC', 'bO_S18_r', 'inS16', 'inS16L', 'inS16FDFC', \
+                'res16', 'snr16', 'mag16', 'absE16', 'logb16', 'fwhm16', 'fieldname', 'ra', 'dec', 'object_id', \
+                'traceR', 'detR', 'traceRP', 'detRP', 'absEP', 'inS16M', 'inS16S']
+        dataTab =   [res, snr, mag, absE, logb, weight, fwhm, badPsf, badPsfC, bO_rep, \
+                bO_repC, bO_S18, inS16, inS16L, inS16FDFC, \
+                res16, snr16, mag16, absE16, logb16, fwhm16, fieldnameA, ra, dec, objId, \
+                traceR, detR, traceRP, detRP, absEP, inS16M, inS16S]
         return Table(data=dataTab,names=self.datanames+datanmA)
 
     def getSimGalData(self,simFname):
-        #Get the noise variance and psf information
         data    =   fitsio.read(simFname)
         data    =   utilities.update_wl_flags_sim(data)
         mask    =   data['weak_lensing_flag']
@@ -193,15 +219,13 @@ class galDisAnalysis2DTask(BatchPoolTask):
 
     def logbNumPlot(self,data):
         """
-        # Plot the galaxy  number loss vs. logNum
+        # Plot the galaxy  number loss vs. logb
         """
         fig =   plt.figure(figsize=(6, 6))
         ax  =   fig.add_subplot(1,1,1)
 
-        self.log.info('beginning logNumPlot')
-        self.log.info('%d' %len(data))
+        self.log.info('beginning logbNumPlot')
         data    =   data[data['bO_S18_r'].astype(bool)]
-        self.log.info('%d' %len(data))
         """
         # Prepare 
         """
@@ -320,14 +344,15 @@ class galDisAnalysis2DTask(BatchPoolTask):
         """
         # Do mask
         data    =   data[~data['badPsfC']]
-        """
-        print(len(data))
         maxlogb =   -0.4
         sims    =   sims[sims['logb']<maxlogb]
         mask    =   data['logb']<maxlogb
         mask    &=   data['bO_S18_r'].astype(bool)
+        mask    &=  (data['absEP']<0.1)
+        mask    &=  (data['fwhm']>0.47)
+        """
+        mask    =  (data['inS16'])
         data    =   data[mask]
-        print(len(data))
 
         fig2 = plt.figure(figsize=(15, 5))
 
@@ -335,11 +360,13 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # The First Panel
         """
         ax = fig2.add_subplot(1,3,1)
-        counts2,xbins2,ybins2,image = ax.hist2d(sims['snr'], sims['res'], 32, weights=sims['weight'], range=[[10,80],[0.3,1]], cmap='gray', normed=True,vmax=0.08);
         counts1,xbins1,ybins1,image = ax.hist2d(data['snr'], data['res'], 32, weights=data['weight'], range=[[10,80],[0.3,1]], cmap='gray_r', normed=True,vmax=0.08);
+        c = ax.contour(counts1.T,extent=[10,80,0.3,1],cmap='viridis')#, levels=[0.01, 0.025, 0.05, 0.075])
+        """
+        counts2,xbins2,ybins2,image = ax.hist2d(sims['snr'], sims['res'], 32, weights=sims['weight'], range=[[10,80],[0.3,1]], cmap='gray', normed=True,vmax=0.08);
+        c = ax.contour(counts2.T,extent=[10,80,0.3,1],cmap='viridis',linestyles='dashed')#, levels=[0.01, 0.025, 0.05, 0.075])
+        """
         ax.hist2d(data['snr'], data['res'], 128, weights=data['weight'], range=[[10,80],[0.3,1]], cmap='gray_r', normed=True,vmax=0.08,alpha=0.8);
-        c = ax.contour(counts1.T,extent=[10,80,0.3,1],cmap='viridis', levels=[0.01, 0.025, 0.05, 0.075])
-        c = ax.contour(counts2.T,extent=[10,80,0.3,1], cmap='viridis', levels=[0.01, 0.025, 0.05, 0.075], linestyles='dashed')
         ax.set_xlabel('CModel SNR')
         ax.set_ylabel('reGaus resolution')
         #ax.set_xscale('log')
@@ -350,11 +377,13 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # The Second Panel
         """
         ax = fig2.add_subplot(1,3,2)
-        counts2,xbins2,ybins2,image = ax.hist2d(sims['snr'], sims['absE'], 32, weights=sims['weight'], range=[[10,80],[0.,2]], cmap='gray', normed=True,vmax=0.045);
         counts1,xbins1,ybins1,image = ax.hist2d(data['snr'], data['absE'], 32, weights=data['weight'], range=[[10,80],[0.,2]], cmap='gray_r', normed=True,vmax=0.045);
+        c = ax.contour(counts1.T,extent=[10,80,0.,2],cmap='viridis')#, levels=[0.0065, 0.012, 0.025, 0.035])
+        """
+        counts2,xbins2,ybins2,image = ax.hist2d(sims['snr'], sims['absE'], 32, weights=sims['weight'], range=[[10,80],[0.,2]], cmap='gray', normed=True,vmax=0.045);
+        c = ax.contour(counts2.T,extent=[10,80,0.,2], cmap='viridis', linestyles='dashed')#, levels=[0.0065,0.012,0.025,0.035])
+        """
         ax.hist2d(data['snr'], data['absE'], 128, weights=data['weight'], range=[[10,80],[0.,2]], cmap='gray_r', normed=True,alpha=0.8,norm=LogNorm(vmin=0.0002,vmax=0.2));
-        c = ax.contour(counts1.T,extent=[10,80,0.,2],cmap='viridis', levels=[0.0065, 0.012, 0.025, 0.035])
-        c = ax.contour(counts2.T,extent=[10,80,0.,2], cmap='viridis', levels=[0.0065, 0.012, 0.025, 0.035], linestyles='dashed')
         ax.set_xlabel('CModel SNR')
         ax.set_ylabel(r'reGaus $|e|$')
         #ax.set_xscale('log')
@@ -372,11 +401,13 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # The third panel
         """
         ax = fig2.add_subplot(1,3,3)
-        counts2,xbins2,ybins2,image = ax.hist2d(sims['snr'], sims['mag'], 32, weights=sims['weight'], range=[[10,80],[22,24.5]], cmap='gray', normed=True,vmax=0.1);
         counts1,xbins1,ybins1,image = ax.hist2d(data['snr'], data['mag'], 32, weights=data['weight'], range=[[10,80],[22,24.5]], cmap='gray_r', normed=True,vmax=0.1);
+        c = ax.contour(counts1.T,extent=[10,80,22,24.5],cmap='viridis')#, levels=[0.01, 0.025, 0.05, 0.075])
+        """
+        counts2,xbins2,ybins2,image = ax.hist2d(sims['snr'], sims['mag'], 32, weights=sims['weight'], range=[[10,80],[22,24.5]], cmap='gray', normed=True,vmax=0.1);
+        c = ax.contour(counts2.T,extent=[10,80,22,24.5], cmap='viridis', linestyles='dashed')#, levels=[0.01,0.025,0.05,0.075])
+        """
         ax.hist2d(data['snr'], data['mag'], 128, weights=data['weight'], range=[[10,80],[22,24.5]], cmap='gray_r', normed=True,vmax=0.1,alpha=0.8,norm=LogNorm(vmin=0.005,vmax=0.1));
-        c = ax.contour(counts1.T,extent=[10,80,22,24.5],cmap='viridis', levels=[0.01, 0.025, 0.05, 0.075])
-        c = ax.contour(counts2.T,extent=[10,80,22,24.5], cmap='viridis', levels=[0.01, 0.025, 0.05, 0.075], linestyles='dashed')
         ax.set_xlabel('CModel SNR')
         ax.set_ylabel('CModel mag')
         ax.set_ylim(24.5,22)
@@ -388,7 +419,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # Save figure
         """
         plt.tight_layout()
-        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_logb_lt_m040_newBriObjMsk.png'))
+        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_S16.png'))
         return
 
     @classmethod

@@ -28,8 +28,7 @@ def main():
     ax          =   fig.add_subplot(111)
     cor0        =   treecorr.NNCorrelation(nbins=10,min_sep=0.01,max_sep=1.5,sep_units='deg')
     x           =   cor0.rnom
-    solidAng    =   ((x*np.exp(cor0.bin_size/2))**2.-(x/np.exp(cor0.bin_size/2)))*np.pi
-    print(solidAng)
+    solidAng    =   ((x*np.exp(cor0.bin_size/2))**2.-(x/np.exp(cor0.bin_size/2))**2.)*np.pi
 
     """
     # Load the observed data

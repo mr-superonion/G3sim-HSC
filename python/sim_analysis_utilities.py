@@ -917,6 +917,15 @@ def get_abs_ellip(catalog):
     absE    =   np.sqrt(absE)
     return absE 
 
+def get_abs_ellip_psf(catalog):
+    """
+    Returns the modulus of galaxy distortions.
+    """
+    e1,e2   =   get_psf_ellip(catalog)
+    absE    =   e1**2.+e2**2.
+    absE    =   np.sqrt(absE)
+    return absE 
+
 def get_res(catalog):
     """
     Returns the resolution
@@ -930,6 +939,45 @@ def get_res(catalog):
     else:
         raise ValueError("column name does not exists")
     return resolution 
+
+def get_gal_size(catalog,type='det'):
+    """
+    This utility gets the observed galaxy size from a data or sims catalog using the
+    specified size definition from the second moments matrix.
+
+    Parameters
+    ----------
+    catalog: recarray
+        Simulation or data catalog
+    type: string
+        Type of psf size measurement in ['trace', 'determin']
+    
+    Returns
+    ----------
+    gal_size [arcsec]
+    """
+    if 'ishape_sdss_ixx' in catalog.dtype.names:
+        gal_mxx = catalog['ishape_sdss_ixx']*0.168**2.
+        gal_myy = catalog['ishape_sdss_iyy']*0.168**2.
+        gal_mxy = catalog['ishape_sdss_ixy']*0.168**2.
+    elif 'i_sdssshape_shape11' in catalog.dtype.names:
+        gal_mxx = catalog['i_sdssshape_shape11']
+        gal_myy = catalog['i_sdssshape_shape22']
+        gal_mxy = catalog['i_sdssshape_shape12']
+    elif 'ishape_sdss_ixx' in catalog.dtype.names:
+        gal_mxx = catalog['ishape_sdss_ixx']
+        gal_myy = catalog['ishape_sdss_iyy']
+        gal_mxy = catalog['ishape_sdss_ixy']
+    else:
+        raise ValueError("column name does not exists")
+
+    if type == 'trace':
+        size = np.sqrt(gal_mxx + gal_myy)
+    elif type == 'det':
+        size = (gal_mxx * gal_myy - gal_mxy**2)**(0.25)
+    else:
+        raise ValueError("Unknown PSF size type: %s"%type)
+    return size
 
 def get_logb(catalog):
     """
@@ -998,9 +1046,11 @@ def get_psf_size(catalog, type='fwhm'):
         raise ValueError("column name does not exists")
 
     if type == 'trace':
-        size = psf_mxx + psf_myy
+        size = np.sqrt(psf_mxx + psf_myy)
     elif type == 'fwhm':
         size = 2.355 * (psf_mxx * psf_myy - psf_mxy**2)**(0.25)
+    elif type == 'det':
+        size = (psf_mxx * psf_myy - psf_mxy**2)**(0.25)
     else:
         raise ValueError("Unknown PSF size type: %s"%type)
     return size

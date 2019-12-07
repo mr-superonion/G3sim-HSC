@@ -167,16 +167,26 @@ UNMASKEDNAN 16
 ![INEXACT_PSF](./work/plot/galDis/galDis2D_inexactPSF.png)
 
 # Match with S16A
-![S16A matched](./work/plot/galDis/galDis2D_inS16.png)
+![S16A matched 0.5 arcsec](./work/plot/galDis/galDis2D_inS16.png)
 
 # S16A FDFC region
-![S16A matched](./work/plot/galDis/galDis2D_s16aFDFC.png)
+![S16A FDFC](./work/plot/galDis/galDis2D_s16aFDFC.png)
 
-# Spacial distribution of unmatched galaxies
+# Increase Masking radius?
+![S16A matched 20 arcsec](./work/plot/galDis/galDis2D_inS16L.png)
+
+
+
+# Spacial distribution of unmatched galaxies (0.5 arcsec)
  <!---
  bin/spacialS16AReg.py
  -->
 ![Spacial Distribution](./work/plot/galDis/spacial_noInS16.png){ width=98% }
+
+
+# Spacial distribution of unmatched galaxie (20 arcsec)
+![Spacial Distribution](./work/plot/galDis/spacial_noInS16L.png){ width=98% }
+
 
 # Arcturus vs. Sirius
 ![Arcturus vs. Sirius](./ref/s16_brightObj_Arcturus_vs_Sirius.png)
@@ -184,8 +194,5 @@ UNMASKEDNAN 16
 # Spacial distribution of extended faint galaxies
 ![Spacial Distribution](./work/plot/galDis/spacial_extFaiGals.png){width=98% }
  
-# number density of extended faint galaxies per bright star
-![number density](./work/plot/galDis/WL_requirement.png){width=98%}
-
 # Six Observables
 ![compare 6 observables](./work/plot/galDis/compareS16_6Obs.png)
