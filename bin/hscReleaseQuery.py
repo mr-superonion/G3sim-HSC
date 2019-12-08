@@ -54,8 +54,8 @@ def main():
     tracts2     =   chunkList(tracts,ngroups)
     for ig,tractL in enumerate(tracts2):
         print('processing group: %s' %ig)
-        downloadTracts(ig,tractL)
-        #separateTracts(ig,tractL)
+        #downloadTracts(ig,tractL)
+        separateTracts(ig,tractL)
     return
 
 def separateTracts(ig,tractL):

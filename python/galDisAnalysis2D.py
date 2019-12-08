@@ -27,8 +27,8 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class galDisAnalysis2DConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs directory')
-    obsDir  =   pexConfig.Field(dtype=str, default='obsCat', doc = 'observed catalogs directory')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot/galDis/', doc = 'plot directory')
+    obsDir  =   pexConfig.Field(dtype=str, default='database/s18/fields/', doc = 'observed catalogs directory')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot/galDis2/', doc = 'plot directory')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
@@ -46,7 +46,7 @@ class galDisAnalysis2DConfig(pexConfig.Config):
 class galDisAnalysis2DRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in range(1)] 
+        return [(ref, kwargs) for ref in range(1)]
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
@@ -64,7 +64,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
 
     @abortOnError
     def run(self,Id):
-        if not os.path.exists(os.path.join(self.config.anaDir,'allObs4.fits')):
+        if not os.path.exists(os.path.join(self.config.anaDir,'allObsT.fits')):
             #Prepare the pool
             pool        =   Pool("galDisAnalysis2D")
             pool.cacheClear()
@@ -80,12 +80,12 @@ class galDisAnalysis2DTask(BatchPoolTask):
             del outcomes
             del allObsList
             del allSimList
-            allSim.write(os.path.join(self.config.anaDir,'allSim4.fits'))
-            allObs.write(os.path.join(self.config.anaDir,'allObs4.fits'))
+            allSim.write(os.path.join(self.config.anaDir,'allSimT.fits'))
+            allObs.write(os.path.join(self.config.anaDir,'allObsT.fits'))
         else:
             self.log.info('already have prepared catalog')
-            allSim=Table.read(os.path.join(self.config.anaDir,'allSim4.fits'))
-            allObs=Table.read(os.path.join(self.config.anaDir,'allObs4.fits'))
+            allSim=Table.read(os.path.join(self.config.anaDir,'allSimT.fits'))
+            allObs=Table.read(os.path.join(self.config.anaDir,'allObsT.fits'))
         """
         self.logbNumPlot(allObs)
         self.logbPlot2D(allObs)
@@ -98,11 +98,11 @@ class galDisAnalysis2DTask(BatchPoolTask):
         fieldname   =   utilities.field_keys[fieldKey]
         self.log.info('Processing field: %s' %(fieldname))
         anaFieldDir =   os.path.join(self.config.anaDir,'%s' %(fieldname))
- 
+
         self.log.info('Achieving galaxy data from observations')
         obsFname    =  os.path.join(self.config.obsDir,'%s.fits' %(utilities.field_names[fieldname]))
         obsDat      =   self.getObsGalData(obsFname,fieldname)
- 
+
         self.log.info('Achieving galaxy data from simulations')
         simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
         simDat      =   self.getSimGalData(simFname)
@@ -114,17 +114,17 @@ class galDisAnalysis2DTask(BatchPoolTask):
         """
         data    =   fitsio.read(obsFname)
         """
-        # Match to S16A
+        # Match to S15B
         """
         obsFname16= os.path.join(os.environ['homeWrk'],\
                 'S16AStandard/S16AStandardCalibrated/field',\
                 '%s_calibrated.fits' %fieldname)
-        
+
         data16  =   fitsio.read(obsFname16)
         ra      =   data['i_ra']
         dec     =   data['i_dec']
         """
-        # Match to S16A
+        # Match to S15B
         """
         matchL  =   smatch.match(data16['ira'],data16['idec'],20./3600.,\
                 ra,dec,maxmatch=1)
@@ -145,7 +145,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         inS16[match['i2']]  =   True
 
         """
-        # Main Column for S16A
+        # Main Column for S15B
         """
         res16   =   np.zeros(len(data))
         res16[match['i2']]  =   utilities.get_res(data16[match['i1']])
@@ -161,7 +161,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         fwhm16[match['i2']]  =   utilities.get_psf_size(data16[match['i1']])
 
         """
-        # FDFC Column for S16A
+        # FDFC Column for S15B
         """
         inS16FDFC   =   catSelect.getFDFCS16(data,'i_ra','i_dec')
 
@@ -179,6 +179,10 @@ class galDisAnalysis2DTask(BatchPoolTask):
         traceRP =   utilities.get_psf_size(data,type='trace')
         detRP   =   utilities.get_psf_size(data,type='det')
         absEP   =   utilities.get_abs_ellip_psf(data)
+        snrA10,snrA15,snrA20    =   utilities.get_snr_apertures(data)
+        snrlb   =   utilities.get_snr_localBG(data)
+        logbA,logbR,logbO   =   utilities.get_logbAll(data)
+        npass   =   data['npass']
         fieldnameA=[fieldname]*len(data)
 
         """
@@ -188,16 +192,18 @@ class galDisAnalysis2DTask(BatchPoolTask):
         badPsfC =   data['i_pixelflags_inexact_psfcenter']
         bO_rep  =   data['i_pixelflags_bright_object_ireprocess']
         bO_repC =   data['i_pixelflags_bright_objectcenter_ireprocess']
-        bO_S18  =   data['mask_briObj_S18']
         objId   =   data['object_id']
         weight  =   np.ones(len(data))
-        datanmA =   ['fwhm', 'badPsf', 'badPsfC', 'bO_rep', 'bO_repC', 'bO_S18_r', 'inS16', 'inS16L', 'inS16FDFC', \
+        datanmA =   ['fwhm', 'badPsf', 'badPsfC', 'bO_rep', 'bO_repC', 'inS16', 'inS16L', 'inS16FDFC', \
                 'res16', 'snr16', 'mag16', 'absE16', 'logb16', 'fwhm16', 'fieldname', 'ra', 'dec', 'object_id', \
-                'traceR', 'detR', 'traceRP', 'detRP', 'absEP', 'inS16M', 'inS16S']
+                'traceR', 'detR', 'traceRP', 'detRP', 'absEP', 'inS16M', 'inS16S',\
+                'snrA10', 'snrA15', 'snrA20', 'snrlb', 'logbR', 'logbO', 'npass']
         dataTab =   [res, snr, mag, absE, logb, weight, fwhm, badPsf, badPsfC, bO_rep, \
-                bO_repC, bO_S18, inS16, inS16L, inS16FDFC, \
+                bO_repC, inS16, inS16L, inS16FDFC, \
                 res16, snr16, mag16, absE16, logb16, fwhm16, fieldnameA, ra, dec, objId, \
-                traceR, detR, traceRP, detRP, absEP, inS16M, inS16S]
+                traceR, detR, traceRP, detRP, absEP, inS16M, inS16S,\
+                snrA10, snrA15, snrA20, snrlb, logbR, logbO, npass]
+        del data
         return Table(data=dataTab,names=self.datanames+datanmA)
 
     def getSimGalData(self,simFname):
@@ -214,8 +220,13 @@ class galDisAnalysis2DTask(BatchPoolTask):
         snr     =   utilities.get_snr(data)
         logb    =   utilities.get_logb(data)
         weight  =   data['reweight_s16a']
-        dataTab =   [res,snr,mag,absE,logb,weight]
-        return Table(data=dataTab,names=self.datanames)
+        snrA10,snrA15,snrA20    =   utilities.get_snr_apertures(data)
+        snrlb   =   utilities.get_snr_localBG(data)
+        logbA,logbR,logbO   =   utilities.get_logbAll(data)
+        dataTab =   [res,snr,mag,absE,logb,weight,\
+                    snrA10, snrA15, snrA20, snrlb, logbR, logbO]
+        datanmA =   ['snrA10', 'snrA15', 'snrA20', 'snrlb', 'logbR', 'logbO']
+        return Table(data=dataTab,names=self.datanames+datanmA)
 
     def logbNumPlot(self,data):
         """
@@ -227,7 +238,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         self.log.info('beginning logbNumPlot')
         data    =   data[data['bO_S18_r'].astype(bool)]
         """
-        # Prepare 
+        # Prepare
         """
         numAll  =   len(data)
         thres   =   np.arange(-1.2,-0.375,0.05)
@@ -338,7 +349,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
 
     def finalPlot(self,sims,data):
         """
-        # Plot the snr - (res,mag.|e|) Joint distributions 
+        # Plot the snr - (res,mag.|e|) Joint distributions
         """
 
         """
@@ -351,7 +362,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         mask    &=  (data['absEP']<0.1)
         mask    &=  (data['fwhm']>0.47)
         """
-        mask    =  (data['inS16'])
+        mask    =  (data['inS16S'])
         data    =   data[mask]
 
         fig2 = plt.figure(figsize=(15, 5))
@@ -419,7 +430,7 @@ class galDisAnalysis2DTask(BatchPoolTask):
         # Save figure
         """
         plt.tight_layout()
-        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_S16.png'))
+        fig2.savefig(os.path.join(self.config.pltDir,'galDis2D_S16S.png'))
         return
 
     @classmethod

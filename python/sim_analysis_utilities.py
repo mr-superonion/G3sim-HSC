@@ -1,12 +1,8 @@
-try:
-    import astropy.io.fits as pyfits
-except:
-    import pyfits
-
-from astropy.table import Table, join,vstack
 import os
 import numpy as np
 import matplotlib
+import astropy.io.fits as pyfits
+from astropy.table import Table, join,vstack
 matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
@@ -18,8 +14,8 @@ import warnings
 # Field keys used in the noise variance file for simulations
 field_keys = {'W02'     : 'XMM',
               'W03'     : 'GAMA09H',
-              'W04-12'  : 'WIDE12H',
-              'W04-15'  : 'GAMA15H',
+              'W04-WIDE12H'  : 'WIDE12H',
+              'W04-GAMA15H'  : 'GAMA15H',
               'W05'     : 'VVDS',
               'W06'     : 'HECTOMAP'}
 
@@ -30,7 +26,6 @@ field_names = {'XMM'    : 'W02',
               'GAMA15H' : 'W04_GAMA15H',
               'VVDS'    : 'W05',
               'HECTOMAP': 'W06'}
-
 
 # Hex keys for the color scheme for shear catalog paper
 plot_colors = {
@@ -91,13 +86,13 @@ def prepare_catalog(filename,fieldname,isim=-1):
     """
     catalog =   Table.read(filename)
     colNames=   catalog.colnames
- 
+
     # Load the header to get proper name of flags
     header = pyfits.getheader(filename, 1)
     n_flag = catalog["flags"].shape[1]
     for i in range(n_flag):
         catalog[header["TFLAG%s" % (i+1)]] = catalog["flags"][:, i]
- 
+
     # Then, apply mask for permissive cuts
     mask =  (~(catalog['base_SdssCentroid_flag'])) &\
             (~catalog['ext_shapeHSM_HsmShapeRegauss_flag']) &\
@@ -164,7 +159,7 @@ def prepare_catalog(filename,fieldname,isim=-1):
         catFname    =   'catPre/catalog-%05d.fits' % isim
         catInfo     =   Table.read(catFname)
         # Join catalogs on grid index
-        # Extinction information is contained in catInfo 
+        # Extinction information is contained in catInfo
         catalog = join(catalog, catInfo, 'ipos')
 
         """
@@ -183,7 +178,7 @@ def prepare_catalog(filename,fieldname,isim=-1):
         catalog['paired'] = mask_pairs
         catalog.sort(['paired', 'ipos'])
         catalog['isim'] =   isim
-    
+
     # Add column to make a WL flag for the simulation data:
     #     imag_cmodel - a_i < 24.5
     #     sigma_e > 0, < 0.4
@@ -428,7 +423,7 @@ def galaxy_selector(catalog, min_snr=None, max_snr=None,
     if background_cut is not None and 'background' in catalog.dtype.names:
         mask[mask] &= catalog['background'][mask] > background_cut
 
-    #For PSF size 
+    #For PSF size
     psf_size = get_psf_size(catalog[mask])
     if lower_psf_size > 0.:
         cut_val = np.percentile(psf_size, lower_psf_size)
@@ -540,7 +535,7 @@ def sliding_window_def(snr,res,weights=None,n_gal=100*100, n_bin_1d=20, snr_over
             tmp_res = res[m]
             res_lower[ind,:] = np.percentile(tmp_res, lower_percentiles)
             res_upper[ind,:] = np.percentile(tmp_res, upper_percentiles)
-            
+
     return snr_lower, snr_upper, res_lower, res_upper
 
 def estimate_subfield_shear(catalog, use_model=False, verbose=False,
@@ -617,9 +612,9 @@ def estimate_subfield_shear(catalog, use_model=False, verbose=False,
     shear_num_2 = np.sum(weights * e2)
     sum_weight = np.sum(weights)
     if roundtrip_data is None:
-        bias_num =  0. 
-        add_num_1 = 0. 
-        add_num_2 = 0. 
+        bias_num =  0.
+        add_num_1 = 0.
+        add_num_2 = 0.
     else:
         bias_num = np.sum(weights*model_m)
         add_num_1 = np.sum(weights*model_c1)
@@ -852,7 +847,7 @@ def get_m_c_a(g1, g2, g1_true, g2_true, psf_e1, psf_e2, sigma_vals, separate_com
     import scipy.optimize
     if separate_components:
         popt1, pcov1 = scipy.optimize.curve_fit(systematics_func,
-                                                np.vstack((g1_true,psf_e1)), 
+                                                np.vstack((g1_true,psf_e1)),
                                                 g1-g1_true,sigma=sigma_vals)
         popt2, pcov2 = scipy.optimize.curve_fit(systematics_func,
                                                 np.vstack((g2_true,psf_e2)),
@@ -866,25 +861,63 @@ def get_m_c_a(g1, g2, g1_true, g2_true, psf_e1, psf_e2, sigma_vals, separate_com
                                               np.vstack((g_true,psf_e)),
                                               g-g_true,sigma=sigma_vals)
         # Return everything: (m, a, sigma_m, sigma_a).
-        return popt[0], popt[1], math.sqrt(pcov[0][0]), math.sqrt(pcov[1][1]) 
+        return popt[0], popt[1], math.sqrt(pcov[0][0]), math.sqrt(pcov[1][1])
 
 def get_snr(catalog):
     """
-    This utility computes the S/N for each object in the catalog, either based on
-    magnitude error for the real data or on cmodel_flux for the simulations.
-    It does not impose any cuts and returns NaNs for invalid S/N values.
-    In the case of GREAT3-like simulations, the noise rescaling factor is applied
-    to match the data.
+    This utility computes the S/N for each object in the catalog,
+    based on cmodel_flux. It does not impose any cuts and returns
+    NaNs for invalid S/N values.
     """
-    if 'i_cmodel_flux' in catalog.dtype.names: # For S18A
+    if 'i_cmodel_fluxsigma' in catalog.dtype.names: #s18
         snr     =   catalog['i_cmodel_flux']/catalog['i_cmodel_fluxsigma']
-    elif 'iflux_cmodel' in catalog.dtype.names: # For S16A
+    elif 'iflux_cmodel' in catalog.dtype.names: #s15
         snr     =   catalog['iflux_cmodel']/catalog['iflux_cmodel_err']
-    elif 'modelfit_CModel_flux' in catalog.dtype.names: # For pipe 6.7
+    elif 'i_cmodel_fluxerr' in catalog.dtype.names: #s19
+        snr     =   catalog['i_cmodel_flux']/catalog['i_cmodel_fluxerr']
+    elif 'modelfit_CModel_flux' in catalog.dtype.names: #pipe 6.7
         snr     =   catalog['modelfit_CModel_flux']/catalog['modelfit_CModel_fluxSigma']
     else:
         raise ValueError("column name does not exists")
     return snr
+
+def get_snr_apertures(catalog):
+    """
+    This utility computes the S/N for each object in the catalog,
+    based on aperture_fluxes. It does not impose any cuts and returns
+    NaNs for invalid S/N values.
+    """
+    if 'i_apertureflux_10_fluxsigma' in catalog.dtype.names: #s18
+        snr10     =   catalog['i_apertureflux_10_flux']/catalog['i_apertureflux_10_fluxsigma']
+        snr15     =   catalog['i_apertureflux_15_flux']/catalog['i_apertureflux_15_fluxsigma']
+        snr20     =   catalog['i_apertureflux_20_flux']/catalog['i_apertureflux_20_fluxsigma']
+    elif 'i_apertureflux_10_fluxerr' in catalog.dtype.names: #s19
+        snr10     =   catalog['i_apertureflux_10_flux']/catalog['i_apertureflux_10_fluxerr']
+        snr15     =   catalog['i_apertureflux_15_flux']/catalog['i_apertureflux_15_fluxerr']
+        snr20     =   catalog['i_apertureflux_20_flux']/catalog['i_apertureflux_20_fluxerr']
+    elif 'base_CircularApertureFlux_3_0_flux' in catalog.dtype.names: #pipe 6.7
+        snr10     =   catalog['base_CircularApertureFlux_3_0_flux']/catalog['base_CircularApertureFlux_3_0_fluxSigma']
+        snr15     =   catalog['base_CircularApertureFlux_4_5_flux']/catalog['base_CircularApertureFlux_4_5_fluxSigma']
+        snr20     =   catalog['base_CircularApertureFlux_6_0_flux']/catalog['base_CircularApertureFlux_6_0_fluxSigma']
+    else:
+        raise ValueError("column name does not exists")
+    return snr10,snr15,snr20
+
+def get_snr_localBG(catalog):
+    """
+    This utility computes the S/N for each object in the catalog,
+    based on local background flux. It does not impose any cuts
+    and returns NaNs for invalid S/N values.
+    """
+    if 'i_localbackground_fluxsigma' in catalog.dtype.names:    #s18
+        snrloc    =   catalog['i_localbackground_flux']/catalog['i_localbackground_fluxsigma']
+    elif 'i_localbackground_fluxerr' in catalog.dtype.names:   #s19
+        snrloc    =   catalog['i_localbackground_flux']/catalog['i_localbackground_fluxerr']
+    elif 'base_LocalBackground_flux' in catalog.dtype.names:   #pipe 6.7
+        snrloc    =   catalog['base_LocalBackground_flux']/catalog['base_LocalBackground_fluxSigma']
+    else:
+        raise ValueError("column name does not exists")
+    return snrloc
 
 def get_imag(catalog):
     """
@@ -892,11 +925,11 @@ def get_imag(catalog):
     simulation catalog. Does not apply any cuts and returns NaNs for invalid
     values.
     """
-    if 'i_cmodel_mag' in catalog.dtype.names:# For S18A
+    if 'i_cmodel_mag' in catalog.dtype.names:           #s18a
         magnitude   =   catalog['i_cmodel_mag']
-    elif 'imag_cmodel' in catalog.dtype.names:# For S16A
+    elif 'imag_cmodel' in catalog.dtype.names:          #s15a
         magnitude   =   catalog['imag_cmodel']
-    elif 'modelfit_CModel_flux' in catalog.dtype.names:# For pipe 6.7
+    elif 'modelfit_CModel_flux' in catalog.dtype.names: #pipe 6.7
         magnitude   =   -2.5 * np.log10(catalog['modelfit_CModel_flux']) + 27.
     else:
         raise ValueError("column name does not exists")
@@ -915,7 +948,7 @@ def get_abs_ellip(catalog):
     else:
         raise ValueError("column name does not exists")
     absE    =   np.sqrt(absE)
-    return absE 
+    return absE
 
 def get_abs_ellip_psf(catalog):
     """
@@ -924,21 +957,21 @@ def get_abs_ellip_psf(catalog):
     e1,e2   =   get_psf_ellip(catalog)
     absE    =   e1**2.+e2**2.
     absE    =   np.sqrt(absE)
-    return absE 
+    return absE
 
 def get_res(catalog):
     """
     Returns the resolution
     """
-    if 'i_hsmshaperegauss_resolution' in catalog.dtype.names:# For S18A
+    if 'i_hsmshaperegauss_resolution' in catalog.dtype.names:   #s18
         resolution  =   catalog['i_hsmshaperegauss_resolution']
-    elif 'ishape_hsm_regauss_resolution' in catalog.dtype.names:# For S16A
+    elif 'ishape_hsm_regauss_resolution' in catalog.dtype.names:#s15
         resolution  =   catalog['ishape_hsm_regauss_resolution']
-    elif 'ext_shapeHSM_HsmShapeRegauss_resolution' in catalog.dtype.names:#For pipe 6.7
+    elif 'ext_shapeHSM_HsmShapeRegauss_resolution' in catalog.dtype.names:#pipe 6.7
         resolution  =   catalog['ext_shapeHSM_HsmShapeRegauss_resolution']
     else:
         raise ValueError("column name does not exists")
-    return resolution 
+    return resolution
 
 def get_gal_size(catalog,type='det'):
     """
@@ -951,20 +984,20 @@ def get_gal_size(catalog,type='det'):
         Simulation or data catalog
     type: string
         Type of psf size measurement in ['trace', 'determin']
-    
+
     Returns
     ----------
     gal_size [arcsec]
     """
-    if 'ishape_sdss_ixx' in catalog.dtype.names:
-        gal_mxx = catalog['ishape_sdss_ixx']*0.168**2.
-        gal_myy = catalog['ishape_sdss_iyy']*0.168**2.
-        gal_mxy = catalog['ishape_sdss_ixy']*0.168**2.
-    elif 'i_sdssshape_shape11' in catalog.dtype.names:
+    if 'ishape_sdss_ixx' in catalog.dtype.names:        #pipe 6.7
+        gal_mxx = catalog['base_SdssShape_xx']*0.168**2.
+        gal_myy = catalog['base_SdssShape_yy']*0.168**2.
+        gal_mxy = catalog['base_SdssShape_xy']*0.168**2.
+    elif 'i_sdssshape_shape11' in catalog.dtype.names:  #s18
         gal_mxx = catalog['i_sdssshape_shape11']
         gal_myy = catalog['i_sdssshape_shape22']
         gal_mxy = catalog['i_sdssshape_shape12']
-    elif 'ishape_sdss_ixx' in catalog.dtype.names:
+    elif 'ishape_sdss_ixx' in catalog.dtype.names:      #s15
         gal_mxx = catalog['ishape_sdss_ixx']
         gal_myy = catalog['ishape_sdss_iyy']
         gal_mxy = catalog['ishape_sdss_ixy']
@@ -983,15 +1016,35 @@ def get_logb(catalog):
     """
     # Returns the logb
     """
-    if 'base_Blendedness_abs_flux' in catalog.dtype.names:
+    if 'base_Blendedness_abs_flux' in catalog.dtype.names:  #pipe 6.7
         logb    =   np.log10(np.maximum(catalog['base_Blendedness_abs_flux'],1.e-6))
-    elif 'i_blendedness_abs_flux' in catalog.dtype.names:
+    elif 'i_blendedness_abs_flux' in catalog.dtype.names:   #s18
         logb    =   np.log10(np.maximum(catalog['i_blendedness_abs_flux'],1.e-6))
-    elif 'iblendedness_abs_flux' in catalog.dtype.names:
+    elif 'iblendedness_abs_flux' in catalog.dtype.names:    #s15
         logb    =   np.log10(np.maximum(catalog['iblendedness_abs_flux'],1.e-6))
     else:
         raise ValueError("column name does not exists")
     return logb
+
+def get_logbAll(catalog):
+    """
+    # Returns the logb
+    """
+    if 'base_Blendedness_abs_flux' in catalog.dtype.names:  #pipe 6.7
+        logbA    =   np.log10(np.maximum(catalog['base_Blendedness_abs_flux'],1.e-6))
+        logbR    =   np.log10(np.maximum(catalog['base_Blendedness_raw_flux'],1.e-6))
+        logbO    =   np.log10(np.maximum(catalog['base_Blendedness_old'],1.e-6))
+    elif 'i_blendedness_abs_flux' in catalog.dtype.names:    #s18
+        logbA    =   np.log10(np.maximum(catalog['i_blendedness_abs_flux'],1.e-6))
+        logbR    =   np.log10(np.maximum(catalog['i_blendedness_raw_flux'],1.e-6))
+        logbO    =   np.log10(np.maximum(catalog['i_blendedness_old'],1.e-6))
+    elif 'i_blendedness_abs' in catalog.dtype.names:         #s19
+        logbA    =   np.log10(np.maximum(catalog['i_blendedness_abs'],1.e-6))
+        logbR    =   np.log10(np.maximum(catalog['i_blendedness_raw'],1.e-6))
+        logbO    =   np.log10(np.maximum(catalog['i_blendedness_old'],1.e-6))
+    else:
+        raise ValueError("column name does not exists")
+    return logbA,logbR,logbO
 
 def get_sigma_e(catalog):
     """
@@ -1025,7 +1078,7 @@ def get_psf_size(catalog, type='fwhm'):
         Simulation or data catalog
     type: string
         Type of psf size measurement in ['trace', 'fwhm'], default: 'fwhm'
-    
+
     Returns
     ----------
     psf_size [arcsec]
@@ -1100,7 +1153,7 @@ def get_sigma_e_model(catalog):
     # Build the baseline model for sigma_e.
     #sigma_e = 0.264 * ((snr/20.)**-0.891) * ((res/0.5)**-1.015)
     sigma_e = 0.271 * ((snr/20.)**-0.935) * ((res/0.5)**-0.978)
-    
+
     # Get the corrections from interpolation amongst saved values.
     data_file = "plot/sigmae/sigmae_ratio.dat"
     dat = np.loadtxt(data_file).transpose()
@@ -1111,7 +1164,7 @@ def get_sigma_e_model(catalog):
 
     # Interpolate the corrections (which multiply the power-law results).
     result = grid_interpolate(log_saved_snr, saved_res, saved_corr, log_snr, res)
-    return result*sigma_e 
+    return result*sigma_e
 
 def get_erms_model(catalog):
     """
@@ -1172,7 +1225,7 @@ def get_m_model(catalog, weight_bias=True):
     m_opt   =   np.load(maFname).item()['m_opt']
     fake_x  =   np.vstack((snr,res))
     model_m =   m_func(fake_x,*m_opt)
-    
+
     data_file = "plot/reGausCalib/shear_dm_da_2d.csv"
     dat = Table.read(data_file)
     saved_snr = dat['snr']
@@ -1208,7 +1261,7 @@ def get_mwt_model(catalog):
     m_opt   =   np.load(maFname).item()['m_opt']
     fake_x  =   np.vstack((snr,res))
     model_m =   m_func(fake_x,*m_opt)
-    
+
     data_file = "plot/reGausCalib/weightBias_dm_da_2d.csv"
     dat = Table.read(data_file)
     saved_snr = dat['snr']
@@ -1231,8 +1284,8 @@ def get_c_model(catalog,weight_bias=True):
     res = get_res(catalog)
     # Fix interpolation for NaN/inf
     m = np.isnan(log_snr) | np.isinf(log_snr)
-    
-    
+
+
     log_snr[m] = 1. # set to minimum value that passes nominal cut
     snr[m] = 10.
 
@@ -1242,7 +1295,7 @@ def get_c_model(catalog,weight_bias=True):
     a_opt   =   np.load(maFname).item()['a_opt']
     fake_x  =   np.vstack((snr,res))
     model_a =   a_func(fake_x,*a_opt)
-    
+
     data_file = "plot/reGausCalib/shear_dm_da_2d.csv"
     dat = Table.read(data_file)
     saved_snr = dat['snr']
@@ -1258,7 +1311,7 @@ def get_c_model(catalog,weight_bias=True):
     psf_e1, psf_e2 = get_psf_ellip(catalog)
     model_c1 = model_a*psf_e1
     model_c2 = model_a*psf_e2
-    return model_c1,model_c2 
+    return model_c1,model_c2
 
 def get_awt_model(catalog):
     """
@@ -1279,7 +1332,7 @@ def get_awt_model(catalog):
     a_opt   =   np.load(maFname).item()['a_opt']
     fake_x  =   np.vstack((snr,res))
     model_a =   a_func(fake_x,*a_opt)
-    
+
     data_file = "plot/reGausCalib/weightBias_dm_da_2d.csv"
     dat = Table.read(data_file)
     saved_snr = dat['snr']
@@ -1315,4 +1368,4 @@ def update_wl_flags_sim(catalog):
         (sig_e > 0.0) & \
         (sig_e < 0.4) & \
         (catalog['base_Blendedness_abs_flux']<= 0.4217)
-    return catalog 
+    return catalog

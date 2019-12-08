@@ -8,17 +8,22 @@ import astropy.table as astTable
 import astropy.io.ascii as ascii
 import sim_analysis_utilities as utilities
 
-
-prefix      =   'database/s18/tracts/'
-outfix      =   'database/s18/fields/'  
-tractList   =   ascii.read('fieldTractInfo.csv')['tract']
-fieldList0  =   ascii.read('fieldTractInfo.csv')['field']
-fieldList   =   utilities.field_keys.keys()
-
-if not os.path.exists(outfix):
-    os.system('mkdir -p %s' %outfix)
+version     =   's19'
+prefix      =   'database/%s/tracts/' %version
+outfix      =   'database/%s/fields/' %version
+tractList   =   ascii.read('fieldTractInfoS16.csv')['tract']
+fieldList0  =   ascii.read('fieldTractInfoS16.csv')['field']
+if version  ==  's18':
+    fieldList   =   utilities.field_keys.keys()
+elif version  ==  's19':
+    fieldList   =   utilities.field_names.keys()
 
 def main():
+    if not os.path.exists(prefix):
+        print('Error: cannot find the input directory!!')
+        return
+    if not os.path.exists(outfix):
+        os.system('mkdir -p %s' %outfix)
     for field in fieldList:
         processField(field)
     return
@@ -87,10 +92,16 @@ def selectGalaxyCatalog(d):
 def getNPass(fits):
     # multi-band detection to remove junk
     min_multiband_snr_data  = 5.0
-    g_snr   =   (2.5/np.log(10.0)) / fits['forced_g_cmodel_magsigma']
-    r_snr   =   (2.5/np.log(10.0)) / fits['forced_r_cmodel_magsigma']
-    z_snr   =   (2.5/np.log(10.0)) / fits['forced_z_cmodel_magsigma']
-    y_snr   =   (2.5/np.log(10.0)) / fits['forced_y_cmodel_magsigma']
+    if version  ==  's18':
+        g_snr   =   (2.5/np.log(10.0)) / fits['forced_g_cmodel_magsigma']
+        r_snr   =   (2.5/np.log(10.0)) / fits['forced_r_cmodel_magsigma']
+        z_snr   =   (2.5/np.log(10.0)) / fits['forced_z_cmodel_magsigma']
+        y_snr   =   (2.5/np.log(10.0)) / fits['forced_y_cmodel_magsigma']
+    elif version  ==  's19':
+        g_snr   =   (2.5/np.log(10.0)) / fits['forced_g_cmodel_magerr']
+        r_snr   =   (2.5/np.log(10.0)) / fits['forced_r_cmodel_magerr']
+        z_snr   =   (2.5/np.log(10.0)) / fits['forced_z_cmodel_magerr']
+        y_snr   =   (2.5/np.log(10.0)) / fits['forced_y_cmodel_magerr']
     gcountinputs=   fits['g_inputcount_value']
     rcountinputs=   fits['r_inputcount_value']
     zcountinputs=   fits['z_inputcount_value']
