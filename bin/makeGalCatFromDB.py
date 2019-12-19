@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import gc
+import glob
 import numpy as np
 import healpy as hp
 from sys import getsizeof
@@ -8,19 +9,22 @@ import astropy.table as astTable
 import astropy.io.ascii as ascii
 import sim_analysis_utilities as utilities
 
-version     =   's19'
-prefix      =   'database/%s/tracts/' %version
+version     =   's18-10-12'
+prefix      =   'database/%s/tracts/'%version
 outfix      =   'database/%s/fields/' %version
-tractList   =   ascii.read('fieldTractInfoS16.csv')['tract']
-fieldList0  =   ascii.read('fieldTractInfoS16.csv')['field']
-if version  ==  's18':
-    fieldList   =   utilities.field_keys.keys()
-elif version  ==  's19':
-    fieldList   =   utilities.field_names.keys()
+fieldList   =   utilities.field_keys.values()
+if 's16' in version:
+    infoname    =   'fieldTractInfoS16.csv'
+elif 's18' in version:
+    infoname    =   'fieldTractInfo.csv'
+elif 's19' in version:
+    infoname    =   'fieldTractInfoS16.csv'
+tractList   =   ascii.read(infoname)['tract']
+fieldList0  =   ascii.read(infoname)['field']
 
 def main():
-    if not os.path.exists(prefix):
-        print('Error: cannot find the input directory!!')
+    if not os.path.isdir(prefix):
+        raise RuntimeError('Cannot find input directory')
         return
     if not os.path.exists(outfix):
         os.system('mkdir -p %s' %outfix)
@@ -30,22 +34,22 @@ def main():
 
 def processField(field):
     outfname=   os.path.join(outfix,'%s.fits' %field)
+    if os.path.exists(outfname):
+        print('already have output for field: %s' %field)
     print('processing field %s:' %field)
     tractLU =   tractList[fieldList0==field]
     dataList=   list(map(process,tractLU))
     dataList=   [dd for dd in dataList if dd is not None]
     dataT   =   astTable.vstack(dataList)
-    dataT.write(outfname)
+    dataT.write(outfname,overwrite=True)
     del outfname
     del dataList
     del dataT
     gc.collect()
     return
 
-
 def process(tract):
     print('processing tract: %s' %tract)
-
     """
     # Read data
     """
@@ -53,7 +57,18 @@ def process(tract):
     if not os.path.exists(infname):
         return None
     fits    =   astTable.Table.read(infname)
-    print(getsizeof(fits))
+    """
+    # Load diff Patch
+    """
+    pDirL   =   glob.glob('database/%s-patch*/tracts/' %version)
+    for pp in pDirL:
+        pfname  =   os.path.join(pp,'%s.fits' %tract)
+        pf      =   astTable.Table.read(pfname)
+        fits    =   astTable.join(fits,pf)
+
+    """
+    # Remove _isnull columns
+    """
     colns   =   fits.colnames
     colns2  =   [cn for cn in colns if "_isnull" not in cn]
     assert len(colns2) == len(colns)//2, \
@@ -63,20 +78,15 @@ def process(tract):
     del colns2
 
     """
-    # Get npass
-    """
-    fits['npass']  =   getNPass(fits)
-
-    """
     # FDFC, WL, BrightStar Mask
     """
     sel     =   selectGalaxyCatalog(fits)
 
-    return fits[sel] 
+    return fits[sel]
 
 def selectGalaxyCatalog(d):
     # apply FDFC mask
-    m = hp.read_map("/gpfs02/work/miyatake/S18A_fdfc/s18a_fdfc_hp_contarea.fits", nest = True, dtype = np.bool)
+    m = hp.read_map("database/s18a_fdfc_hp_contarea.fits", nest = True, dtype = np.bool)
     indices_map = np.where(m)[0]
     nside = hp.get_nside(m)
     phi = np.radians(d["i_ra"])
@@ -88,30 +98,6 @@ def selectGalaxyCatalog(d):
     #bright star mask
     sel = sel & (d["i_mask_s18a_bright_objectcenter"] == False)
     return sel
-
-def getNPass(fits):
-    # multi-band detection to remove junk
-    min_multiband_snr_data  = 5.0
-    if version  ==  's18':
-        g_snr   =   (2.5/np.log(10.0)) / fits['forced_g_cmodel_magsigma']
-        r_snr   =   (2.5/np.log(10.0)) / fits['forced_r_cmodel_magsigma']
-        z_snr   =   (2.5/np.log(10.0)) / fits['forced_z_cmodel_magsigma']
-        y_snr   =   (2.5/np.log(10.0)) / fits['forced_y_cmodel_magsigma']
-    elif version  ==  's19':
-        g_snr   =   (2.5/np.log(10.0)) / fits['forced_g_cmodel_magerr']
-        r_snr   =   (2.5/np.log(10.0)) / fits['forced_r_cmodel_magerr']
-        z_snr   =   (2.5/np.log(10.0)) / fits['forced_z_cmodel_magerr']
-        y_snr   =   (2.5/np.log(10.0)) / fits['forced_y_cmodel_magerr']
-    gcountinputs=   fits['g_inputcount_value']
-    rcountinputs=   fits['r_inputcount_value']
-    zcountinputs=   fits['z_inputcount_value']
-    ycountinputs=   fits['y_inputcount_value']
-    g_mask  =   (g_snr >= min_multiband_snr_data) & (~np.isnan(g_snr) & (gcountinputs >= 2))
-    r_mask  =   (r_snr >= min_multiband_snr_data) & (~np.isnan(r_snr) & (rcountinputs >= 2))
-    z_mask  =   (z_snr >= min_multiband_snr_data) & (~np.isnan(z_snr) & (zcountinputs >= 2))
-    y_mask  =   (y_snr >= min_multiband_snr_data) & (~np.isnan(y_snr) & (ycountinputs >= 2))
-    n_pass  =   g_mask.astype(int) + r_mask.astype(int) + z_mask.astype(int) + y_mask.astype(int)
-    return n_pass
 
 if __name__=='__main__':
     main()

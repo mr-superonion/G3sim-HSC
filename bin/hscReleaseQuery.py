@@ -11,24 +11,26 @@ import re
 import ssl
 import fitsio
 import astropy.io.ascii as ascii
+from sim_analysis_utilities import chunkNList
 
 version =   20190924.1
-prefix  =   'database/s19/tracts'
+
 args    =   None
 ngroups =   5
+doUnzip =   True
+doDownload  =   True
+diffver =   '-10-12-patch1'
 
 def main():
-    if not os.path.exists(prefix):
-        os.system('mkdir -p %s' %prefix)
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--user', '-u', required=True,
                         help='specify your STARS account')
-    parser.add_argument('--release-version', '-r', choices='dr3 dr2 dr1 dr_early'.split(), required=True,
-                        help='specify release version')
     parser.add_argument('--format', '-f', dest='out_format', default='fits', choices=['csv', 'csv.gz', 'sqlite3', 'fits'],
                         help='specify output format')
     parser.add_argument('--nomail', '-M', action='store_true',
                         help='suppress email notice')
+    parser.add_argument('--release_year', '-r', choices='s15 s16 s18 s19'.split(), required=True,
+                        help='the release year')
     parser.add_argument('--delete-job', '-D', action='store_true',
                         help='delete the job you submitted after your downloading')
     parser.add_argument('--password-env', default='HSC_SSP_CAS_PASSWORD',
@@ -42,33 +44,52 @@ def main():
     parser.add_argument('sql-file', type=argparse.FileType('r'),
                         help='SQL file')
 
-    global args
+    global args,release_version,prefix
     args = parser.parse_args()
+    release_year   =   args.release_year
+    prefix  =   'database/%s%s/tracts' %(release_year,diffver)
+    if not os.path.exists(prefix):
+        os.system('mkdir -p %s' %prefix)
 
-    global credential
-    credential  =   {'account_name': args.user, 'password': getPassword()}
+    if 's15' in release_year:
+        release_version =   'dr1'
+    elif 's16' in release_year:
+        release_version =   'dr1'
+    elif 's18' in release_year:
+        release_version =   'dr2'
+    elif 's19' in release_year:
+        release_version =   'dr3'
+
     global sql
     sql         =   args.__dict__['sql-file'].read()
 
     tracts      =   ascii.read('./fieldTractInfoS16.csv')['tract']
-    tracts2     =   chunkList(tracts,ngroups)
-    for ig,tractL in enumerate(tracts2):
-        print('processing group: %s' %ig)
-        #downloadTracts(ig,tractL)
-        separateTracts(ig,tractL)
+    #tracts      =   ascii.read('./fieldTractInfoS.csv')['tract']
+    tracts2     =   chunkNList(tracts,ngroups)
+    if doDownload:
+        global credential
+        credential  =   {'account_name': args.user, 'password': getPassword()}
+        for ig,tractL in enumerate(tracts2):
+            print('Group: %s' %ig)
+            downloadTracts(ig,tractL)
+
+    if doUnzip:
+        for ig,tractL in enumerate(tracts2):
+            print('unzipping group: %s' %ig)
+            separateTracts(ig,tractL)
     return
 
 def separateTracts(ig,tractL):
-    infname     =   '%s.%s'%(ig, args.out_format)
+    infname     =   '%s.%s'%(ig,args.out_format)
     infname     =   os.path.join(prefix,infname)
     if not os.path.exists(infname):
         print('Does not have input file')
         return
-    fitsAll     =   fitsio.read(infname)  
+    fitsAll     =   fitsio.read(infname)
     print('read %s galaxies' %len(fitsAll))
-    
+
     for tract in tractL:
-        outfname    =   os.path.join(prefix,'%s.fits' %tract)
+        outfname    =   os.path.join(prefix,'%s.fits' %(tract))
         if os.path.exists(outfname):
             print('already have file for tract: %s' \
                     %tract)
@@ -78,14 +99,14 @@ def separateTracts(ig,tractL):
             fitsio.write(outfname,fits)
         del fits
     return
-        
+
 def downloadTracts(ig,tractL):
     tractStr    =   map(str,tractL)
     tname       =   "'{0}'".format("', '".join(tractStr))
     print(tname)
     job         =   None
     sqlU        =   sql.replace('{$tract}',tname)
-    outfname    =   '%s.%s'%(ig, args.out_format)
+    outfname    =   '%s.%s'%(ig,args.out_format)
     outfname    =   os.path.join(prefix,outfname)
     if os.path.exists(outfname):
         print('already have output')
@@ -108,12 +129,10 @@ def downloadTracts(ig,tractL):
 
 class QueryError(Exception):
     pass
-
 def httpJsonPost(url, data):
     data['clientVersion'] = version
     postData = json.dumps(data)
     return httpPost(url, postData, {'Content-type': 'application/json'})
-
 def httpPost(url, postData, headers):
     req = urllib.request.Request(url, postData.encode('utf-8'), headers)
     res = urllib.request.urlopen(req)
@@ -125,7 +144,7 @@ def submitJob(credential, sql, out_format):
         'sql'                     : sql,
         'out_format'              : out_format,
         'include_metainfo_to_body': True,
-        'release_version'         : args.release_version,
+        'release_version'         : release_version,
     }
     postData = {'credential': credential, 'catalog_job': catalog_job, 'nomail': args.nomail, 'skip_syntax_check': args.skip_syntax_check}
     res = httpJsonPost(url, postData)
@@ -148,7 +167,7 @@ def preview(credential, sql, out):
     url = args.api_url + 'preview'
     catalog_job = {
         'sql'             : sql,
-        'release_version' : args.release_version,
+        'release_version' : release_version,
     }
     postData=   {'credential': credential, 'catalog_job': catalog_job}
     res     =   httpJsonPost(url, postData)
@@ -182,7 +201,7 @@ def download(credential, job_id, out):
     url     =   args.api_url + 'download'
     postData=   {'credential': credential, 'id': job_id}
     res     =   httpJsonPost(url, postData)
-    bufSize =   10240 * 1<<10 # 10240
+    bufSize =   64 * 1<<10 # 64K
     bufLim  =   64 * 1<<10 # 64k
     while True:
         buf = res.read(bufSize)
@@ -204,16 +223,6 @@ def getPassword():
     else:
         return getpass.getpass('password? ')
 
-def chunkList(seq, num):
-    avg = len(seq) / float(num)
-    out = []
-    last = 0.0
-
-    while last < len(seq):
-        out.append(seq[int(last):int(last + avg)])
-        last += avg
-
-    return out
 
 if __name__ == '__main__':
     main()

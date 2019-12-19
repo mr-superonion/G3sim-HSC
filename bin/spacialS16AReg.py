@@ -67,4 +67,4 @@ cbar_ax     =   fig.add_axes([0.95, 0.1, 0.01, 0.8])
 cbar        =   fig.colorbar(im2, cax=cbar_ax,format=formatter)#,ticks=[0, 5, 10,15,20])
 plt.subplots_adjust(wspace=0.01, hspace=-0.03,left=0.05,right=0.95,bottom=0.05,top=0.95)
 pltDir  =   'plot/galDis/'
-fig.savefig(os.path.join(pltDir,'spacial_bad.png'))
+fig.savefig(os.path.join(pltDir,'spacial_suspect.png'))

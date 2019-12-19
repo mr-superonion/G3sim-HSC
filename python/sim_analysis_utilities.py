@@ -14,11 +14,10 @@ import warnings
 # Field keys used in the noise variance file for simulations
 field_keys = {'W02'     : 'XMM',
               'W03'     : 'GAMA09H',
-              'W04-WIDE12H'  : 'WIDE12H',
-              'W04-GAMA15H'  : 'GAMA15H',
+              'W04-12'  : 'WIDE12H',
+              'W04-15'  : 'GAMA15H',
               'W05'     : 'VVDS',
               'W06'     : 'HECTOMAP'}
-
 
 field_names = {'XMM'    : 'W02',
               'GAMA09H' : 'W03',
@@ -26,6 +25,34 @@ field_names = {'XMM'    : 'W02',
               'GAMA15H' : 'W04_GAMA15H',
               'VVDS'    : 'W05',
               'HECTOMAP': 'W06'}
+
+obsRanges   =   {'snr':[0,80],
+                'snr16':[0,80],
+                'snrA10':[0,80],
+                'snrA15':[0,80],
+                'snrA20':[0,80],
+                'snrlb':[-0.1,0.5],
+                'logb':[-6.,0],
+                'logb16':[-6.,0],
+                'logbO':[-6.,0],
+                'logbA':[-6.,0],
+                'logbR':[-6.,0],
+                'res':[0.1,1.0],
+                'res16':[0.1,1.0],
+                'mag':[21,25.],
+                'mag16':[21,25.],
+                'maglb':[30,37.],
+                'magA10':[21,25.],
+                'fwhm':[0.1,0.8],
+                'fwhm16':[0.1,0.8],
+                'noivar':[0,0.007],
+                'noivar16':[0,0.007],
+                'absE':[0,1.],
+                'absE16':[0,1.],
+                'absEP':[0,1.],
+                'absEP16':[0,1.],
+                'detR':[0,4],
+                'traceR':[0,4]}
 
 # Hex keys for the color scheme for shear catalog paper
 plot_colors = {
@@ -36,6 +63,23 @@ plot_colors = {
     'WIDE12H' : '#91bfdb',
     'XMM' : '#4575b4'
     }
+
+def chunkNList(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+    return out
+
+def chunkPList(seq, per):
+    out = []
+    last = 0
+    while last < len(seq):
+        out.append(seq[last:min(last+per,len(seq))])
+        last += per
+    return out
 
 def m_func(x, b, c, d, e):
     """
@@ -919,21 +963,93 @@ def get_snr_localBG(catalog):
         raise ValueError("column name does not exists")
     return snrloc
 
+def get_imag_A10(catalog):
+    """
+    This utility returns the i-band magnitude of the objects in the input data or
+    simulation catalog. Does not apply any cuts and returns NaNs for invalid
+    values.
+    """
+    if 'i_apertureflux_10_mag' in catalog.dtype.names: #s18 s19
+        magnitude   =   catalog['i_apertureflux_10_mag']
+    elif 'base_CircularApertureFlux_3_0_flux' in catalog.dtype.names: #pipe 6.7
+        magnitude   =   -2.5 * np.log10(catalog['base_CircularApertureFlux_3_0_flux']) + 27.
+    else:
+        raise ValueError("column name does not exists")
+    return magnitude
+
+def get_imag_lb(catalog):
+    """
+    This utility returns the i-band magnitude of the objects in the input data or
+    simulation catalog. Does not apply any cuts and returns NaNs for invalid
+    values.
+    """
+    if 'i_localbackground_mag' in catalog.dtype.names: #s18 s19
+        magnitude   =   catalog['i_localbackground_mag']
+    elif 'base_LocalBackground_flux' in catalog.dtype.names: #pipe 6.7
+        magnitude   =   -2.5 * np.log10(catalog['base_LocalBackground_flux']) + 27.
+    else:
+        raise ValueError("column name does not exists")
+    return magnitude
+
 def get_imag(catalog):
     """
     This utility returns the i-band magnitude of the objects in the input data or
     simulation catalog. Does not apply any cuts and returns NaNs for invalid
     values.
     """
-    if 'i_cmodel_mag' in catalog.dtype.names:           #s18a
+    if 'i_cmodel_mag' in catalog.dtype.names:           #s18 and s19
         magnitude   =   catalog['i_cmodel_mag']
-    elif 'imag_cmodel' in catalog.dtype.names:          #s15a
+    elif 'imag_cmodel' in catalog.dtype.names:          #s15
         magnitude   =   catalog['imag_cmodel']
     elif 'modelfit_CModel_flux' in catalog.dtype.names: #pipe 6.7
         magnitude   =   -2.5 * np.log10(catalog['modelfit_CModel_flux']) + 27.
     else:
         raise ValueError("column name does not exists")
     return magnitude
+
+def get_imag_psf(catalog):
+    """
+    This utility returns the i-band magnitude of the objects in the input data or
+    simulation catalog. Does not apply any cuts and returns NaNs for invalid
+    values.
+    """
+    if 'i_cmodel_mag' in catalog.dtype.names:           #s18 and s19
+        magnitude   =   catalog['i_cmodel_mag']
+    elif 'imag_cmodel' in catalog.dtype.names:          #s15
+        magnitude   =   catalog['imag_cmodel']
+    elif 'modelfit_CModel_flux' in catalog.dtype.names: #pipe 6.7
+        magnitude   =   -2.5 * np.log10(catalog['modelfit_CModel_flux']) + 27.
+    else:
+        raise ValueError("column name does not exists")
+    return magnitude
+
+def get_npass(catalog,meas='cmodel'):
+    gcountinputs=   catalog['g_inputcount_value']
+    rcountinputs=   catalog['r_inputcount_value']
+    zcountinputs=   catalog['z_inputcount_value']
+    ycountinputs=   catalog['y_inputcount_value']
+    if meas=='cmodel':
+        pendN   =  'cmodel_mag'
+    elif meas=='aperture':
+        pendN   =   'apertureflux_10_mag'
+    if 'forced_g_%ssigma'%pendN in catalog.dtype.names:# For S18A
+        pendN   +=  'sigma'
+    if 'forced_g_%serr'%pendN in catalog.dtype.names:# For S19A
+        pendN   +=  'err'
+
+    # multi-band detection to remove junk
+    g_snr   =   (2.5/np.log(10.0)) / catalog['forced_g_%s'%pendN]
+    r_snr   =   (2.5/np.log(10.0)) / catalog['forced_r_%s'%pendN]
+    z_snr   =   (2.5/np.log(10.0)) / catalog['forced_z_%s'%pendN]
+    y_snr   =   (2.5/np.log(10.0)) / catalog['forced_y_%s'%pendN]
+    # Calculate npass
+    min_multiband_snr_data  = 5.0
+    g_mask  =   (g_snr >= min_multiband_snr_data) & (~np.isnan(g_snr) & (gcountinputs >= 2))
+    r_mask  =   (r_snr >= min_multiband_snr_data) & (~np.isnan(r_snr) & (rcountinputs >= 2))
+    z_mask  =   (z_snr >= min_multiband_snr_data) & (~np.isnan(z_snr) & (zcountinputs >= 2))
+    y_mask  =   (y_snr >= min_multiband_snr_data) & (~np.isnan(y_snr) & (ycountinputs >= 2))
+    npass   =   g_mask.astype(int) + r_mask.astype(int) + z_mask.astype(int) + y_mask.astype(int)
+    return npass
 
 def get_abs_ellip(catalog):
     """
@@ -963,7 +1079,7 @@ def get_res(catalog):
     """
     Returns the resolution
     """
-    if 'i_hsmshaperegauss_resolution' in catalog.dtype.names:   #s18
+    if 'i_hsmshaperegauss_resolution' in catalog.dtype.names:   #s18 & s19
         resolution  =   catalog['i_hsmshaperegauss_resolution']
     elif 'ishape_hsm_regauss_resolution' in catalog.dtype.names:#s15
         resolution  =   catalog['ishape_hsm_regauss_resolution']
@@ -993,7 +1109,7 @@ def get_gal_size(catalog,type='det'):
         gal_mxx = catalog['base_SdssShape_xx']*0.168**2.
         gal_myy = catalog['base_SdssShape_yy']*0.168**2.
         gal_mxy = catalog['base_SdssShape_xy']*0.168**2.
-    elif 'i_sdssshape_shape11' in catalog.dtype.names:  #s18
+    elif 'i_sdssshape_shape11' in catalog.dtype.names:  #s18 & s19
         gal_mxx = catalog['i_sdssshape_shape11']
         gal_myy = catalog['i_sdssshape_shape22']
         gal_mxy = catalog['i_sdssshape_shape12']
@@ -1020,6 +1136,8 @@ def get_logb(catalog):
         logb    =   np.log10(np.maximum(catalog['base_Blendedness_abs_flux'],1.e-6))
     elif 'i_blendedness_abs_flux' in catalog.dtype.names:   #s18
         logb    =   np.log10(np.maximum(catalog['i_blendedness_abs_flux'],1.e-6))
+    elif 'i_blendedness_abs' in catalog.dtype.names:        #s19
+        logb    =   np.log10(np.maximum(catalog['i_blendedness_abs'],1.e-6))
     elif 'iblendedness_abs_flux' in catalog.dtype.names:    #s15
         logb    =   np.log10(np.maximum(catalog['iblendedness_abs_flux'],1.e-6))
     else:
@@ -1107,6 +1225,13 @@ def get_psf_size(catalog, type='fwhm'):
     else:
         raise ValueError("Unknown PSF size type: %s"%type)
     return size
+
+def get_noi_var(catalog):
+    if 'i_variance_value' in catalog.dtype.names: #s18&s19
+        varNois =   catalog['i_variance_value']
+    elif 'base_Variance_value' in catalog.dtype.names:# sim
+        varNois =   catalog['base_Variance_value']
+    return varNois
 
 def get_psf_ellip(catalog):
     """

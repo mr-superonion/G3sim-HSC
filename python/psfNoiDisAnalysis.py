@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os
 import sys
 import glob
@@ -45,7 +44,7 @@ class psfNoiDisAnalysisRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         #only 1 group
-        return [(ref, kwargs) for ref in range(1)] 
+        return [(ref, kwargs) for ref in range(1)]
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
@@ -130,7 +129,7 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
         fwhms   =   utilities.get_psf_size(data)
         varNois =   data['i_variance_value']
         histNoi =   np.histogram(varNois,bins=self.var_bin,density=True)[0]
-        histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0] 
+        histPsf =   np.histogram(fwhms,bins=self.fwhm_bin,density=True)[0]
         return Table(data=[self.gridNoi,histNoi,self.gridPsf,histPsf,len(data)*np.ones(len(self.gridNoi))],\
                     names=self.disnames)
 
@@ -229,13 +228,13 @@ class psfNoiDisAnalysisTask(BatchPoolTask):
             t_dis       =   Table.read(disnameOri)
             simDis_var  +=  t_dis['histNoi']*t_dis['num']
             simDis_fwhm +=  t_dis['histPsf']*t_dis['num']
-            simNum      +=  t_dis['num'] 
+            simNum      +=  t_dis['num']
 
             disnameObs  =    os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
             t_dis_obs   =   Table.read(disnameObs)
             obsDis_var  +=  t_dis_obs['histNoi']*t_dis_obs['num']
             obsDis_fwhm +=  t_dis_obs['histPsf']*t_dis_obs['num']
-            obsNum      +=  t_dis_obs['num'] 
+            obsNum      +=  t_dis_obs['num']
 
             disnameRw   =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
             t_dis_rw    =   Table.read(disnameRw)
