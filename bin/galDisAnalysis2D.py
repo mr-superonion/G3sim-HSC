@@ -218,6 +218,8 @@ def getObsGalData(obsFname,fieldname):
     fieldnameA=[fieldname]*len(data)
     magA10  =   utilities.get_imag_A10(data)
     maglb   =   utilities.get_imag_lb(data)
+    magpsf  =   utilities.get_imag_psf(data)
+    TPid    =   utilities.get_TPid(data)
 
     """
     # Flags for S18A
@@ -228,14 +230,14 @@ def getObsGalData(obsFname,fieldname):
     weight  =   np.ones(len(data))
     datanmA =   ['fwhm', 'badPsf', 'badPsfC', \
             'inS16', 'inS16L', 'inS16FDFC', 'absEP16', 'maglb', \
-            'res16', 'snr16', 'mag16', 'absE16', 'logb16', 'fwhm16', \
-            'ra', 'dec', 'object_id', 'fieldname', 'magA10', 'noivar', \
+            'res16', 'snr16', 'mag16', 'absE16', 'logb16', 'fwhm16', 'TPid', \
+            'ra', 'dec', 'object_id', 'fieldname', 'magA10', 'noivar', 'magpsf', \
             'traceR', 'detR', 'traceRP', 'detRP', 'absEP', 'inS16M', 'inS16S',\
             'snrA10', 'snrA15', 'snrA20', 'snrlb', 'logbR', 'logbO', 'npass' ]
     dataTab =   [res, snr, mag, absE, logb, weight, fwhm, badPsf, badPsfC, \
             inS16, inS16L, inS16FDFC, absEP16, maglb, \
-            res16, snr16, mag16, absE16, logb16, fwhm16, \
-            ra, dec, objId, fieldnameA, magA10, noivar, \
+            res16, snr16, mag16, absE16, logb16, fwhm16, TPid, \
+            ra, dec, objId, fieldnameA, magA10, noivar, magpsf, \
             traceR, detR, traceRP, detRP, absEP, inS16M, inS16S, \
             snrA10, snrA15, snrA20, snrlb, logbR, logbO, npass]
     del data
@@ -262,11 +264,12 @@ def getSimGalData(simFname):
     noivar  =   utilities.get_noi_var(data)
     magA10  =   utilities.get_imag_A10(data)
     maglb   =   utilities.get_imag_lb(data)
+    fieldname=  data['field_name']
 
     dataTab =   [res, snr, mag, absE, logb, weight, \
-                snrA10, snrA15, snrA20, snrlb, \
+                snrA10, snrA15, snrA20, snrlb, fieldname, \
                 logbR, logbO, noivar, magA10, maglb]
-    datanmA =   ['snrA10', 'snrA15', 'snrA20', 'snrlb',\
+    datanmA =   ['snrA10', 'snrA15', 'snrA20', 'snrlb', 'fieldname', \
                 'logbR', 'logbO','noivar','magA10', 'maglb']
     return Table(data=dataTab,names=datanames+datanmA)
 
@@ -370,17 +373,25 @@ def finalPlot(sims,data):
     print(np.sum(mask)/nbf)
     mask    &= (data['logb']<=-0.375)
     print(np.sum(mask)/nbf)
-    mask    &= (data['snrlb']<0.04*(data['snrA10']-10)-0.1) #T1
-    #mask    &= (data['snrlb']<0.01*(data['snrA10'])) #T2
+    #mask    &= (data['snrlb']<0.04*(data['snrA10']-10)-0.1) #T1
+    #mask    &= (data['snrlb']<0.04*(data['snrA10']-10)-0.1) #T1
+    mask    &= (data['snrlb']<0.01*(data['snrA10'])) #T2
+    #mask    &=  (data['maglb']-data['magA10'])>3.5#T3
+    print(np.sum(mask)/nbf)
+    mask    &=  data['magA10']<25.5#T3
     print(np.sum(mask)/nbf)
     data    =   data[mask]
     naf     =   len(data)
     print(naf/nbf)
+    print(naf)
     """
     # Simulations
     """
     maskS   =   (sims['logb']<=-0.375)
-    maskS   &=  (sims['snrlb']<0.04*(sims['snrA10']-10)-0.1)
+    #maskS  &=  (sims['snrlb']<0.04*(sims['snrA10']-10)-0.1)
+    maskS   &=  (sims['snrlb']<0.01*(sims['snrA10'])) #T2
+    #maskS   &=  (sims['maglb']-sims['magA10'])>3.5#T3
+    maskS   &=  sims['magA10']<25.5   #T3
     sims    =   sims[maskS]
 
     fig2 = plt.figure(figsize=(15, 5))
@@ -390,10 +401,13 @@ def finalPlot(sims,data):
     """
     ax = fig2.add_subplot(1,3,1)
     counts1= np.histogram2d(data['snr'], data['res'], 32, weights=data['weight'], range=[[10,80],[0.3,1]], normed=True)[0]
+    csum    =   np.sum(counts1)
+    blev    =   np.array([0.2, 0.4, 0.6, 0.8])
     c = ax.contour(counts1.T,extent=[10,80,0.3,1],cmap='viridis', levels=[0.01, 0.025, 0.05, 0.075])
     ax.hist2d(data['snr'], data['res'], 128, weights=data['weight'], range=[[10,80],[0.3,1]], cmap='gray_r', normed=True,vmax=0.08,alpha=0.8);
 
     counts2= np.histogram2d(sims['snr'], sims['res'], 32, weights=sims['weight'], range=[[10,80],[0.3,1]], normed=True)[0]
+    csum    =   np.sum(counts2)
     c = ax.contour(counts2.T,extent=[10,80,0.3,1],cmap='viridis',linestyles='dashed', levels=[0.01, 0.025, 0.05, 0.075])
     ax.set_xlabel('CModel SNR')
     ax.set_ylabel('reGaus resolution')
@@ -443,7 +457,7 @@ def finalPlot(sims,data):
     # Save figure
     """
     plt.tight_layout()
-    fig2.savefig(os.path.join(pltDir,'galDis2D_final_logbltm037_npass2_mag24.5_snrA10_snrlbT2.png'))
+    fig2.savefig(os.path.join(pltDir,'galDis2D_final_logbltm037_npass2_mag24.5_snrA10_snrlbT3.png'))
     return
 
 def nullFun():

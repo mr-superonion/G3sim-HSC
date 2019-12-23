@@ -285,6 +285,3 @@ mask    &= (data['snrlb']<0.04*data['snrA10']-0.5) #89%
 
 
 
-# local background re-estimation ?
-
-Flux_pipe/10**( -2/5 * (48.6 + 27.0) )   => (erg s^{-1} cm^{-2} Hz^{-1})

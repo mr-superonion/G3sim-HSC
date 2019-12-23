@@ -21,15 +21,14 @@ import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
 
-version =   's18-10-12'
+version =   's18-10-12-HECTOMAP'
 anaDir  =   'anaCat'
-obsAname=   os.path.join(anaDir,'allObs-%s-newmask.fits' %version)
+obsAname=   os.path.join(anaDir,'allObs-%s-newMask.fits' %version)
 if not os.path.isdir(anaDir):
     raise RuntimeError("Simulation catalog directory %s does not exist "
                  "or is not a directory" % (anaDir))
 if not os.path.exists(obsAname):
-    raise RuntimeError("required file does not exists," \
-            "run galDisAnalysis2D first")
+    raise RuntimeError("required file does not exists")
 
 def main():
     pergroup=   3
@@ -57,6 +56,7 @@ def main():
         cc      =   'Blues'
         mask   &=   (allDat['inS16'])
 
+    allDat['dmagPC']=allDat['magpsf']-allDat['mag']
     allDat['dmagAlb']=allDat['maglb']-allDat['magA10']
     for i in range(len(col1List)):
         pltUtil.cols2DPlot(allDat[mask],col1List[i],col2List[i],pltDir=pltDir,color=cc,label=itry,nfig=pergroup)
@@ -67,8 +67,7 @@ def prepareAllDat():
     mask    =   (allObs['logb']<=-0.375)
     mask    &=  (allObs['npass']>=2)
     mask    &=  (allObs['inS16FDFC'])
-    mask    &=  (allObs['mask_briObj_s18']==0)
-    #mask   &=  (~allObs['inS16'])
+    #mask    &=  (~allObs['mask_briObj_s18'])
     #mask    &=  allObs['inS16M']
     allObs  =   allObs[mask]
 
@@ -95,10 +94,13 @@ def prepareColList(pergroup):
     colns2.extend(['res16','mag16','mag16'])
 
     colns1.extend(['magA10','mag','snr'])
-    colns2.extend(['dmagAlb','dmagAlb','snrlb'])
+    colns2.extend(['dmagPC','dmagPC','snrlb'])
+
+    colns1.extend(['magA10','mag','snr'])
+    colns2.extend(['dmagAlb','dmagAlb','dmagAlb'])
 
     colns1.extend(['snrA10','snr','snrA10'])
-    colns2.extend(['dmagAlb','dmagAlb','snrlb'])
+    colns2.extend(['dmagPC','dmagPC','snrlb'])
 
 
     col1List=   utilities.chunkPList(colns1,pergroup)
