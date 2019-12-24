@@ -383,7 +383,7 @@ def finalPlot(sims,data):
     data    =   data[mask]
     naf     =   len(data)
     print(naf/nbf)
-    print(naf)
+    #print(sum(data['inS16FDFC']))
     """
     # Simulations
     """
