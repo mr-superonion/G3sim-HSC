@@ -20,13 +20,12 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-
 version =   's18-10-12-HECTOMAP'
 anaDir  =   'anaCat'
 obsAname=   os.path.join(anaDir,'allObs-%s-newMask.fits' %version)
 if not os.path.isdir(anaDir):
     raise RuntimeError("Simulation catalog directory %s does not exist "
-                 "or is not a directory" % (anaDir))
+             "or is not a directory" % (anaDir))
 if not os.path.exists(obsAname):
     raise RuntimeError("required file does not exists")
 
@@ -48,13 +47,13 @@ def main():
     mList   =   itry.split('-')
     mask    =   np.ones(len(allDat)).astype(bool)
     if 'suspect'in mList[1]:
-        mask   &=   (~allDat['inS16'])
-        cc      =   'Reds'
+        cc  =   'Reds'
+        mask&=  (~allDat['inS16'])
     elif 'all' in mList[1]:
-        cc      =   'Blues'
+        cc  =   'Blues'
     elif 'good' in mList[1]:
-        cc      =   'Blues'
-        mask   &=   (allDat['inS16'])
+        cc  =   'Blues'
+        mask&=  (allDat['inS16'])
 
     allDat['dmagPC']=allDat['magpsf']-allDat['mag']
     allDat['dmagAlb']=allDat['maglb']-allDat['magA10']
@@ -102,7 +101,6 @@ def prepareColList(pergroup):
     colns1.extend(['snrA10','snr','snrA10'])
     colns2.extend(['dmagPC','dmagPC','snrlb'])
 
-
     col1List=   utilities.chunkPList(colns1,pergroup)
     col2List=   utilities.chunkPList(colns2,pergroup)
     return col1List,col2List
@@ -128,7 +126,8 @@ def doMatch(field,data):
     """
     # Recording
     """
-    data['absEP16'] =   np.zeros(len(data))
+    data['absEP16']     =   np.zeros(len(data))
+    data['object_id16'] =   np.zeros(len(data),dtype=int)
     data['res16'][match['i2']]  =   utilities.get_res(data16[match['i1']])
     data['snr16'][match['i2']]  =   utilities.get_snr(data16[match['i1']])
     data['mag16'][match['i2']]  =   utilities.get_imag(data16[match['i1']])
@@ -136,6 +135,7 @@ def doMatch(field,data):
     data['absE16'][match['i2']] =   utilities.get_abs_ellip(data16[match['i1']])
     data['absEP16'][match['i2']]=   utilities.get_abs_ellip_psf(data16[match['i1']])
     data['fwhm16'][match['i2']] =   utilities.get_psf_size(data16[match['i1']])
+    data['object_id16'][match['i2']]=data16['object_id'][match['i1']]
     print(len(match)/len(data))
     return data[match['i2']]
 

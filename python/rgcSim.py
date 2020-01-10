@@ -46,10 +46,11 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
 class rgcSimConfig(pexConfig.Config):
-    expDir      =   pexConfig.Field(dtype=str, default='expDir', doc = 'directory to store exposures')
-    catPre      =   pexConfig.Field(dtype=str, default='catPre', doc = 'directory to store pre-catalog')
-    psfPre      =   pexConfig.Field(dtype=str, default='psfPre', doc = 'directory to store pre-PSF')
-    corPre      =   pexConfig.Field(dtype=str, default='corPre', doc = 'directory to store pre-PSF')
+    preDir  =   'prepare2'
+    expDir      =   pexConfig.Field(dtype=str, default='s18-2/expDir', doc = 'directory to store exposures')
+    catPre      =   pexConfig.Field(dtype=str, default='s18-2/catPre', doc = 'directory to store pre-catalog')
+    psfPre      =   pexConfig.Field(dtype=str, default='%s/psfPre' %preDir, doc = 'directory to store pre-PSF')
+    corPre      =   pexConfig.Field(dtype=str, default='%s/corPre' %preDir, doc = 'directory to store pre-PSF')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
@@ -70,7 +71,9 @@ class rgcSimTask(pipeBase.CmdLineTask):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
 
     @pipeBase.timeMethod
-    def run(self,ifield):
+    def run(self,isim):
+        info3       =   Table.read('./prepare2/info3.csv')
+        ifield      =   int(info3[isim]['num'])
         badIDENT    =   [78798,276775,908556,81452,200743]
         self.log.info('begining for field %05d' %(ifield))
         outFname    =   os.path.join(self.config.expDir,'image-%05d.fits' %(ifield))
@@ -80,7 +83,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         self.log.info('simulating field %s' %(ifield))
         # Basic parameters
         ngrid       =   64
-        nx          =   100 
+        nx          =   50
         ny          =   nx
         ndata       =   nx*ny
         nrot        =   2
@@ -88,16 +91,17 @@ class rgcSimTask(pipeBase.CmdLineTask):
         ngridTot    =   ngrid*nx
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         flux_scaling=   2.587
+        varRatio    =   1.78
 
-        # Get the psf and nosie information 
+        # Get the psf and nosie information
         psfFname    =   os.path.join(self.config.psfPre,'psf-%05d.fits'%(ifield))
         psfImg      =   galsim.fits.read(psfFname)
         noiseHead   =   pyfits.getheader(psfFname)
-        psfInt      =   galsim.InterpolatedImage(psfImg,scale=scale,flux = 1.) 
+        psfInt      =   galsim.InterpolatedImage(psfImg,scale=scale,flux = 1.)
         # Get the shear information
         g1          =   noiseHead['g1']
         g2          =   noiseHead['g2']
-        fwhm        =   noiseHead['fwhm'] 
+        fwhm        =   noiseHead['fwhm']
         group       =   noiseHead['group']
         if fwhm <0.6 and fwhm>0.2:
             iparent =   0
@@ -108,24 +112,24 @@ class rgcSimTask(pipeBase.CmdLineTask):
         else:
             self.log.info('incorrect PSF fwhm')
             return
-        # Get the  galaxy generator      
+        # Get the  galaxy generator
         # Load data
         Xnames      =   ['best','median','worst']
         Xname       =   Xnames[iparent]
         catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
-        directory   =   '../../galsim_train/parent_%s_processed' %(Xname)
+        directory   =   '../galsim_train/parent_%s_processed' %(Xname)
         rgc         =   galsim.RealGalaxyCatalog(catName,dir=directory)
         rgcCat      =   rgc.cat
         nrgcDat     =   len(rgcCat)
-        if iparent  ==  1: 
-            badIdList   =   [148999,100999] 
+        if iparent  ==  1:
+            badIdList   =   [148999,100999]
         else:
             badIdList   =   []
-        extFname    =   '../../galsim_train/cosmos_extinction_HSC.hdf5'
+        extFname    =   '../galsim_train/cosmos_extinction_HSC.hdf5'
         extTab      =   Table.read(extFname,"/%s" %iparent)
         assert  len(extTab)==nrgcDat, 'number of galaxies in extinction file does not math that of rgc catalog'
 
-        variance    =   noiseHead['var']
+        variance    =   noiseHead['varPlane']/varRatio#1.78
         ud          =   galsim.UniformDeviate(ifield*10000+1)
         np.random.seed(ifield*10000+1)
 
@@ -196,7 +200,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         """
         exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
         exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
+        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance*varRatio#1.78
         del gal_image
         del var_image
         #Set the PSF
@@ -255,9 +259,9 @@ class rgcSimBatchConfig(pexConfig.Config):
 class rgcSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        minGroup    =  parsedCmd.minGroup 
-        maxGroup    =  parsedCmd.maxGroup 
-        return [(ref, kwargs) for ref in range(minGroup,maxGroup)] 
+        minGroup    =  parsedCmd.minGroup
+        maxGroup    =  parsedCmd.maxGroup
+        return [(ref, kwargs) for ref in range(minGroup,maxGroup)]
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
@@ -289,22 +293,24 @@ class rgcSimBatchTask(BatchPoolTask):
         self.log.info('finish group %d'%(Id) )
         return
 
-    def process(self,cache,ifield):
+    def process(self,cache,isim):
+        """
         try:
-            self.rgcSim.run(ifield)
-            self.log.info('finish field %05d' %(ifield))
         except:
-            self.log.info('fail to finish field %05d'%(ifield) )
-        return 
+            self.log.info('fail to finish field %05d'%(isim) )
+        """
+        self.rgcSim.run(isim)
+        self.log.info('finish field %05d' %(isim))
+        return
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        parser.add_argument('--minGroup', type= int, 
+        parser.add_argument('--minGroup', type= int,
                         default=0,
                         help='minimum group number')
-        parser.add_argument('--maxGroup', type= int, 
+        parser.add_argument('--maxGroup', type= int,
                         default=10,
                         help='maximum group number')
         return parser

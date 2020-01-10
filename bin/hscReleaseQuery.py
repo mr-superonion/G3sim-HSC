@@ -14,12 +14,11 @@ import astropy.io.ascii as ascii
 from sim_analysis_utilities import chunkNList
 
 version =   20190924.1
-
 args    =   None
-ngroups =   5
+ngroups =   10
 doUnzip =   True
 doDownload  =   True
-diffver =   '-10-12-patch1'
+diffver =   '-10-12-patch2'
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -29,8 +28,9 @@ def main():
                         help='specify output format')
     parser.add_argument('--nomail', '-M', action='store_true',
                         help='suppress email notice')
-    parser.add_argument('--release_year', '-r', choices='s15 s16 s18 s19'.split(), required=True,
+    parser.add_argument('--release_year', '-r', choices='s15 s16 s17 s18 s19'.split(), required=True,
                         help='the release year')
+    parser.add_argument('--tract_info', required=True, help='tract info file')
     parser.add_argument('--delete-job', '-D', action='store_true',
                         help='delete the job you submitted after your downloading')
     parser.add_argument('--password-env', default='HSC_SSP_CAS_PASSWORD',
@@ -55,6 +55,8 @@ def main():
         release_version =   'dr1'
     elif 's16' in release_year:
         release_version =   'dr1'
+    elif 's17' in release_year:
+        release_version =   'dr2'
     elif 's18' in release_year:
         release_version =   'dr2'
     elif 's19' in release_year:
@@ -63,8 +65,7 @@ def main():
     global sql
     sql         =   args.__dict__['sql-file'].read()
 
-    tracts      =   ascii.read('./fieldTractInfoS16.csv')['tract']
-    #tracts      =   ascii.read('./fieldTractInfoS.csv')['tract']
+    tracts      =   ascii.read(args.tract_info)['tract']
     tracts2     =   chunkNList(tracts,ngroups)
     if doDownload:
         global credential
@@ -201,8 +202,8 @@ def download(credential, job_id, out):
     url     =   args.api_url + 'download'
     postData=   {'credential': credential, 'id': job_id}
     res     =   httpJsonPost(url, postData)
-    bufSize =   64 * 1<<10 # 64K
-    bufLim  =   64 * 1<<10 # 64k
+    bufSize =   1024 * 1<<10 # 1024K
+    bufLim  =   1 * 1<<10 # 1K
     while True:
         buf = res.read(bufSize)
         out.write(buf)
@@ -222,7 +223,6 @@ def getPassword():
         return password_from_envvar
     else:
         return getpass.getpass('password? ')
-
 
 if __name__ == '__main__':
     main()

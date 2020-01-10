@@ -25,6 +25,8 @@ output:
     * No rescaling:
         * [one patch](http://member.ipmu.jp/xiangchong.li/s18a_G3sim_hsm/var_varPlane_coadd.html)
         * [one tract](http://member.ipmu.jp/xiangchong.li/s18a_G3sim_hsm/var_varPlane_coadd_8524.html)
+## Code for rescale_factor
+pipe_tasks/6.5.1-hsc+5/python/lsst/pipe/tasks/scaleVariance.py
 
 # Processing
 + hscpipe 6.7

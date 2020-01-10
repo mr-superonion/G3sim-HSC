@@ -26,7 +26,7 @@ simAname=   os.path.join(anaDir,'allSim-%s.fits' %version)
 obsAname=   os.path.join(anaDir,'allObs-%s.fits' %version)
 obsDir  =   'database/%s/fields/' %version
 datanames   =   ['res','snr','mag','absE','logb','weight']
-pltDir  =   'plot/galDis-%s/' %version
+pltDir  =   'plot/galDis-%s-2/' %version
 
 
 # Checks that the paths provided are valid
@@ -46,64 +46,73 @@ def main():
         allObs.write(obsAname)
     else:
         print('Already have prepared catalog')
-        allSim=pyfits.getdata(simAname)
-        allObs=pyfits.getdata(obsAname)
+        allSim=Table.read(simAname)
+        allObs=Table.read(obsAname)
 
-    """
-        tryList  =  ['suspect_newmask-std-HECTOMAP','s16_newmask-std-HECTOMAP',\
-                's16M_newmask-std-HECTOMAP','nomatch_newmask-std-HECTOMAP']
-    for itry in tryList:
-        # Basic Mask for both data and sims
-        mList    =   itry.split('-')
-        if 'iso' in mList[1]:
-            mask0   =   (allObs['logb']<-5.)
-        elif 'std' in mList[1]:
-            mask0   =   (allObs['logb']<=-0.375)
-        if mList[2] in utilities.field_names.keys():
-            mask0   &=  (allObs['fieldname'] == mList[2])
+    allObs['bsf']=1./allObs['sbf']
+    allSim['bsf']=1./allSim['sbf']
+    #onePlot(allObs)
+    finalPlot2(allSim,allObs)
 
-        # Mask only for data
-        mask    =  mask0&(allObs['npass']>=2)
-        mask    &= (allObs['inS16FDFC'])
-        if 'suspect_'in mList[0]:
-            mask    &=   (~allObs['inS16'])
-            mask    &=   allObs['inS16M']
-            cc      =   'Reds'
-        elif 's16_' in mList[0]:
-            mask    &=   (allObs['inS16'])
-            cc      =   'Blues'
-        elif 's16M_' in mList[0]:
-            mask    &=   (allObs['inS16M'])
-            cc      =   'Blues'
-
-        if 'newmask' in mList[0]:
-            mask    &= (allObs['mask_briObj_s18']==0)
-
-        # Do 2D Tests
-        dataU       =   allObs[mask]
-        pergroup    =   3
-        col1List,col2List=prepareColListA(pergroup)
-        for i in range(len(col1List)):
-            pltUtil.cols2DPlot(dataU,col1List[i],col2List[i],pltDir=pltDir,color=cc,label=itry,nfig=pergroup)
-
-    """
-
-    finalPlot(allSim,allObs)
+    #finalPlot(allSim,allObs)
     return
 
+def finalPlot2(sims,data):
+    tryList  =  ['final-std-all', 'final-std-HECTOMAP', 'final-std-VVDS',
+        'final-std-GAMA09H', 'final-std-GAMA15H', 'final-std-WIDE12H',
+        'final-std-XMM']
+
+    for itry in tryList:
+        # Basic Mask for both data and sims
+        mList   =   itry.split('-')
+        if 'iso' in mList[1]:
+            mask=   (data['isIso'])
+            maskS=  (sims['isIso'])
+        elif 'std' in mList[1]:
+            mask=   (data['logb']<=-0.375)
+            maskS=  (sims['logb']<=-0.375)
+
+        if mList[2] in utilities.field_names.keys():
+            mask&=  (data['fieldname'] == mList[2])
+            maskS&= (sims['fieldname'] == mList[2])
+
+        mask    &=  ((data['magA10']<25.5)|(data['bsf']<=0.03))
+        maskS   &=  ((sims['magA10']<25.5)|(sims['bsf']<=0.03))
+        # Mask only for data
+        mask    &=  data['inS16FDFC']
+        mask    &=  (data['npass']>=2)
+        dataU   =   data[mask]
+        simsU   =   sims[maskS]
+        #simsU   =   None
+
+        cc  =   'Blues'
+        # Do 2D Tests
+        pergroup=   3
+        col1List,col2List=prepareColListB(pergroup)
+        for i in range(len(col1List)):
+            pltUtil.cols2DPlot(dataU,col1List[i],col2List[i],pltDir=pltDir,color=cc,label=itry,nfig=pergroup,sims=simsU,ngridH=16,ngridC=16,writeFits=True)
+    return
+
+def prepareColListB(pergroup):
+    colns1  =   ['snr','snr','snr']
+    colns1.extend(['bsf','bsf','noivar'])
+
+    colns2  =   ['res','mag','absE']
+    colns2.extend(['magA10','snrA10','fwhm'])
+
+    col1List=   utilities.chunkPList(colns1,pergroup)
+    col2List=   utilities.chunkPList(colns2,pergroup)
+    return col1List,col2List
+
 def prepareColListA(pergroup):
-    colns1  =   ['snr','mag','res']*3
-    colns1.extend(['logb','snrA10','snrA10'])
-    colns1.extend(['snr','snr','snr'])
+    colns1  =   ['snr','snr','snr']
+    colns1.extend(['bsf','bsf','bsf'])
+    colns1.extend(['noivar','noivar','noivar'])
 
-    colns2  =   ['logb','logb','logb']
-    colns2.extend(['snrA10','snrA10','snrA10'])
-    colns2.extend(['snrlb','snrlb','snrlb'])
-    colns2.extend(['snrlb','snrlb','logb'])
-    colns2.extend(['res','mag','absE'])
+    colns2  =   ['res','mag','absE']
+    colns2.extend(['snr','snrA10','magA10'])
+    colns2.extend(['fwhm','magA10','bsf'])
 
-    #colns2.extend(['logbR','logbR','logbR'])
-    #colns2.extend(['logbO','logbO','logbO'])
     col1List=   utilities.chunkPList(colns1,pergroup)
     col2List=   utilities.chunkPList(colns2,pergroup)
     return col1List,col2List
@@ -220,6 +229,8 @@ def getObsGalData(obsFname,fieldname):
     maglb   =   utilities.get_imag_lb(data)
     magpsf  =   utilities.get_imag_psf(data)
     TPid    =   utilities.get_TPid(data)
+    isIso   =   utilities.get_isIso(data)
+    sbf     =   utilities.get_sb_factor(data)
 
     """
     # Flags for S18A
@@ -229,13 +240,13 @@ def getObsGalData(obsFname,fieldname):
     objId   =   data['object_id']
     weight  =   np.ones(len(data))
     datanmA =   ['fwhm', 'badPsf', 'badPsfC', \
-            'inS16', 'inS16L', 'inS16FDFC', 'absEP16', 'maglb', \
+            'inS16', 'inS16L', 'inS16FDFC', 'absEP16', 'maglb', 'isIso', 'sbf', \
             'res16', 'snr16', 'mag16', 'absE16', 'logb16', 'fwhm16', 'TPid', \
             'ra', 'dec', 'object_id', 'fieldname', 'magA10', 'noivar', 'magpsf', \
             'traceR', 'detR', 'traceRP', 'detRP', 'absEP', 'inS16M', 'inS16S',\
             'snrA10', 'snrA15', 'snrA20', 'snrlb', 'logbR', 'logbO', 'npass' ]
     dataTab =   [res, snr, mag, absE, logb, weight, fwhm, badPsf, badPsfC, \
-            inS16, inS16L, inS16FDFC, absEP16, maglb, \
+            inS16, inS16L, inS16FDFC, absEP16, maglb, isIso, sbf, \
             res16, snr16, mag16, absE16, logb16, fwhm16, TPid, \
             ra, dec, objId, fieldnameA, magA10, noivar, magpsf, \
             traceR, detR, traceRP, detRP, absEP, inS16M, inS16S, \
@@ -264,100 +275,52 @@ def getSimGalData(simFname):
     noivar  =   utilities.get_noi_var(data)
     magA10  =   utilities.get_imag_A10(data)
     maglb   =   utilities.get_imag_lb(data)
+    isIso   =   utilities.get_isIso(data)
+    sbf     =   utilities.get_sb_factor(data)
+    fwhm    =   utilities.get_psf_size(data,'fwhm')
     fieldname=  data['field_name']
 
     dataTab =   [res, snr, mag, absE, logb, weight, \
-                snrA10, snrA15, snrA20, snrlb, fieldname, \
-                logbR, logbO, noivar, magA10, maglb]
-    datanmA =   ['snrA10', 'snrA15', 'snrA20', 'snrlb', 'fieldname', \
-                'logbR', 'logbO','noivar','magA10', 'maglb']
+                snrA10, snrA15, snrA20, snrlb, fieldname, isIso, \
+                sbf, logbR, logbO, noivar, magA10, maglb, fwhm]
+    datanmA =   ['snrA10', 'snrA15', 'snrA20', 'snrlb', 'fieldname', 'isIso', \
+                'sbf', 'logbR', 'logbO','noivar','magA10', 'maglb', 'fwhm']
     return Table(data=dataTab,names=datanames+datanmA)
 
-def compareS16(data):
-    mask    =   data['bO_S18_r'].astype(bool)
-    mask    &=  data['inS16']
-    data    =   data[mask]
-    fig2    =   plt.figure(figsize=(15, 10))
+def onePlot(data):
+    tryList  =  ['suspect-std-all','good-std-all', 'all-std-all']
+    for itry in tryList:
 
-    """
-    # SNR scatter
-    """
-    ax = fig2.add_subplot(2,3,1)
-    ax.scatter(data['snr'],data['snr16'],s=0.1)
-    ax.set_xlabel('SNR S18')
-    ax.set_ylabel('SNR S16')
+        # Basic Mask for both data and sims
+        mList   =   itry.split('-')
+        if 'iso' in mList[1]:
+            mask=   (data['isIso'])
+        elif 'std' in mList[1]:
+            mask=   (data['logb']<=-0.375)
 
-    """
-    # Mag scatter
-    """
-    ax = fig2.add_subplot(2,3,2)
-    ax.scatter(data['mag'],data['mag16'],s=0.1)
-    ax.set_xlabel('mag S18')
-    ax.set_ylabel('mag S16')
+        if mList[2] in utilities.field_names.keys():
+            mask&=  (data['fieldname'] == mList[2])
 
-    """
-    # logb scatter
-    """
-    ax = fig2.add_subplot(2,3,3)
-    ax.scatter(data['logb'],data['logb16'],s=0.1)
-    ax.set_xlabel('logb S18')
-    ax.set_ylabel('logb S16')
+        # Mask only for data
+        mask    &=  data['inS16FDFC']
+        mask    &=  (data['npass']>=2)
 
-    """
-    # Resolution scatter
-    """
-    ax = fig2.add_subplot(2,3,4)
-    ax.scatter(data['res'],data['res16'],s=0.1)
-    ax.set_xlabel(r'$R_2$ S18')
-    ax.set_ylabel(r'$R_2$ S16')
+        if 'suspect'in mList[0]:
+            mask&=   (~data['inS16'])
+            cc  =   'Reds'
+        elif 'good' in mList[0]:
+            mask&=   (data['inS16'])
+            cc  =   'Blues'
+        elif 'all' in mList[0]:
+            cc  =   'Blues'
 
-    """
-    # FWHM scatter
-    """
-    ax = fig2.add_subplot(2,3,5)
-    ax.scatter(data['fwhm'],data['fwhm16'],s=0.1)
-    ax.set_xlabel('fwhm S18 (arcsec)')
-    ax.set_ylabel('fwhm S16 (arcsec)')
-
-    """
-    # absE scatter
-    """
-    ax = fig2.add_subplot(2,3,6)
-    ax.scatter(data['absE'],data['absE16'],s=0.1)
-    ax.set_xlabel(r'$|e|$ S18')
-    ax.set_ylabel(r'$|e|$ S16')
-    """
-    # Save figure
-    """
-    plt.tight_layout()
-    fig2.savefig(os.path.join(pltDir,'compareS16_6Obs_newBriObjMsk.png'))
+        # Do 2D Tests
+        pergroup=   3
+        col1List,col2List=prepareColListA(pergroup)
+        for i in range(len(col1List)):
+            pltUtil.cols2DPlot(data[mask],col1List[i],col2List[i],pltDir=pltDir,color=cc,label=itry,nfig=pergroup)
     return
 
-def logbNumPlot(data):
-    """
-    # Plot the galaxy  number loss vs. logb
-    """
-    fig =   plt.figure(figsize=(6, 6))
-    ax  =   fig.add_subplot(1,1,1)
-
-    print('beginning logbNumPlot')
-    data    =   data[data['bO_S18_r'].astype(bool)]
-    """
-    # Prepare
-    """
-    numAll  =   len(data)
-    thres   =   np.arange(-1.2,-0.375,0.05)
-    frac    =   np.array([np.sum(data['logb']<t) for t in thres])/numAll
-    ax.plot(thres,frac)
-    ax.set_xlabel('log10(b)')
-    ax.set_ylabel('fraction')
-    ax.grid()
-    """
-    # Plot
-    """
-    plt.tight_layout()
-    fig.savefig(os.path.join(pltDir,'frac-logb_newBriObjMsk.png'))
-    return
 
 def finalPlot(sims,data):
     """
@@ -369,29 +332,37 @@ def finalPlot(sims,data):
     # Data
     """
     nbf     =   len(data)
-    mask    =  (data['npass']>=2)
+    mask    =   (data['npass']>=2)
     print(np.sum(mask)/nbf)
-    mask    &= (data['logb']<=-0.375)
+    mask    &=  (data['logb']<=-0.375)
+    #mask    &=  (data['inS16FDFC'])
+    mask    &=  ((data['magA10']<25.5)|(data['bsf']<=0.05))
     print(np.sum(mask)/nbf)
-    #mask    &= (data['snrlb']<0.04*(data['snrA10']-10)-0.1) #T1
+    """
+    mask    &=  (data['bsf']<=0.05)
+    mask    &=  (data['isIso'])
     #mask    &= (data['snrlb']<0.04*(data['snrA10']-10)-0.1) #T1
     mask    &= (data['snrlb']<0.01*(data['snrA10'])) #T2
     #mask    &=  (data['maglb']-data['magA10'])>3.5#T3
     print(np.sum(mask)/nbf)
-    mask    &=  data['magA10']<25.5#T3
+    print(np.sum(mask)/nbf)
+    """
     print(np.sum(mask)/nbf)
     data    =   data[mask]
-    naf     =   len(data)
-    print(naf/nbf)
-    #print(sum(data['inS16FDFC']))
+
     """
     # Simulations
     """
     maskS   =   (sims['logb']<=-0.375)
+    maskS   &=  ((sims['magA10']<25.5)|(sims['bsf']<=0.05))
+    """
+    maskS   &=  sims['magA10']<25.5   #T3
+    #maskS   &=  (sims['bsf']<=0.05)
+    maskS   &=  (sims['isIso'])
     #maskS  &=  (sims['snrlb']<0.04*(sims['snrA10']-10)-0.1)
     maskS   &=  (sims['snrlb']<0.01*(sims['snrA10'])) #T2
-    #maskS   &=  (sims['maglb']-sims['magA10'])>3.5#T3
-    maskS   &=  sims['magA10']<25.5   #T3
+    #maskS  &=  (sims['maglb']-sims['magA10'])>3.5#T3
+    """
     sims    =   sims[maskS]
 
     fig2 = plt.figure(figsize=(15, 5))
@@ -457,10 +428,7 @@ def finalPlot(sims,data):
     # Save figure
     """
     plt.tight_layout()
-    fig2.savefig(os.path.join(pltDir,'galDis2D_final_logbltm037_npass2_mag24.5_snrA10_snrlbT3.png'))
-    return
-
-def nullFun():
+    fig2.savefig(os.path.join(pltDir,'galDis2D_final_logbltm037_npass2_mag24.5_magA10-lt25.5orbsflt005.png'))
     return
 
 if __name__=='__main__':

@@ -9,11 +9,13 @@ import astropy.table as astTable
 import astropy.io.ascii as ascii
 import sim_analysis_utilities as utilities
 
-version     =   's19-10-12'
+version     =   's17-10-12'
 prefix      =   'database/%s/tracts/'%version
 outfix      =   'database/%s/fields/' %version
 fieldList   =   utilities.field_keys.values()
 if 's16' in version:
+    infoname    =   'fieldTractInfoS16.csv'
+elif 's17' in version:
     infoname    =   'fieldTractInfoS16.csv'
 elif 's18' in version:
     infoname    =   'fieldTractInfo.csv'
@@ -96,7 +98,8 @@ def selectGalaxyCatalog(d):
     # weak lensing flag
     sel = sel & d["weak_lensing_flag"]
     #bright star mask
-    sel = sel & (d["i_mask_s18a_bright_objectcenter"] == False)
+    if 's18' in version or 's19' in version:
+        sel = sel & (d["i_mask_s18a_bright_objectcenter"] == False)
     return sel
 
 if __name__=='__main__':

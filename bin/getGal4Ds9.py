@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 import os
 import fitsio
-import astropy.io.ascii as ascii
 import numpy as np
+import astropy.io.ascii as ascii
 import sim_analysis_utilities as utilities
 
 import matplotlib
 matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
-matplotlib.use('Agg')
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
@@ -21,16 +21,26 @@ import lsst.afw.table as afwTable
 
 from lsst.meas.base.noiseReplacer import NoiseReplacerConfig,NoiseReplacer
 
-neiRep  =   True
-ngrid   =   32
-baseDir =   'exfaGal-src3'
-if neiRep:
-    baseDir+='-neiRep'
-version =   's18-10-12'
-obsFname=   'anaCat/allObs-%s-%s.fits'
-tractDir    =   os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
+obsFname=   'anaCat/allMat16V1-s18-10-12-%s-newmask.fits'
 bnames  =   ['TPid', 'ra', 'dec', 'object_id', \
             'traceR', 'traceRP', 'mag']
+
+neiRep  =   False
+ngrid   =   32
+version =   's18'
+baseDir =   'exfaGal-%s' %version
+if neiRep:
+    baseDir+='-neiRep'
+
+expname =   '%s/%s/calexp-HSC-I-%s-%s.fits'
+srcname =   '%s/%s/meas-HSC-I-%s-%s.fits'
+if version=='s18':
+    tractDirE=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
+    tractDirS=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
+elif version=='s16':
+    tractDirE=  os.path.join(os.environ['s16w'],'deepCoadd/HSC-I/')
+    tractDirS=  os.path.join(os.environ['s16w'],'deepCoadd-results/HSC-I/')
+
 cmap    =   plt.cm.Paired
 norm    =   matplotlib.colors.Normalize(vmin=21,vmax=25.)
 mappable=   plt.cm.ScalarMappable(norm=norm, cmap=cmap)
@@ -99,7 +109,7 @@ def process(tp,data,outDir):
     patch   =   '%d,%d' %(tp%1000//100,tp%1000%100)
 
     # Exposure
-    expFname=   os.path.join(tractDir,'%s/%s/calexp-HSC-I-%s-%s.fits'%(tract,patch,tract,patch))
+    expFname=   os.path.join(tractDirE,expname %(tract,patch,tract,patch))
     exposure=   afwImg.ExposureF.readFits(expFname)
     imDat   =   exposure.getImage().getArray()
     mskDat  =   exposure.getMask().getArray()
@@ -108,7 +118,7 @@ def process(tp,data,outDir):
     wcs     =   exposure.getWcs()
 
     # Sources
-    srcFname=   os.path.join(tractDir,'%s/%s/meas-HSC-I-%s-%s.fits'%(tract,patch,tract,patch))
+    srcFname=   os.path.join(tractDirS,srcname %(tract,patch,tract,patch))
     sources =   afwTable.SourceCatalog.readFits(srcFname)
     maskU   =   data['TPid']==tp
     dataU   =   data[maskU]
@@ -131,16 +141,18 @@ def process(tp,data,outDir):
 
     for i in range(nl2):
         ss  =   dataU[i]
-        # Make Sky coordinate
-        p2D     =   afwGeom.coordinates.Point2D(ss['ra'],ss['dec'])
-        crd2D   =   afwCoord.IcrsCoord(p2D,afwGeom.degrees)
-        pixP2D  =   afwGeom.coordinates.Point2I(wcs.skyToPixel(crd2D))
-        # Find source
-        src     =   sources.find(ss['object_id'])
         if neiRep:
+            # Find source
+            src =   sources.find(ss['object_id'])
             noiseReplacer.insertSource(src.getId())
-        pixP2D2 =   afwGeom.coordinates.Point2I(src.getCentroid())
-        galData,mskData,psfData,binary =   cutStampFromExposure(pixP2D2,ngrid,bbox,imDat,mskDat,psfExp)
+            pixP2D =   afwGeom.coordinates.Point2I(src.getCentroid())
+        else:
+            # Make Sky coordinate
+            p2D     =   afwGeom.coordinates.Point2D(ss['ra'],ss['dec'])
+            crd2D   =   afwCoord.IcrsCoord(p2D,afwGeom.degrees)
+            pixP2D  =   afwGeom.coordinates.Point2I(wcs.skyToPixel(crd2D))
+
+        galData,mskData,psfData,binary =   cutStampFromExposure(pixP2D,ngrid,bbox,imDat,mskDat,psfExp)
         # The output data
         ix  =   i%nl
         iy  =   i//nl
@@ -165,7 +177,8 @@ def main():
         outDir      =   '%s/%s' %(baseDir,fn)
         if not os.path.exists(outDir):
             os.system('mkdir -p %s' %outDir)
-        data        =   getObsGalData(obsFname %(version,fn))
+
+        data        =   getObsGalData(obsFname %fn)
         tpSet       =   list(set(data['TPid']))
         for tp in tpSet:
             gal,msk,psf,cat =   process(tp,data,outDir)
@@ -198,8 +211,8 @@ def main():
             fig.colorbar(mappable=mappable,orientation='horizontal')
             plt.tight_layout()
             fig.savefig(figname)
+            plt.close('all')
             del fig
     return
-
 if __name__=='__main__':
     main()

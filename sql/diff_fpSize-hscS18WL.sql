@@ -9,6 +9,11 @@ SELECT
 , meas.patch
 , meas.i_variance_value
 , meas.i_footprintarea_value
+, meas.i_cmodel_exp_niter
+, meas.i_cmodel_dev_niter
+, meas.i_cmodel_ellipse_11
+, meas.i_cmodel_ellipse_22
+, meas.i_cmodel_ellipse_12
 , meas_ireprocess.i_deblend_parenttoobig
 
 , forced3.g_apertureflux_10_mag as forced_g_apertureflux_10_mag

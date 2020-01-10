@@ -4,18 +4,23 @@ import galsim
 import glob
 import numpy as np
 import astropy.io.fits as pyfits
-from astropy.table import Table,vstack 
+from astropy.table import Table,vstack
 import astropy.io.ascii as ascii
 
 ngroup  =   8
+Dir     =   '/work/xiangchong.li/work/S18ASimHSC/prepare2/'
+psfDir  =   os.path.join(Dir,'psfPre')
+pfname  =   os.path.join(Dir,'info.csv')
 
+if not os.path.isdir(psfDir):
+    os.system('mkdir -p %s' %psfDir)
 
 def PreparePSF():
     print('Preparing PSF')
     nameList=   ['patch','tract','ra','dec','var','var_varplane','count_inputs']
     headList=   ['patch','tract','ra','dec','var','varPlane','count']
 
-    nums    =   [] 
+    nums    =   []
     fwhms   =   []
     var_meas=   []
     var_plane=  []
@@ -39,7 +44,7 @@ def PreparePSF():
         nsample =   len(preAll)
         for fid in range(nPerT):
             ifield  =   ifile*nPerT+fid
-            outFname=   './psfPre/psf-%05d.fits'%(ifield)
+            outFname=   os.path.join(psfDir,'psf-%05d.fits' %ifield)
             np.random.seed(ifield)
             g1      =   np.random.rand()*0.06-0.03
             g2      =   np.random.rand()*0.06-0.03
@@ -65,7 +70,7 @@ def PreparePSF():
                 header[hame]=   pre[name]
             header['g1'] =   g1
             header['g2'] =   g2
-            fwhm    =   psfImg.calculateFWHM()#(arcsec)
+            fwhm    =   2.355*psfImg.FindAdaptiveMom().moments_sigma
             header['fwhm']=  fwhm
             hduList =   pyfits.HDUList([hduOut])
             hduList.writeto(outFname,overwrite=True)
@@ -79,15 +84,15 @@ def PreparePSF():
     names   =   ('num','fwhm','var','varPlane','tract','patch','group')
     data    =   (nums,fwhms,var_meas,var_plane,tracts,patches,groups)
     table   =   Table(data=data,names=names)
-    table.write('./info.csv',overwrite=True)
+    table.write(pfname,overwrite=True)
     return
- 
+
 def PrepareNoiCor():
     print("preparing noise correaltions")
     #Do for tract
     info    =   Table.read('./info.csv')
     tractAll=   list(set(info['tract']))
-    corAll  =   np.zeros((20,20)) 
+    corAll  =   np.zeros((20,20))
     nAll    =   0
     for tract in tractAll:
         corTract    =   np.zeros((20,20))
@@ -100,12 +105,12 @@ def PrepareNoiCor():
             nInTract+=  1.
         corAll  +=  corTract
         nAll    +=  nInTract
-        corTract/=  nInTract 
+        corTract/=  nInTract
         pyfits.writeto('./corPre/corTract-%s.fits' %(tract),corTract)
     pyfits.writeto('./corPre/corStack.fits',corAll/nAll)
 
     #Do for group
-    corGroup=   np.zeros((ngroup,20,20)) 
+    corGroup=   np.zeros((ngroup,20,20))
     nPG     =   np.zeros(ngroup)
     for row in info:
         tract   =   row['tract']
@@ -116,15 +121,15 @@ def PrepareNoiCor():
         corr    =   np.average(preAll['corr'],axis=0).reshape(21,21)
         corGroup[group]+=  corr[:-1,:-1]
         nPG[group]      +=  1.
+
     for ig in range(ngroup):
         pyfits.writeto('./corPre/corGroup-%02d.fits' %ig,corGroup[ig]/nPG[ig])
     return
 
-
 def main():
-    if not os.path.exists('./info.csv'):
+    if not os.path.exists(pfname):
         PreparePSF()
-    PrepareNoiCor()
+    #PrepareNoiCor()
     return
 
 if __name__=="__main__":
