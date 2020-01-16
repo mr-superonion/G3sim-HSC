@@ -20,21 +20,24 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-version =   's18-10-12-HECTOMAP'
-anaDir  =   'anaCat'
-obsAname=   os.path.join(anaDir,'allObs-%s-newMask.fits' %version)
-if not os.path.isdir(anaDir):
+version =   's18-10-12'
+datDir  =   'database'
+obsAname=   os.path.join(datDir,'allObs-%s.fits' %version)
+datAname=   os.path.join(datDir,'allMat16V1-%s.fits' %version)
+if not os.path.isdir(datDir):
     raise RuntimeError("Simulation catalog directory %s does not exist "
-             "or is not a directory" % (anaDir))
+             "or is not a directory" % (datDir))
 if not os.path.exists(obsAname):
     raise RuntimeError("required file does not exists")
 
+"""
+pltDir  =   'plot/galDis-%s/' %version
+if not os.path.exists(pltDir):
+    os.system('mkdir -p %s' %pltDir)
+"""
+
 def main():
     pergroup=   3
-    pltDir  =   'plot/galDis-%s/' %version
-    if not os.path.exists(pltDir):
-        os.system('mkdir -p %s' %pltDir)
-    datAname=   os.path.join(anaDir,'allMat16V1-%s-newmask.fits' %version)
     if not os.path.exists(datAname):
         allDat  =   prepareAllDat()
         allDat.write(datAname)
@@ -42,6 +45,7 @@ def main():
         print('Already have prepared catalog')
         allDat  =   Table.read(datAname)
 
+    """
     col1List,col2List=prepareColList(pergroup)
     itry    =   'S16v1Mat-all-HECTOMAP'
     mList   =   itry.split('-')
@@ -59,6 +63,7 @@ def main():
     allDat['dmagAlb']=allDat['maglb']-allDat['magA10']
     for i in range(len(col1List)):
         pltUtil.cols2DPlot(allDat[mask],col1List[i],col2List[i],pltDir=pltDir,color=cc,label=itry,nfig=pergroup)
+    """
     return
 
 def prepareAllDat():
@@ -126,16 +131,12 @@ def doMatch(field,data):
     """
     # Recording
     """
-    data['absEP16']     =   np.zeros(len(data))
-    data['object_id16'] =   np.zeros(len(data),dtype=int)
     data['res16'][match['i2']]  =   utilities.get_res(data16[match['i1']])
     data['snr16'][match['i2']]  =   utilities.get_snr(data16[match['i1']])
     data['mag16'][match['i2']]  =   utilities.get_imag(data16[match['i1']])
     data['logb16'][match['i2']] =   utilities.get_logb(data16[match['i1']])
     data['absE16'][match['i2']] =   utilities.get_abs_ellip(data16[match['i1']])
-    data['absEP16'][match['i2']]=   utilities.get_abs_ellip_psf(data16[match['i1']])
     data['fwhm16'][match['i2']] =   utilities.get_psf_size(data16[match['i1']])
-    data['object_id16'][match['i2']]=data16['object_id'][match['i1']]
     print(len(match)/len(data))
     return data[match['i2']]
 

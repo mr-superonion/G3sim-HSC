@@ -56,53 +56,53 @@ SELECT
 -- forced Kron magnitudes
 , forced2.g_kronflux_mag    as forced_g_kronflux_mag
 , forced2.g_kronflux_magsigma   as forced_g_kronflux_magsigma
-, forced2.g_kronflux_flag       as forced_g_kronflux_flag
+, forced2.g_kronflux_flag   as forced_g_kronflux_flag
 
 , forced2.r_kronflux_mag    as forced_r_kronflux_mag
 , forced2.r_kronflux_magsigma   as forced_r_kronflux_magsigma
-, forced2.r_kronflux_flag       as forced_r_kronflux_flag
+, forced2.r_kronflux_flag   as forced_r_kronflux_flag
 
 , forced2.i_kronflux_mag    as forced_i_kronflux_mag
 , forced2.i_kronflux_magsigma   as forced_i_kronflux_magsigma
-, forced2.i_kronflux_flag       as forced_i_kronflux_flag
+, forced2.i_kronflux_flag   as forced_i_kronflux_flag
 
 , forced2.z_kronflux_mag    as forced_z_kronflux_mag
 , forced2.z_kronflux_magsigma   as forced_z_kronflux_magsigma
-, forced2.z_kronflux_flag       as forced_z_kronflux_flag
+, forced2.z_kronflux_flag   as forced_z_kronflux_flag
 
 , forced2.y_kronflux_mag    as forced_y_kronflux_mag
 , forced2.y_kronflux_magsigma   as forced_y_kronflux_magsigma
-, forced2.y_kronflux_flag       as forced_y_kronflux_flag
+, forced2.y_kronflux_flag   as forced_y_kronflux_flag
 
 -- forced CModel magnitudes and fluxes
-, forced.g_cmodel_mag           as forced_g_cmodel_mag
-, forced.g_cmodel_magsigma      as forced_g_cmodel_magsigma
+, forced.g_cmodel_mag       as forced_g_cmodel_mag
+, forced.g_cmodel_magsigma  as forced_g_cmodel_magsigma
 , forced.g_cmodel_flux      as forced_g_cmodel_flux
-, forced.g_cmodel_fluxsigma     as forced_g_cmodel_fluxsigma
+, forced.g_cmodel_fluxsigma as forced_g_cmodel_fluxsigma
 , forced.g_cmodel_flag      as forced_g_cmodel_flag
 
-, forced.r_cmodel_mag           as forced_r_cmodel_mag
-, forced.r_cmodel_magsigma      as forced_r_cmodel_magsigma
+, forced.r_cmodel_mag       as forced_r_cmodel_mag
+, forced.r_cmodel_magsigma  as forced_r_cmodel_magsigma
 , forced.r_cmodel_flux      as forced_r_cmodel_flux
-, forced.r_cmodel_fluxsigma     as forced_r_cmodel_fluxsigma
+, forced.r_cmodel_fluxsigma as forced_r_cmodel_fluxsigma
 , forced.r_cmodel_flag      as forced_r_cmodel_flag
 
-, forced.i_cmodel_mag           as forced_i_cmodel_mag
-, forced.i_cmodel_magsigma      as forced_i_cmodel_magsigma
+, forced.i_cmodel_mag       as forced_i_cmodel_mag
+, forced.i_cmodel_magsigma  as forced_i_cmodel_magsigma
 , forced.i_cmodel_flux      as forced_i_cmodel_flux
-, forced.i_cmodel_fluxsigma     as forced_i_cmodel_fluxsigma
+, forced.i_cmodel_fluxsigma as forced_i_cmodel_fluxsigma
 , forced.i_cmodel_flag      as forced_i_cmodel_flag
 
-, forced.z_cmodel_mag           as forced_z_cmodel_mag
-, forced.z_cmodel_magsigma      as forced_z_cmodel_magsigma
+, forced.z_cmodel_mag       as forced_z_cmodel_mag
+, forced.z_cmodel_magsigma  as forced_z_cmodel_magsigma
 , forced.z_cmodel_flux      as forced_z_cmodel_flux
-, forced.z_cmodel_fluxsigma     as forced_z_cmodel_fluxsigma
+, forced.z_cmodel_fluxsigma as forced_z_cmodel_fluxsigma
 , forced.z_cmodel_flag      as forced_z_cmodel_flag
 
-, forced.y_cmodel_mag           as forced_y_cmodel_mag
-, forced.y_cmodel_magsigma      as forced_y_cmodel_magsigma
+, forced.y_cmodel_mag       as forced_y_cmodel_mag
+, forced.y_cmodel_magsigma  as forced_y_cmodel_magsigma
 , forced.y_cmodel_flux      as forced_y_cmodel_flux
-, forced.y_cmodel_fluxsigma     as forced_y_cmodel_fluxsigma
+, forced.y_cmodel_fluxsigma as forced_y_cmodel_fluxsigma
 , forced.y_cmodel_flag      as forced_y_cmodel_flag
 
 -- shapes

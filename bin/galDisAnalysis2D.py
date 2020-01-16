@@ -20,170 +20,84 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-version =   's18-10-12'
+version =   's19'
 anaDir  =   'anaCat'
-simAname=   os.path.join(anaDir,'allSim-%s.fits' %version)
-obsAname=   os.path.join(anaDir,'allObs-%s.fits' %version)
-obsDir  =   'database/%s/fields/' %version
-datanames   =   ['res','snr','mag','absE','logb','weight']
-pltDir  =   'plot/galDis-%s-2/' %version
-
-
 # Checks that the paths provided are valid
 if not os.path.isdir(anaDir):
     raise RuntimeError("Simulation catalog directory %s does not exist "
-                 "or is not a directory" % (anaDir))
+         "or is not a directory" % (anaDir))
+simAname=   os.path.join(anaDir,'allSim.fits')
+
+obsDir  =   '../database/%s/fields/' %version
+obsDir0 =   '../database/'
 if not os.path.isdir(obsDir):
     raise RuntimeError("Data catalog directory %s does not exist "
-                 "or is not a directory" % (obsDir))
+         "or is not a directory" % (obsDir))
+obsAname=   os.path.join(obsDir0,'allObs-%s.fits' %version)
+
+pltDir  =   'plot/galDis-%s/' %version
 if not os.path.exists(pltDir):
     os.system('mkdir -p %s' %pltDir)
 
+pltDir2 =   'plot/galDis-%s-final/' %version
+if not os.path.exists(pltDir2):
+    os.system('mkdir -p %s' %pltDir2)
+
+datanames   =   ['res','snr','mag','absE','logb','weight']
+
 def main():
+    allSim,allObs=getAllDat()
+    finalPlot(allSim,allObs)
+    onePlot(allSim,allObs)
+    return
+
+def getAllDat():
+    allSim  =   None
+    print('Achieving galaxy data from observations')
     if not os.path.exists(obsAname):
-        allSim,allObs   =   prepareAllDat()
-        allSim.write(simAname)
+        allObs  =   list(map(getObsGalData,utilities.field_keys.values()))
+        allObs  =   [x for x in allObs if x is not None]
+        allObs  =   vstack(allObs)
         allObs.write(obsAname)
     else:
         print('Already have prepared catalog')
-        allSim=Table.read(simAname)
-        allObs=Table.read(obsAname)
-
-    allObs['bsf']=1./allObs['sbf']
-    allSim['bsf']=1./allSim['sbf']
-    #onePlot(allObs)
-    finalPlot2(allSim,allObs)
-
-    #finalPlot(allSim,allObs)
-    return
-
-def finalPlot2(sims,data):
-    tryList  =  ['final-std-all', 'final-std-HECTOMAP', 'final-std-VVDS',
-        'final-std-GAMA09H', 'final-std-GAMA15H', 'final-std-WIDE12H',
-        'final-std-XMM']
-
-    for itry in tryList:
-        # Basic Mask for both data and sims
-        mList   =   itry.split('-')
-        if 'iso' in mList[1]:
-            mask=   (data['isIso'])
-            maskS=  (sims['isIso'])
-        elif 'std' in mList[1]:
-            mask=   (data['logb']<=-0.375)
-            maskS=  (sims['logb']<=-0.375)
-
-        if mList[2] in utilities.field_names.keys():
-            mask&=  (data['fieldname'] == mList[2])
-            maskS&= (sims['fieldname'] == mList[2])
-
-        mask    &=  ((data['magA10']<25.5)|(data['bsf']<=0.03))
-        maskS   &=  ((sims['magA10']<25.5)|(sims['bsf']<=0.03))
-        # Mask only for data
-        mask    &=  data['inS16FDFC']
-        mask    &=  (data['npass']>=2)
-        dataU   =   data[mask]
-        simsU   =   sims[maskS]
-        #simsU   =   None
-
-        cc  =   'Blues'
-        # Do 2D Tests
-        pergroup=   3
-        col1List,col2List=prepareColListB(pergroup)
-        for i in range(len(col1List)):
-            pltUtil.cols2DPlot(dataU,col1List[i],col2List[i],pltDir=pltDir,color=cc,label=itry,nfig=pergroup,sims=simsU,ngridH=16,ngridC=16,writeFits=True)
-    return
-
-def prepareColListB(pergroup):
-    colns1  =   ['snr','snr','snr']
-    colns1.extend(['bsf','bsf','noivar'])
-
-    colns2  =   ['res','mag','absE']
-    colns2.extend(['magA10','snrA10','fwhm'])
-
-    col1List=   utilities.chunkPList(colns1,pergroup)
-    col2List=   utilities.chunkPList(colns2,pergroup)
-    return col1List,col2List
-
-def prepareColListA(pergroup):
-    colns1  =   ['snr','snr','snr']
-    colns1.extend(['bsf','bsf','bsf'])
-    colns1.extend(['noivar','noivar','noivar'])
-
-    colns2  =   ['res','mag','absE']
-    colns2.extend(['snr','snrA10','magA10'])
-    colns2.extend(['fwhm','magA10','bsf'])
-
-    col1List=   utilities.chunkPList(colns1,pergroup)
-    col2List=   utilities.chunkPList(colns2,pergroup)
-    return col1List,col2List
-
-def prepareAllDat():
-    print('Achieving data')
-    outcomes    =   list(map(process,utilities.field_keys.values()))
-    outcomes    =   [x for x in outcomes if x is not None]
-    allObsList  =   []
-    allSimList  =   []
-    for outcome in outcomes:
-        allObsList.append(outcome[0])
-        allSimList.append(outcome[1])
-    allSim      =   vstack(allSimList)
-    allObs      =   vstack(allObsList)
-    del outcomes
-    del allObsList
-    del allSimList
-    return allSim,allObs
-
-def process(fieldname):
-    print('Processing field: %s' %(fieldname))
-
-    print('Achieving galaxy data from observations')
-    obsFname    =   os.path.join(obsDir,'%s.fits' %(fieldname))
-    obsDat      =   getObsGalData(obsFname,fieldname)
+        allObs=pyfits.getdata(obsAname)
 
     print('Achieving galaxy data from simulations')
-    anaFieldDir =   os.path.join(anaDir,'%s' %(fieldname))
-    simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
-    simDat      =   getSimGalData(simFname)
-    return [obsDat,simDat]
+    if not os.path.exists(simAname):
+        allSim  =   list(map(getSimGalData,utilities.field_keys.values()))
+        allSim  =   [x for x in allSim if x is not None]
+        allSim  =   vstack(allSim)
+        allSim.write(simAname)
+    else:
+        print('Already have prepared catalog')
+        allSim=pyfits.getdata(simAname)
+    return allSim,allObs
 
-def getObsGalData(obsFname,fieldname):
+def getObsGalData(fieldname):
     """
     #load the necessary data from catalog (after FDFC, WL cut)
     """
+    obsFname=   os.path.join(obsDir,'%s.fits' %(fieldname))
     data    =   pyfits.getdata(obsFname)
-    """
-    # Match to S15B
-    """
-    obsFname16= os.path.join(os.environ['homeWrk'],\
-            'S16AStandard/S16AStandardCalibrated/field',\
-            '%s_calibrated.fits' %fieldname)
+    mask    =   (data['weak_lensing_flag'])
+    data    =   data[mask]
+    ra,dec  =   utilities.get_radec(data)
 
+    """
+    # Match to S16A
+    """
+    obsFname16= '../database/s16/fields/%s.fits' %fieldname
     data16  =   pyfits.getdata(obsFname16)
-    ra      =   data['i_ra']
-    dec     =   data['i_dec']
+
     """
     # Match to S16
     """
-    matchL  =   smatch.match(data16['ira'],data16['idec'],20./3600.,\
+    match   =   smatch.match(data16['ira'],data16['idec'],0.5/3600.,\
             ra,dec,maxmatch=1)
-    inS16L  =   np.zeros(len(data)).astype(bool)
-    inS16L[matchL['i2']]  =   True
-    mDist   =   np.arccos(matchL['cosdist'])*180./np.pi
-
-    matchM  =  matchL[mDist<10./3600.]
-    inS16M  =   np.zeros(len(data)).astype(bool)
-    inS16M[matchM['i2']]  =   True
-
-    matchS  =   matchL[mDist<5./3600.]
-    inS16S  =   np.zeros(len(data)).astype(bool)
-    inS16S[matchS['i2']]  =   True
-
-    match   =   matchL[mDist<0.5/3600.]
-    inS16   =   np.zeros(len(data)).astype(bool)
-    inS16[match['i2']]  =   True
 
     """
-    # Main Column for S15B
+    # Main Column for S16A
     """
     res16   =   np.zeros(len(data))
     res16[match['i2']]  =   utilities.get_res(data16[match['i1']])
@@ -191,19 +105,31 @@ def getObsGalData(obsFname,fieldname):
     snr16[match['i2']]  =   utilities.get_snr(data16[match['i1']])
     mag16   =   np.zeros(len(data))
     mag16[match['i2']]  =   utilities.get_imag(data16[match['i1']])
-    logb16   =   np.zeros(len(data))
-    logb16[match['i2']]  =   utilities.get_logb(data16[match['i1']])
+    logb16  =   np.zeros(len(data))
+    logb16[match['i2']] =   utilities.get_logb(data16[match['i1']])
     absE16  =   np.zeros(len(data))
     absE16[match['i2']] =   utilities.get_abs_ellip(data16[match['i1']])
-    absEP16  =   np.zeros(len(data))
-    absEP16[match['i2']] =   utilities.get_abs_ellip_psf(data16[match['i1']])
-    fwhm16   =   np.zeros(len(data))
-    fwhm16[match['i2']]  =   utilities.get_psf_size(data16[match['i1']])
+    absEP16 =   np.zeros(len(data))
+    absEP16[match['i2']]=   utilities.get_abs_ellip_psf(data16[match['i1']])
+    fwhm16  =   np.zeros(len(data))
+    fwhm16[match['i2']] =   utilities.get_psf_size(data16[match['i1']])
+
+    traceR16=   np.zeros(len(data))
+    traceR16[match['i2']]=  utilities.get_gal_size(data16[match['i1']],type='trace')
+    detR16  =   np.zeros(len(data))
+    detR16[match['i2']] =   utilities.get_gal_size(data16[match['i1']],type='det')
+    object_id16 =   np.zeros(len(data),dtype=int)
+    object_id16[match['i2']]=data16['object_id'][match['i1']]
+    wlFlag16=   np.zeros(len(data),dtype=bool)
+    wlFlag16[match['i2']]=  data16['weak_lensing_flag'][match['i1']]
+    npass16 =   np.zeros(len(data),dtype=int)
+    npass16[match['i2']] =  utilities.get_npass(data16[match['i1']])
+    inS16   =   (wlFlag16)&(logb16<=-0.375)&(npass16>=2)
 
     """
-    # FDFC Column for S15B
+    # FDFC Column for S16A
     """
-    inS16FDFC   =   catSelect.getFDFCS16(data,'i_ra','i_dec')
+    inS16FDFC   =   catSelect.getFDFCS16(ra,dec)
 
     """
     # Main Column for S18A
@@ -226,35 +152,38 @@ def getObsGalData(obsFname,fieldname):
     noivar  =   utilities.get_noi_var(data)
     fieldnameA=[fieldname]*len(data)
     magA10  =   utilities.get_imag_A10(data)
+    magA15  =   utilities.get_imag_A15(data)
+    magA20  =   utilities.get_imag_A20(data)
     maglb   =   utilities.get_imag_lb(data)
     magpsf  =   utilities.get_imag_psf(data)
     TPid    =   utilities.get_TPid(data)
     isIso   =   utilities.get_isIso(data)
-    sbf     =   utilities.get_sb_factor(data)
+    bsf     =   utilities.get_bs_factor(data)
 
     """
     # Flags for S18A
     """
-    badPsf  =   data['i_pixelflags_inexact_psf']
-    badPsfC =   data['i_pixelflags_inexact_psfcenter']
     objId   =   data['object_id']
     weight  =   np.ones(len(data))
-    datanmA =   ['fwhm', 'badPsf', 'badPsfC', \
-            'inS16', 'inS16L', 'inS16FDFC', 'absEP16', 'maglb', 'isIso', 'sbf', \
+    datanmA =   ['fwhm', 'magA15', 'magA20', 'traceR16', 'detR16', 'object_id16', \
+            'inS16', 'inS16FDFC', 'absEP16', 'maglb', 'isIso', 'bsf', \
             'res16', 'snr16', 'mag16', 'absE16', 'logb16', 'fwhm16', 'TPid', \
             'ra', 'dec', 'object_id', 'fieldname', 'magA10', 'noivar', 'magpsf', \
-            'traceR', 'detR', 'traceRP', 'detRP', 'absEP', 'inS16M', 'inS16S',\
+            'traceR', 'detR', 'traceRP', 'detRP', 'absEP', \
             'snrA10', 'snrA15', 'snrA20', 'snrlb', 'logbR', 'logbO', 'npass' ]
-    dataTab =   [res, snr, mag, absE, logb, weight, fwhm, badPsf, badPsfC, \
-            inS16, inS16L, inS16FDFC, absEP16, maglb, isIso, sbf, \
+    dataTab =   [res, snr, mag, absE, logb, weight, \
+            fwhm, magA15, magA20, traceR16, detR16, object_id16, \
+            inS16, inS16FDFC, absEP16, maglb, isIso, bsf, \
             res16, snr16, mag16, absE16, logb16, fwhm16, TPid, \
             ra, dec, objId, fieldnameA, magA10, noivar, magpsf, \
-            traceR, detR, traceRP, detRP, absEP, inS16M, inS16S, \
+            traceR, detR, traceRP, detRP, absEP, \
             snrA10, snrA15, snrA20, snrlb, logbR, logbO, npass]
     del data
     return Table(data=dataTab,names=datanames+datanmA)
 
-def getSimGalData(simFname):
+def getSimGalData(fieldname):
+    anaFieldDir =   os.path.join(anaDir,'%s' %(fieldname))
+    simFname=   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
     data    =   pyfits.getdata(simFname)
     data    =   utilities.update_wl_flags_sim(data)
     mask    =   data['weak_lensing_flag']
@@ -274,87 +203,49 @@ def getSimGalData(simFname):
     logbA,logbR,logbO   =   utilities.get_logbAll(data)
     noivar  =   utilities.get_noi_var(data)
     magA10  =   utilities.get_imag_A10(data)
+    magA15  =   utilities.get_imag_A15(data)
+    magA20  =   utilities.get_imag_A20(data)
     maglb   =   utilities.get_imag_lb(data)
     isIso   =   utilities.get_isIso(data)
-    sbf     =   utilities.get_sb_factor(data)
+    bsf     =   utilities.get_bs_factor(data)
     fwhm    =   utilities.get_psf_size(data,'fwhm')
     fieldname=  data['field_name']
 
     dataTab =   [res, snr, mag, absE, logb, weight, \
                 snrA10, snrA15, snrA20, snrlb, fieldname, isIso, \
-                sbf, logbR, logbO, noivar, magA10, maglb, fwhm]
+                bsf, logbR, logbO, noivar, magA10, magA15, magA20, maglb, \
+                fwhm]
     datanmA =   ['snrA10', 'snrA15', 'snrA20', 'snrlb', 'fieldname', 'isIso', \
-                'sbf', 'logbR', 'logbO','noivar','magA10', 'maglb', 'fwhm']
+                'bsf', 'logbR', 'logbO','noivar','magA10', 'magA15', 'magA20', 'maglb', \
+                'fwhm']
     return Table(data=dataTab,names=datanames+datanmA)
-
-def onePlot(data):
-    tryList  =  ['suspect-std-all','good-std-all', 'all-std-all']
-    for itry in tryList:
-
-        # Basic Mask for both data and sims
-        mList   =   itry.split('-')
-        if 'iso' in mList[1]:
-            mask=   (data['isIso'])
-        elif 'std' in mList[1]:
-            mask=   (data['logb']<=-0.375)
-
-        if mList[2] in utilities.field_names.keys():
-            mask&=  (data['fieldname'] == mList[2])
-
-        # Mask only for data
-        mask    &=  data['inS16FDFC']
-        mask    &=  (data['npass']>=2)
-
-        if 'suspect'in mList[0]:
-            mask&=   (~data['inS16'])
-            cc  =   'Reds'
-        elif 'good' in mList[0]:
-            mask&=   (data['inS16'])
-            cc  =   'Blues'
-        elif 'all' in mList[0]:
-            cc  =   'Blues'
-
-        # Do 2D Tests
-        pergroup=   3
-        col1List,col2List=prepareColListA(pergroup)
-        for i in range(len(col1List)):
-            pltUtil.cols2DPlot(data[mask],col1List[i],col2List[i],pltDir=pltDir,color=cc,label=itry,nfig=pergroup)
-    return
-
 
 def finalPlot(sims,data):
     """
-    # Plot the snr - (res,mag.|e|) Joint distributions
+    # Data Mask
     """
-
-    """
-    # Do mask
-    # Data
-    """
-    nbf     =   len(data)
-    mask    =   (data['npass']>=2)
+    nbf     =   len(data)+0.
+    mask    =   np.ones(len(data),dtype=bool)
+    mask    &=  (data['npass']>=2)
     print(np.sum(mask)/nbf)
     mask    &=  (data['logb']<=-0.375)
-    #mask    &=  (data['inS16FDFC'])
-    mask    &=  ((data['magA10']<25.5)|(data['bsf']<=0.05))
+    #mask    &=  (data['magA10']<25.5)#|(data['bsf']<=0.03))
     print(np.sum(mask)/nbf)
     """
+    mask    &=  (data['inS16FDFC'])
     mask    &=  (data['bsf']<=0.05)
     mask    &=  (data['isIso'])
-    #mask    &= (data['snrlb']<0.04*(data['snrA10']-10)-0.1) #T1
+    #mask   &= (data['snrlb']<0.04*(data['snrA10']-10)-0.1) #T1
     mask    &= (data['snrlb']<0.01*(data['snrA10'])) #T2
-    #mask    &=  (data['maglb']-data['magA10'])>3.5#T3
-    print(np.sum(mask)/nbf)
-    print(np.sum(mask)/nbf)
+    #mask   &=  (data['maglb']-data['magA10'])>3.5#T3
     """
-    print(np.sum(mask)/nbf)
     data    =   data[mask]
 
     """
-    # Simulations
+    # Simulations Mask
     """
     maskS   =   (sims['logb']<=-0.375)
-    maskS   &=  ((sims['magA10']<25.5)|(sims['bsf']<=0.05))
+    #maskS   &=  (sims['magA10']<25.5)#|(sims['bsf']<=0.03))
     """
     maskS   &=  sims['magA10']<25.5   #T3
     #maskS   &=  (sims['bsf']<=0.05)
@@ -428,7 +319,70 @@ def finalPlot(sims,data):
     # Save figure
     """
     plt.tight_layout()
-    fig2.savefig(os.path.join(pltDir,'galDis2D_final_logbltm037_npass2_mag24.5_magA10-lt25.5orbsflt005.png'))
+    fig2.savefig(os.path.join(pltDir2,'galDis2D_final_logbltm037_npass2_mag24.5.png'))
+    return
+
+def prepareColListB(pergroup):
+    colns1  =   ['snr','snr','snr']
+    #colns1.extend(['bsf','magA20'])
+
+    colns2  =   ['res','mag','absE']
+    #colns2.extend(['magA10','magA10'])
+
+    col1List=   utilities.chunkPList(colns1,pergroup)
+    col2List=   utilities.chunkPList(colns2,pergroup)
+    return col1List,col2List
+
+def onePlot(sims,data):
+    sims    =   None
+    tryList  =  ['std-s16-all','std-s16-good','std-s16-suspect']
+
+    for itry in tryList:
+        # Basic Mask for both data and sims
+        mList   =   itry.split('-')
+        if 'iso' in mList[0]:
+            mask=   (data['isIso'])
+            if sims:
+                maskS=  (sims['isIso'])
+        elif 'std' in mList[0]:
+            mask=   (data['logb']<=-0.375)
+            if sims:
+                maskS=  (sims['logb']<=-0.375)
+
+        if mList[1] in utilities.field_names.keys():
+            mask&=  (data['fieldname'] == mList[2])
+            if sims:
+                maskS&= (sims['fieldname'] == mList[2])
+        elif mList[1]=='s16':
+            mask&=  (data['inS16FDFC'])
+
+        """
+        mask    &=  ((data['magA10']<25.5)|(data['bsf']<=0.03))
+        maskS   &=  ((sims['magA10']<25.5)|(sims['bsf']<=0.03))
+        """
+        # Mask only for data
+        mask    &=  (data['npass']>=2)
+
+        if mList[2]=='good':
+            mask&=  (data['inS16'])
+            cc  =   'Blues'
+        elif mList[2]=='suspect':
+            mask&=  (~data['inS16'])
+            cc  =   'Reds'
+        else:
+            cc  =   'Greys'
+
+        dataU   =   data[mask]
+        if sims:
+            simsU   =   sims[maskS]
+        else:
+            simsU   =   None
+
+        # Do 2D Tests
+        pergroup=   3
+        col1List,col2List=prepareColListB(pergroup)
+        for i in range(len(col1List)):
+            pltUtil.cols2DPlot(dataU,col1List[i],col2List[i],pltDir=pltDir,color=cc,label=itry,nfig=pergroup,sims=simsU,ngridH=16,ngridC=16,writeFits=False)
     return
 
 if __name__=='__main__':

@@ -4,20 +4,20 @@ import gc
 import numpy as np
 import healpy as hp
 import astropy.io.fits as pyfits
-import astropy.table as astTable
+from astropy.table import Table
 import astropy.io.ascii as ascii
 import sim_analysis_utilities as utilities
 
 import matplotlib as mpl
-mpl.use('TkAgg')
+mpl.use('agg')
 mpl.rcParams['ps.useafm'] = True
 mpl.rcParams['pdf.use14corefonts'] = True
 mpl.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
 anaDir  =   'anaCat'
-obsDir  =   'work/database/s18-10-12/fields/'
-pltDir  =   'plot/psfNoi2/'
+obsDir  =   '../database/s18-10-12/fields/'
+pltDir  =   'plot/psfNoi/'
 if not os.path.isdir(anaDir):
     raise RuntimeError("Simulation catalog directory %s does not exist "
                  "or is not a directory" % (anaDir))
@@ -39,25 +39,25 @@ var_bin_1  =   var_bin[1:]
 gridNoi    =   (var_bin_0+var_bin_1)/2.
 
 def main():
-    map(process,utilities.field_keys.keys())
+    for fname in utilities.field_keys.values():
+        process(fname)
     finalPlot()
     return
 
-def process(cache,fieldKey):
-    fieldname   =   utilities.field_keys[fieldKey]
-    anaFieldDir =   os.path.join(config.anaDir,'%s' %(fieldname))
+def process(fieldname):
+    anaFieldDir =   os.path.join(anaDir,'%s' %(fieldname))
     outDnameRw  =   os.path.join(anaFieldDir,'varPSF_dis_rw.csv')
-    simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
+    if os.path.exists(outDnameRw):
+        return
 
-    if not os.path.exists(outDnameRw):
-        dataSim     =   pyfits.getdata(simFname)
-        #Force the reweight parameter to 0
-        dataSim['reweight_s16a']    =   0.
+    simFname    =   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
+    dataSim     =   pyfits.getdata(simFname)
+    dataSim['reweight_s16a']    =   0.
 
     print('Achieving the distriutions for observations')
     outDnameObs =   os.path.join(anaFieldDir,'varPSF_dis_obs.csv')
     if not os.path.exists(outDnameObs):
-        obsFname    =   os.path.join(config.obsDir,'%s.fits' %(utilities.field_names[fieldname]))
+        obsFname    =   os.path.join(obsDir,'%s.fits' %(fieldname))
         dataObs     =   pyfits.getdata(obsFname)
         t_dis_obs   =   getObsHist(dataObs)
         t_dis_obs.write(outDnameObs,overwrite=True)
@@ -89,7 +89,7 @@ def getObsHist(data):
     mask    =   mask&(~np.isnan(data['i_sdssshape_psf_shape22']))
     data    =   data[mask]
     fwhms   =   utilities.get_psf_size(data)
-    varNois =   data['base_Variance_value']
+    varNois =   utilities.get_noi_var(data)
     histNoi =   np.histogram(varNois,bins=var_bin,density=True)[0]
     histPsf =   np.histogram(fwhms,bins=fwhm_bin,density=True)[0]
     return Table(data=[gridNoi,histNoi,gridPsf,histPsf,len(data)*np.ones(len(gridNoi))],\
@@ -165,7 +165,7 @@ def plotNoiPsf(t_dis,t_dis_obs,t_dis_rw,anaFieldDir):
     plt.savefig(os.path.join(anaFieldDir,'psfHist.png'))
     return
 
-def finalPlot(:
+def finalPlot():
     obsDis_var  =   np.zeros(nbin1-1)
     obsDis_fwhm =   np.zeros(nbin1-1)
     obsNum      =   np.zeros(nbin1-1)
@@ -185,7 +185,7 @@ def finalPlot(:
     """
     for ii,fieldKey in enumerate(utilities.field_keys):
         fieldname   =   utilities.field_keys[fieldKey]
-        anaFieldDir =   os.path.join(config.anaDir,'%s' %(fieldname))
+        anaFieldDir =   os.path.join(anaDir,'%s' %(fieldname))
 
         disnameOri  =   os.path.join(anaFieldDir,'varPSF_dis_sim.csv')
         t_dis       =   Table.read(disnameOri)
@@ -232,7 +232,7 @@ def finalPlot(:
     axN.set_title('All')
     figN.tight_layout()
     axN.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figN.savefig(os.path.join(config.pltDir,'noiVar2.pdf'))
+    figN.savefig(os.path.join(pltDir,'noiVar2.png'))
 
     axP =   figP.add_subplot(3,3,7)
     axP.plot(gridPsf,obsDis_fwhm,'-',label='obs',c='b')
@@ -241,7 +241,7 @@ def finalPlot(:
     axP.set_title('All')
     figP.tight_layout()
     axP.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figP.savefig(os.path.join(config.pltDir,'psfFWHM2.pdf'))
+    figP.savefig(os.path.join(pltDir,'psfFWHM2.png'))
     return
 
 if __name__=='__main__':

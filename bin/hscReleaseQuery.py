@@ -15,10 +15,10 @@ from sim_analysis_utilities import chunkNList
 
 version =   20190924.1
 args    =   None
-ngroups =   10
+ngroups =   5
 doUnzip =   True
 doDownload  =   True
-diffver =   '-10-12-patch2'
+diffver =   '-patch2'
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)

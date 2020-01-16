@@ -9,18 +9,19 @@ import astropy.table as astTable
 import astropy.io.ascii as ascii
 import sim_analysis_utilities as utilities
 
-version     =   's17-10-12'
+version     =   's18'
 prefix      =   'database/%s/tracts/'%version
 outfix      =   'database/%s/fields/' %version
 fieldList   =   utilities.field_keys.values()
 if 's16' in version:
-    infoname    =   'fieldTractInfoS16.csv'
+    infoname=   'fieldTractInfoS16.csv'
 elif 's17' in version:
-    infoname    =   'fieldTractInfoS16.csv'
+    infoname=   'fieldTractInfoS16.csv'
 elif 's18' in version:
-    infoname    =   'fieldTractInfo.csv'
+    infoname=   'fieldTractInfo.csv'
 elif 's19' in version:
-    infoname    =   'fieldTractInfoS16.csv'
+    infoname=   'fieldTractInfoS16.csv'
+
 tractList   =   ascii.read(infoname)['tract']
 fieldList0  =   ascii.read(infoname)['field']
 
@@ -83,7 +84,6 @@ def process(tract):
     # FDFC, WL, BrightStar Mask
     """
     sel     =   selectGalaxyCatalog(fits)
-
     return fits[sel]
 
 def selectGalaxyCatalog(d):

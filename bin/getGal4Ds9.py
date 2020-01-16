@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import fitsio
+from astropy.table import Table
 import numpy as np
 import astropy.io.ascii as ascii
 import sim_analysis_utilities as utilities
@@ -21,11 +22,11 @@ import lsst.afw.table as afwTable
 
 from lsst.meas.base.noiseReplacer import NoiseReplacerConfig,NoiseReplacer
 
-obsFname=   'anaCat/allMat16V1-s18-10-12-%s-newmask.fits'
-bnames  =   ['TPid', 'ra', 'dec', 'object_id', \
-            'traceR', 'traceRP', 'mag']
+obsFname=   'database/allMat16V1-s18-10-12-%s.fits'
+bnames  =   ['TPid', 'ra', 'dec', 'object_id', 'traceR16', \
+            'traceR', 'traceRP', 'mag', 'mag16', 'xPix', 'yPix']
 
-neiRep  =   False
+neiRep  =   True
 ngrid   =   32
 version =   's18'
 baseDir =   'exfaGal-%s' %version
@@ -46,16 +47,45 @@ norm    =   matplotlib.colors.Normalize(vmin=21,vmax=25.)
 mappable=   plt.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 def getObsGalData(fname):
-    data    =   fitsio.read(fname)
+    data    =   Table.read(fname)
+    if 'xPix' not in data.dtype.names:
+        data    =   prepareXYpix(data)
+        data.write(fname,overwrite=True)
     mask    =   data['magA10']>25.5
-    mask    |=  (data['snrlb']>0.01*(data['snrA10']))
     mask    &=  data['inS16FDFC']
     mask    &=  (data['npass']>=2)
     mask    &=  (data['logb']<=-0.375)
     mask    &=  (~data['inS16'])
     return data[mask][bnames]
 
-def cutStampFromExposure(centroid,ngrid,expBox,imDat,mskDat,psfExp):
+def prepareXYpix(data):
+    data['xPix']=   np.empty(len(data),dtype=int)
+    data['yPix']=   np.empty(len(data),dtype=int)
+    tpSet       =   list(set(data['TPid']))
+    for tp in tpSet:
+        inds    =   np.where(data['TPid']==tp)[0]
+        # wcs
+        tract   =   tp//1000
+        patch   =   '%d,%d' %(tp%1000//100,tp%1000%100)
+        expFname=   os.path.join(tractDirE,expname %(tract,patch,tract,patch))
+        wcs     =   afwImg.ExposureF.readFits(expFname).getWcs()
+        for i in inds:
+            ss      =   data[i]
+            # Make Sky coordinate
+            p2D     =   afwGeom.coordinates.Point2D(ss['ra'],ss['dec'])
+            crd2D   =   afwCoord.IcrsCoord(p2D,afwGeom.degrees)
+            pixP2D  =   afwGeom.coordinates.Point2I(wcs.skyToPixel(crd2D))
+            ss['xPix']=   pixP2D.getX()
+            ss['yPix']=   pixP2D.getY()
+    return data
+
+def cutStampFromExposure(centroid,src,exposure):
+    # Prepare
+    imDat   =   exposure.getImage().getArray()
+    mskDat  =   exposure.getMask().getArray()
+    expBox  =   exposure.getBBox()
+    psfExp  =   exposure.getPsf()
+
     centx       =   int(centroid.getX()+0.5-expBox.getBeginX())
     centy       =   int(centroid.getY()+0.5-expBox.getBeginY())
     rCut        =   min(centx,centy,expBox.getWidth()-1-centx,\
@@ -111,11 +141,6 @@ def process(tp,data,outDir):
     # Exposure
     expFname=   os.path.join(tractDirE,expname %(tract,patch,tract,patch))
     exposure=   afwImg.ExposureF.readFits(expFname)
-    imDat   =   exposure.getImage().getArray()
-    mskDat  =   exposure.getMask().getArray()
-    bbox    =   exposure.getBBox()
-    psfExp  =   exposure.getPsf()
-    wcs     =   exposure.getWcs()
 
     # Sources
     srcFname=   os.path.join(tractDirS,srcname %(tract,patch,tract,patch))
@@ -135,24 +160,21 @@ def process(tp,data,outDir):
     if neiRep:
         # noise replacement
         footprints  = {measRecord.getId(): (measRecord.getParent(), measRecord.getFootprint())
-                              for measRecord in sources}
+                      for measRecord in sources}
         noiConfig   =   NoiseReplacerConfig()
         noiseReplacer=  NoiseReplacer(noiConfig, exposure, footprints)
 
     for i in range(nl2):
         ss  =   dataU[i]
+        # Find source
+        src =   sources.find(ss['object_id'])
         if neiRep:
-            # Find source
-            src =   sources.find(ss['object_id'])
             noiseReplacer.insertSource(src.getId())
-            pixP2D =   afwGeom.coordinates.Point2I(src.getCentroid())
-        else:
-            # Make Sky coordinate
-            p2D     =   afwGeom.coordinates.Point2D(ss['ra'],ss['dec'])
-            crd2D   =   afwCoord.IcrsCoord(p2D,afwGeom.degrees)
-            pixP2D  =   afwGeom.coordinates.Point2I(wcs.skyToPixel(crd2D))
+        pixP2D= afwGeom.coordinates.Point2I(ss['xPix'],ss['yPix'])
+        galData,mskData,psfData,binary =   cutStampFromExposure(pixP2D,src,exposure)
+        if neiRep:
+            noiseReplacer.removeSource(src.getId())
 
-        galData,mskData,psfData,binary =   cutStampFromExposure(pixP2D,ngrid,bbox,imDat,mskDat,psfExp)
         # The output data
         ix  =   i%nl
         iy  =   i//nl
@@ -163,8 +185,7 @@ def process(tp,data,outDir):
         galDataA[yb:ye,xb:xe]=galData
         mskDataA[yb:ye,xb:xe]=mskData
         psfDataA[yb:ye,xb:xe]=psfData
-        if neiRep:
-            noiseReplacer.removeSource(src.getId())
+
     fitsio.write(outFnameG,galDataA)
     fitsio.write(outFnameM,mskDataA)
     fitsio.write(outFnameP,psfDataA)
@@ -179,6 +200,8 @@ def main():
             os.system('mkdir -p %s' %outDir)
 
         data        =   getObsGalData(obsFname %fn)
+        data        =   data[:27]
+        print(len(data))
         tpSet       =   list(set(data['TPid']))
         for tp in tpSet:
             gal,msk,psf,cat =   process(tp,data,outDir)
@@ -194,15 +217,17 @@ def main():
             for ic,cc in enumerate(cat):
                 ix  =   ic%nl
                 iy  =   ic//nl
-                rp  =   cc['traceRP']/0.168
+                rg16=   cc['traceR16']/0.168
                 rg  =   cc['traceR']/0.168
                 rg  =   min(rg,ngrid//2)
+                rg16=   min(rg16,ngrid//2)
                 clr =   cmap(norm(cc['mag']))
+                clr16=   cmap(norm(cc['mag16']))
                 xy  =   (ix*ngrid+ngrid//2,iy*ngrid+ngrid//2)
                 cirG=   mpatches.Circle(xy, radius=rg, ls='-', \
                         facecolor='None', edgecolor=clr,lw=3.)
-                cirP=   mpatches.Circle(xy, radius=rp, ls='--', \
-                        facecolor='None', edgecolor=clr, lw=2.)
+                cirP=   mpatches.Circle(xy, radius=rg16, ls='--', \
+                        facecolor='None', edgecolor=clr16, lw=2.)
                 ax.add_patch(cirG)
                 ax.add_patch(cirP)
 

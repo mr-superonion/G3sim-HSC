@@ -24,6 +24,7 @@
 import os
 import galsim
 import numpy as np
+from astropy.table import Table
 import astropy.io.fits as pyfits
 
 # lsst Tasks
@@ -49,8 +50,8 @@ class processSimConfig(pexConfig.Config):
     "config"
 
     doFPFS   = pexConfig.Field(
-        dtype=bool, 
-        default=False, 
+        dtype=bool,
+        default=False,
         doc="Whether do FPFS shape measurement",
     )
 
@@ -75,11 +76,13 @@ class processSimTask(pipeBase.CmdLineTask):
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
         self.makeSubtask('fpfsBase', schema=self.schema)
         self.makeSubtask("readDataSim",schema=self.schema)
-        
+
     @pipeBase.timeMethod
-    def run(self,ifield):
+    def run(self,isim):
+        info3       =   Table.read('../prepare2/info3.csv')
+        ifield      =   int(info3[isim]['num'])
         self.log.info('begining for field %05d' %(ifield))
-        inputdir=  './expDir/' 
+        inputdir=  './expDir/'
 
         inFname    =   os.path.join(inputdir,'image-%05d.fits' %(ifield))
         if not os.path.exists(inFname):
@@ -92,11 +95,11 @@ class processSimTask(pipeBase.CmdLineTask):
         else:
             self.log.info('successed in reading data')
 
-        if self.config.doFPFS:    
+        if self.config.doFPFS:
             assert dataStruct.noiPows != None,\
                     self.log.info('do not have noiPows')
             self.fpfsBase.run(dataStruct)
-            outputdir   =  './outcomeFPFS/' 
+            outputdir   =  './outcomeFPFS/'
             outFname    =   'src-%05d.fits'  %(ifield)
             outFname    =   os.path.join(outputdir,outFname)
             if os.path.exists(outFname):
@@ -104,7 +107,7 @@ class processSimTask(pipeBase.CmdLineTask):
                 return
             dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
         return
-    
+
     @classmethod
     def _makeArgumentParser(cls):
         """Create an argument parser
@@ -119,7 +122,7 @@ class processSimTask(pipeBase.CmdLineTask):
         pass
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-        
+
 
 class processSimDriverConfig(pexConfig.Config):
     perGroup =   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
@@ -134,9 +137,9 @@ class processSimDriverConfig(pexConfig.Config):
 class processSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        minGroup    =  parsedCmd.minGroup 
-        maxGroup    =  parsedCmd.maxGroup 
-        return [(ref, kwargs) for ref in range(minGroup,maxGroup)] 
+        minGroup    =  parsedCmd.minGroup
+        maxGroup    =  parsedCmd.maxGroup
+        return [(ref, kwargs) for ref in range(minGroup,maxGroup)]
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -146,7 +149,7 @@ class processSimDriverTask(BatchPoolTask):
     ConfigClass = processSimDriverConfig
     RunnerClass = processSimRunner
     _DefaultName = "processSimDriver"
-    
+
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
@@ -168,20 +171,20 @@ class processSimDriverTask(BatchPoolTask):
         pool.cacheClear()
         pool.map(self.process,fieldList)
         return
-        
-    def process(self,cache,ifield):
-        self.processSim.run(ifield)
-        self.log.info('finish field %05d' %(ifield))
-        return 
+
+    def process(self,cache,isim):
+        self.processSim.run(isim)
+        self.log.info('finish field %05d' %(isim))
+        return
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        parser.add_argument('--minGroup', type= int, 
+        parser.add_argument('--minGroup', type= int,
                         default=0,
                         help='minimum group number')
-        parser.add_argument('--maxGroup', type= int, 
+        parser.add_argument('--maxGroup', type= int,
                         default=10,
                         help='maximum group number')
         return parser

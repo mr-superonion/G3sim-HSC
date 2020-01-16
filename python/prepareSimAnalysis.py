@@ -43,7 +43,6 @@ class prepareSimAnalysisConfig(pexConfig.Config):
     simDir  =   pexConfig.Field(dtype=str, default='outcomeHSM', doc = 'input catalogs')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-
     def validate(self):
         pexConfig.Config.validate(self)
         if not os.path.exists(self.anaDir):
@@ -57,8 +56,7 @@ class prepareSimAnalysisConfig(pexConfig.Config):
 class processSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in utilities.field_keys.keys()] 
-
+        return [(ref, kwargs) for ref in utilities.field_keys.keys()]
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
@@ -67,15 +65,13 @@ class prepareSimAnalysisTask(BatchPoolTask):
     ConfigClass     =   prepareSimAnalysisConfig
     RunnerClass     =   processSimRunner
     _DefaultName    =   "prepareSimAnalysis"
-    
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-    
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
                 parentTask=self._parentTask, log=self.log))
-    
+
     @abortOnError
     def run(self,fieldKey):
         fieldname   =   utilities.field_keys[fieldKey]
@@ -84,13 +80,13 @@ class prepareSimAnalysisTask(BatchPoolTask):
         if os.path.exists(outFname):
             self.log.info('already have output file for filed: %s' %outFname)
             return
-        
+
         #Prepare the pool
         pool        =   Pool("processSim")
         pool.cacheClear()
         pool.storeSet(fieldname=fieldname)
-        simList     =   Table.read('info2.csv')[:1600]
-        simList     =   simList[simList['field']==fieldKey]['num']
+        simList     =   Table.read('info3.csv')[:6400]
+        simList     =   simList[simList['field']==fieldname]['num']
         outcomes    =   pool.map(self.process,simList)
         outcomes    =   [x for x in outcomes if x is not None]
         catalogAll  =   vstack(outcomes)
@@ -105,7 +101,7 @@ class prepareSimAnalysisTask(BatchPoolTask):
         catalog     =   utilities.prepare_catalog(filename,fieldname=cache.fieldname,isim=ifield)
         if catalog is None:
             self.log.info('failed to process subfield %d' %(ifield))
-        return catalog 
+        return catalog
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):

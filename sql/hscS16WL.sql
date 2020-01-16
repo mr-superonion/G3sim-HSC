@@ -31,7 +31,7 @@ SELECT
 , forced.gmag_kron        as gmag_forced_kron
 , forced.gmag_kron_err    as gmag_forced_kron_err
 , forced.gflux_kron_flags as gflux_forced_kron_flags
-, forced.rmag_kron          as rmag_forced_kron
+, forced.rmag_kron        as rmag_forced_kron
 , forced.rmag_kron_err    as rmag_forced_kron_err
 , forced.rflux_kron_flags as rflux_forced_kron_flags
 , forced.imag_kron        as imag_forced_kron
@@ -124,9 +124,8 @@ FROM
 s16a_wide2.meas as meas
 LEFT JOIN s16a_wide2.meas2 as meas2 using (object_id)
 LEFT JOIN s16a_wide2.forced as forced using (object_id)
+
 WHERE
-
-
 meas.tract  IN  ({$tract})                  AND
 NOT meas.ideblend_skipped                  AND
 NOT meas.iflags_badcentroid                AND
@@ -145,4 +144,3 @@ meas.iclassification_extendedness != 0     AND
  meas2.ishape_hsm_regauss_sigma != 'NaN'    AND
 forced.wl_fulldepth_fullcolor
 ORDER BY meas.object_id
-;
