@@ -22,25 +22,29 @@ import lsst.afw.table as afwTable
 
 from lsst.meas.base.noiseReplacer import NoiseReplacerConfig,NoiseReplacer
 
-obsFname=   'database/allMat16V1-s18-10-12-%s.fits'
-bnames  =   ['TPid', 'ra', 'dec', 'object_id', 'traceR16', \
-            'traceR', 'traceRP', 'mag', 'mag16', 'xPix', 'yPix']
 
-neiRep  =   True
+neiRep  =   False
 ngrid   =   32
-version =   's18'
+version =   's19'
 baseDir =   'exfaGal-%s' %version
 if neiRep:
     baseDir+='-neiRep'
-
+obsFname=   'database/allObs-'+version+'-%s.fits'
 expname =   '%s/%s/calexp-HSC-I-%s-%s.fits'
 srcname =   '%s/%s/meas-HSC-I-%s-%s.fits'
-if version=='s18':
-    tractDirE=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
-    tractDirS=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
-elif version=='s16':
+
+bnames  =   ['TPid', 'ra', 'dec', 'object_id', 'traceR16', \
+            'traceR', 'traceRP', 'mag', 'mag16', 'xPix', 'yPix']
+
+if version=='s16':
     tractDirE=  os.path.join(os.environ['s16w'],'deepCoadd/HSC-I/')
     tractDirS=  os.path.join(os.environ['s16w'],'deepCoadd-results/HSC-I/')
+elif version=='s18':
+    tractDirE=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
+    tractDirS=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
+elif version=='s19':
+    tractDirE=  os.path.join(os.environ['s19w'],'deepCoadd-results/HSC-I/')
+    tractDirS=  os.path.join(os.environ['s19w'],'deepCoadd-results/HSC-I/')
 
 cmap    =   plt.cm.Paired
 norm    =   matplotlib.colors.Normalize(vmin=21,vmax=25.)
@@ -140,6 +144,7 @@ def process(tp,data,outDir):
 
     # Exposure
     expFname=   os.path.join(tractDirE,expname %(tract,patch,tract,patch))
+    print(expFname)
     exposure=   afwImg.ExposureF.readFits(expFname)
 
     # Sources

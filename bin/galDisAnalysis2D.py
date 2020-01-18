@@ -20,7 +20,7 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-version =   's19'
+version =   's18'
 anaDir  =   'anaCat'
 # Checks that the paths provided are valid
 if not os.path.isdir(anaDir):
