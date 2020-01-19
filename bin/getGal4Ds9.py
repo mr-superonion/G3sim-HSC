@@ -144,7 +144,6 @@ def process(tp,data,outDir):
 
     # Exposure
     expFname=   os.path.join(tractDirE,expname %(tract,patch,tract,patch))
-    print(expFname)
     exposure=   afwImg.ExposureF.readFits(expFname)
 
     # Sources
@@ -206,7 +205,6 @@ def main():
 
         data        =   getObsGalData(obsFname %fn)
         data        =   data[:27]
-        print(len(data))
         tpSet       =   list(set(data['TPid']))
         for tp in tpSet:
             gal,msk,psf,cat =   process(tp,data,outDir)
