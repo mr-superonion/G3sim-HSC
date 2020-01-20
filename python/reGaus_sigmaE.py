@@ -27,6 +27,7 @@ class reGaus_sigmaEConfig(pexConfig.Config):
     pltDir  =   pexConfig.Field(dtype=str, default='plot/sigmae/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
     max_snr =   pexConfig.Field(dtype=float, default=80., doc = 'Maximum value of signal to noise ratio')
+    max_magA10 =   pexConfig.Field(dtype=float, default=25.5, doc = 'Maximum value of Aperture magnitude')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
     max_sigma_e =   pexConfig.Field(dtype=float, default=0.4, doc = 'Maximum value of sigmaE')
     lower_psf_size  =   pexConfig.Field(dtype=float, default=0., doc = 'Minimum of PSF size')
@@ -36,13 +37,13 @@ class reGaus_sigmaEConfig(pexConfig.Config):
         pexConfig.Config.setDefaults(self)
     def validate(self):
         pexConfig.Config.validate(self)
-       # Checks that the paths provided are valid
+        # Checks that the paths provided are valid
         if not os.path.isdir(self.anaDir):
             raise RuntimeError("Simulation catalog directory %s does not exist "
-                         "or is not a directory" % (self.anaDir))
+             "or is not a directory" % (self.anaDir))
         if not os.path.isdir(self.obsDir):
             raise RuntimeError("Data catalog directory %s does not exist "
-                         "or is not a directory" % (self.anaDir))
+             "or is not a directory" % (self.anaDir))
         if not os.path.exists(self.pltDir):
             os.mkdir(self.pltDir)
 
@@ -62,6 +63,7 @@ class reGaus_sigmaETask(BatchPoolTask):
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.max_snr = self.config.max_snr
+        self.max_magA10 = self.config.max_magA10
         self.max_e = self.config.max_e
         self.max_sigma_e = self.config.max_sigma_e
         self.lower_psf_size = self.config.lower_psf_size
@@ -127,12 +129,12 @@ class reGaus_sigmaETask(BatchPoolTask):
         # 2) bright_star_mask is set to False (instead of
         #    self.bright_star_mask) because we are running on sims.
         mask    =   utilities.galaxy_selector(catalog=data,
-                                         use_wl_flag=use_wl_flag,
-                                         bright_star_mask=False,
-                                         max_snr=self.max_snr,
-                                         force_90_pair=True,
-                                         max_e=self.max_e,
-                                         max_sigma_e=self.max_sigma_e)
+                        use_wl_flag=use_wl_flag,
+                        max_snr=self.max_snr,
+                        max_magA10=self.max_magA10,
+                        force_90_pair=True,
+                        max_e=self.max_e,
+                        max_sigma_e=self.max_sigma_e)
 
         dataTab =   []
         # Get true shear for the subfield.

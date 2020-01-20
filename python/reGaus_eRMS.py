@@ -27,6 +27,7 @@ class reGaus_eRMSConfig(pexConfig.Config):
     pltDir  =   pexConfig.Field(dtype=str, default='plot/eRMS/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
     max_snr =   pexConfig.Field(dtype=float, default=200., doc = 'Maximum value of signal to noise ratio')
+    max_magA10 =   pexConfig.Field(dtype=float, default=25.5, doc = 'Maximum value of Aperture magnitude')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
     max_sigma_e =   pexConfig.Field(dtype=float, default=0.4, doc = 'Maximum value of eRMS')
     lower_psf_size  =   pexConfig.Field(dtype=float, default=0., doc = 'Minimum of PSF size')
@@ -61,6 +62,7 @@ class reGaus_eRMSTask(BatchPoolTask):
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.max_snr = self.config.max_snr
+        self.max_magA10 = self.config.max_magA10
         self.max_e = self.config.max_e
         self.max_sigma_e = self.config.max_sigma_e
         self.lower_psf_size = self.config.lower_psf_size
@@ -99,19 +101,19 @@ class reGaus_eRMSTask(BatchPoolTask):
         # cancel_shape_noise MUST be false since this is observed
         # data
         mask    =   utilities.galaxy_selector(catalog=data,
-                                         use_wl_flag=use_wl_flag,
-                                         bright_star_mask=False,
-                                         max_snr=self.max_snr,
-                                         force_90_pair=False)
+                        use_wl_flag=use_wl_flag,
+                        max_snr=self.max_snr,
+                        max_magA10=self.max_magA10,
+                        force_90_pair=False)
         dataTab =   []
         # Store NumPy arrays for e1,e2,sigma_e,model_sigma_e,
         # model_cc,resolution,snr,weight
-        dataTab.append(data[mask]['ishape_hsm_regauss_e1'])
-        dataTab.append(data[mask]['ishape_hsm_regauss_e2'])
+        dataTab.append(data[mask]['i_hsmshaperegauss_e1'])
+        dataTab.append(data[mask]['i_hsmshaperegauss_e2'])
         dataTab.append(utilities.get_sigma_e(data[mask]))
         dataTab.append(utilities.get_sigma_e_model(data[mask]))
         dataTab.append(np.zeros_like(data[mask]).astype(float))
-        dataTab.append(data[mask]['ishape_hsm_regauss_resolution'])
+        dataTab.append(data[mask]['i_hsmshaperegauss_resolution'])
         dataTab.append(utilities.get_snr(data[mask]))
         dataTab.append(utilities.get_imag(data[mask]))
         if reweight_s16a:
@@ -209,7 +211,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         sc = ax.scatter(mean_snr, mean_res, c=cat_rms, cmap=cm,
-                        vmin=vmin, vmax=vmax, edgecolors='none')
+            vmin=vmin, vmax=vmax, edgecolors='none')
         ax.set_xlim(left=10., right=200.)
         plt.colorbar(sc)
         ax.set_title('Using catalog RMS')
@@ -221,7 +223,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         sc = ax.scatter(mean_snr, mean_res, c=model_rms, cmap=cm,
-                        vmin=vmin, vmax=vmax, edgecolors='none')
+            vmin=vmin, vmax=vmax, edgecolors='none')
         ax.set_xlim(left=10., right=200.)
         cbar = plt.colorbar(sc)
         cbar.ax.set_title(r'$e_{\mathrm{rms}}$')
@@ -233,7 +235,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         sc = ax.scatter(mean_snr, mean_res, c=model_rms, cmap=cm,
-                        vmin=np.min(model_rms), vmax=np.max(model_rms), edgecolors='none')
+            vmin=np.min(model_rms), vmax=np.max(model_rms), edgecolors='none')
         ax.set_xlim(left=10., right=200.)
         cbar = plt.colorbar(sc)
         cbar.ax.set_title(r'$e_{\mathrm{rms}}$')
@@ -242,7 +244,6 @@ class reGaus_eRMSTask(BatchPoolTask):
         plt.xlabel('S/N')
         plt.ylabel('resolution')
         plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_2d_limcolorrange.eps'))
-
 
         # save data table for model/actual
         out_data = (mean_snr.flatten(), mean_res.flatten(),
@@ -256,28 +257,20 @@ class reGaus_eRMSTask(BatchPoolTask):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
         return parser
-
     @classmethod
     def batchWallTime(cls, time, parsedCmd, numCpus):
         return None
-
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeMetadata(self, ifield):
         pass
-
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-
     def _getConfigName(self):
         return None
-
     def _getEupsVersionsName(self):
         return None
-
     def _getMetadataName(self):
         return None
