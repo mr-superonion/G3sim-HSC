@@ -138,12 +138,12 @@ class reGaus_sigmaETask(BatchPoolTask):
         # Get true shear for the subfield.
         g1_true, g2_true = utilities.get_true_shear(data[mask])
         # Store NumPy arrays for observed and true e1, e2 for each subfield, and sigma_e
-        dataTab.append(data[mask]['ishape_hsm_regauss_e1'])
-        dataTab.append(data[mask]['ishape_hsm_regauss_e2'])
+        dataTab.append(data[mask]['i_hsmshaperegauss_e1'])
+        dataTab.append(data[mask]['i_hsmshaperegauss_e2'])
         dataTab.append(utilities.get_sigma_e(data[mask])) # applies noise rescaling?
         dataTab.append(g1_true)
         dataTab.append(g2_true)
-        dataTab.append(data[mask]['ishape_hsm_regauss_resolution'])
+        dataTab.append(data[mask]['i_hsmshaperegauss_resolution'])
         dataTab.append(utilities.get_snr(data[mask]))
         if reweight_s16a:
             dataTab.append(data[mask]['reweight_s16a'])
