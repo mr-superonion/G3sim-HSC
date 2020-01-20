@@ -9,8 +9,8 @@ matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 import sim_analysis_utilities as utilities
 
-import scipy.stats as stats
 import numpy as np
+import scipy.stats as stats
 from astropy.table import Table, vstack
 
 import lsst.daf.base as dafBase
@@ -21,21 +21,19 @@ from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
-
 class reGaus_eRMSConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
-    obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot2/eRMS/', doc = 'plot directory')
+    obsDir  =   pexConfig.Field(dtype=str, default='../database/s18/fields', doc = 'observed catalogs')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot/eRMS/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
     max_snr =   pexConfig.Field(dtype=float, default=200., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
     max_sigma_e =   pexConfig.Field(dtype=float, default=0.4, doc = 'Maximum value of eRMS')
     lower_psf_size  =   pexConfig.Field(dtype=float, default=0., doc = 'Minimum of PSF size')
     upper_psf_size  =   pexConfig.Field(dtype=float, default=100., doc = 'Maximum of PSF size')
-    
+
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-
     def validate(self):
         pexConfig.Config.validate(self)
        # Checks that the paths provided are valid
@@ -51,17 +49,15 @@ class reGaus_eRMSConfig(pexConfig.Config):
 class reGaus_eRMSRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in range(1)] 
-
+        return [(ref, kwargs) for ref in range(1)]
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
-
 class reGaus_eRMSTask(BatchPoolTask):
     ConfigClass     =   reGaus_eRMSConfig
     RunnerClass     =   reGaus_eRMSRunner
     _DefaultName    =   "reGaus_eRMS"
-    
+
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.max_snr = self.config.max_snr
@@ -72,12 +68,12 @@ class reGaus_eRMSTask(BatchPoolTask):
 
         # Initialise lists to store data
         self.names  =   ('e1','e2','sigma_e','model_sigma_e','model_cc','resolution','snr','mag','weight')
-        
+
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
                 parentTask=self._parentTask, log=self.log))
-    
+
     @abortOnError
     def run(self,Id):
         #Prepare the pool
@@ -88,8 +84,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         outtable=   vstack(outcomes)
         self.finalise(outtable)
         return
-        
-        
+
     def process(self,cache,fieldKey,reweight_s16a=True,use_wl_flag=True):
         fieldname=  utilities.field_keys[fieldKey]
         if fieldname==  'AEGIS':
@@ -125,7 +120,7 @@ class reGaus_eRMSTask(BatchPoolTask):
             dataTab.append(np.ones_like(dataTab[0]).astype(float))
         # Store subfield true shears.
         return Table(data=dataTab,names=self.names)
-        
+
     def finalise(self,inTable):
         """
         Make distributions of the quantities that we need to calculate
@@ -255,13 +250,13 @@ class reGaus_eRMSTask(BatchPoolTask):
         out_data = np.column_stack(out_data)
         np.savetxt(os.path.join(self.config.pltDir,'intrinsicshape_2d.dat'), out_data)
         return
-    
+
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
         return parser
-    
+
     @classmethod
     def batchWallTime(cls, time, parsedCmd, numCpus):
         return None
@@ -271,18 +266,18 @@ class reGaus_eRMSTask(BatchPoolTask):
 
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-    
+
     def writeMetadata(self, ifield):
         pass
-    
+
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-    
+
     def _getConfigName(self):
         return None
-   
+
     def _getEupsVersionsName(self):
         return None
-    
+
     def _getMetadataName(self):
         return None

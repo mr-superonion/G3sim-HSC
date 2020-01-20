@@ -21,21 +21,19 @@ from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
-
 class reGaus_sigmaEConfig(pexConfig.Config):
     anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
-    obsDir  =   pexConfig.Field(dtype=str, default='/work/xiangchong.li/work/S16AFPFS/final/noBg/field/', doc = 'observed catalogs')
-    pltDir  =   pexConfig.Field(dtype=str, default='plot2/sigmae/', doc = 'plot directory')
+    obsDir  =   pexConfig.Field(dtype=str, default='../database/s18/fields', doc = 'observed catalogs')
+    pltDir  =   pexConfig.Field(dtype=str, default='plot/sigmae/', doc = 'plot directory')
     nbin_1d =   pexConfig.Field(dtype=int, default=20, doc = 'number of bins for 1-D parameter space')
     max_snr =   pexConfig.Field(dtype=float, default=80., doc = 'Maximum value of signal to noise ratio')
     max_e   =   pexConfig.Field(dtype=float, default=2., doc = 'Maximum value of distortion |e|')
     max_sigma_e =   pexConfig.Field(dtype=float, default=0.4, doc = 'Maximum value of sigmaE')
     lower_psf_size  =   pexConfig.Field(dtype=float, default=0., doc = 'Minimum of PSF size')
     upper_psf_size  =   pexConfig.Field(dtype=float, default=100., doc = 'Maximum of PSF size')
-    
+
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-
     def validate(self):
         pexConfig.Config.validate(self)
        # Checks that the paths provided are valid
@@ -51,8 +49,7 @@ class reGaus_sigmaEConfig(pexConfig.Config):
 class reGaus_sigmaERunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in range(1)] 
-
+        return [(ref, kwargs) for ref in range(1)]
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
@@ -61,7 +58,7 @@ class reGaus_sigmaETask(BatchPoolTask):
     ConfigClass     =   reGaus_sigmaEConfig
     RunnerClass     =   reGaus_sigmaERunner
     _DefaultName    =   "reGaus_sigmaE"
-    
+
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.max_snr = self.config.max_snr
@@ -86,24 +83,23 @@ class reGaus_sigmaETask(BatchPoolTask):
         self.log.info('   %d bins in both SNR and resolution'%self.config.nbin_1d)
         self.log.info('   Percentile ranges for PSF size: %.2f-%.2f'%\
             (self.lower_psf_size, self.upper_psf_size))
-        self.log.info('')
-        
+
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
         parentTask=self._parentTask, log=self.log))
-    
+
     @abortOnError
     def run(self,Id):
         #Prepare the pool
         pool    =   Pool("reGaus_sigmaE")
         pool.cacheClear()
         outcomes=   pool.map(self.process,utilities.field_keys)
-        outcomes    =   [x for x in outcomes if x is not None]
+        outcomes=   [x for x in outcomes if x is not None]
         outtable=   vstack(outcomes)
         self.finalise(outtable)
         return
-        
+
     def do_ks_test(self,x,y,sample_names="two samples"):
         """routine to do a 2-sample ks test and report on consistency of distributions"""
         (ks_d, ks_p) = stats.ks_2samp(x,y)
@@ -113,7 +109,7 @@ class reGaus_sigmaETask(BatchPoolTask):
             self.log.info('Distributions for %s differ!'%sample_names)
         self.log.info('(d, p)=(%f, %f)'%(ks_d, ks_p))
         return
-        
+
     def process(self,cache,fieldKey,reweight_s16a=True,use_wl_flag=True):
         fieldname=  utilities.field_keys[fieldKey]
         if fieldname==  'AEGIS':
@@ -137,7 +133,7 @@ class reGaus_sigmaETask(BatchPoolTask):
                                          force_90_pair=True,
                                          max_e=self.max_e,
                                          max_sigma_e=self.max_sigma_e)
-                                         
+
         dataTab =   []
         # Get true shear for the subfield.
         g1_true, g2_true = utilities.get_true_shear(data[mask])
@@ -154,10 +150,8 @@ class reGaus_sigmaETask(BatchPoolTask):
         else:
             dataTab.append(np.ones_like(g1_true).astype(float))
         dataTab.append(utilities.get_psf_size(data[mask]))
-        # Store subfield true shears.
-        
         return Table(data=dataTab,names=self.names)
-        
+
     def finalise(self,inTable):
         """
         Make distributions of the quantities that we need to calculate
@@ -281,7 +275,7 @@ class reGaus_sigmaETask(BatchPoolTask):
                 # Check for consistency between components.
                 self.do_ks_test(sum_e_erot_1_corr[bin_mask], sum_e_erot_2_corr[bin_mask],
                            sample_names="two shape components")
-                
+
                 e_uncorr_input = np.concatenate((
                         sum_e_erot_1[bin_mask],
                         sum_e_erot_2[bin_mask]))
@@ -305,12 +299,13 @@ class reGaus_sigmaETask(BatchPoolTask):
                 self.est_sigma_e[i,j] = bin_rms
                 self.cat_est_sigma_e[i,j] = input_bin_rms
 
-                # Compute RMS e values per component, including:
-                # 1) Observed
-                # 2) Estimated intrinsic, using 
-                #   (a) the catalog sigma_e values, and
-                #   (b) the one from these distributions.
-                #
+                """
+                Compute RMS e values per component, including:
+                1) Observed
+                2) Estimated intrinsic, using
+                  (a) the catalog sigma_e values, and
+                  (b) the one from these distributions.
+                """
                 # (1) Observed
                 rms_observed = np.sqrt(0.5*np.sum(
                         master_weight[global_bin_mask]* \
@@ -438,34 +433,26 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.ylabel('resolution')
         plt.savefig(os.path.join(self.config.pltDir,'eRms_estimated.eps'))
         return
-    
+
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
         return parser
-    
     @classmethod
     def batchWallTime(cls, time, parsedCmd, numCpus):
         return None
-
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-    
     def writeMetadata(self, ifield):
         pass
-    
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-    
     def _getConfigName(self):
         return None
-   
     def _getEupsVersionsName(self):
         return None
-    
     def _getMetadataName(self):
         return None
