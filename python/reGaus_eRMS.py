@@ -175,7 +175,7 @@ class reGaus_eRMSTask(BatchPoolTask):
             if 'snr' in quantities[x]: plt.xscale('log')
             plt.xlabel(quantities[x])
             plt.ylabel(r'$\sigma_{SN}$')
-            plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_'+quantities[x]+'.eps'))
+            plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_'+quantities[x]+'.png'))
 
         # Then do the 2d estimation as a function of SNR and resolution.
         snr_lower, snr_upper, res_lower, res_upper = \
@@ -218,7 +218,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_cat_2d.eps'))
+        plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_cat_2d.png'))
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -230,7 +230,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_2d.eps'))
+        plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_2d.png'))
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -243,7 +243,7 @@ class reGaus_eRMSTask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('S/N')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_2d_limcolorrange.eps'))
+        plt.savefig(os.path.join(self.config.pltDir,'intrinsicshape_2d_limcolorrange.png'))
 
         # save data table for model/actual
         out_data = (mean_snr.flatten(), mean_res.flatten(),

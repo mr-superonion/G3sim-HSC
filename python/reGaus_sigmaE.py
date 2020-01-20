@@ -364,7 +364,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'sigmae_estimated.eps'))
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_estimated.png'))
 
 
         # Plot catalog sigma_e as a function of SNR, resolution.
@@ -377,7 +377,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'sigmae_cat.eps') )
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_cat.png') )
 
         # Plot ratio of catalog to estimated sigma_e.
         fig = plt.figure()
@@ -388,7 +388,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'sigmae_cat_estimated_ratio.eps'))
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_cat_estimated_ratio.png'))
 
 
         # Model sigma_e as a function of SNR, resolution (including
@@ -402,7 +402,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'sigmae_model.eps'))
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_model.png'))
         # model / estimated sigma_e as a function of SNR, resolution.  Should be close to 1.
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -412,7 +412,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'sigmae_ratio.eps'))
+        plt.savefig(os.path.join(self.config.pltDir,'sigmae_ratio.png'))
 
         # save data table for model/actual
         out_data = (self.mean_snr.flatten(), self.mean_res.flatten(),
@@ -433,7 +433,7 @@ class reGaus_sigmaETask(BatchPoolTask):
         plt.xscale('log')
         plt.xlabel('SNR')
         plt.ylabel('resolution')
-        plt.savefig(os.path.join(self.config.pltDir,'eRms_estimated.eps'))
+        plt.savefig(os.path.join(self.config.pltDir,'eRms_estimated.png'))
         return
 
     @classmethod
