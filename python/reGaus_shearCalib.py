@@ -115,7 +115,8 @@ class reGaus_shearCalibTask(BatchPoolTask):
     def separate_slide(self,slide_cat):
         self.log.info('Detemining the sliding window')
         mask    =   utilities.galaxy_selector(catalog=slide_cat,
-                    max_snr = 1000.,max_sigma_e=0.35,max_e =2.,
+                    max_snr = 1000., max_magA10=25.5,
+                    max_sigma_e=0.35,max_e =2.,
                     use_wl_flag=True,force_90_pair=self.config.force_90_pair)
         slide_cat=  slide_cat[mask]
         # Set up sliding window definition and make a mask for each SNR, resolution bin.
@@ -167,14 +168,15 @@ class reGaus_shearCalibTask(BatchPoolTask):
 
     def process(self,cache,row):
         isim    =   row['num']
-        fN      =   utilities.field_keys[row['field']]
+        fN      =   row['field']
         self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
         catFname=   os.path.join(self.config.anaDir,'%s'%fN,'simCat','%d.fits' %isim)
         catalog =   Table.read(catFname)
         #Estimate shear for each isim
         mask    =   utilities.galaxy_selector(catalog=catalog,
-                    max_snr = 1000.,max_sigma_e=0.35,max_e =2.,
-                     use_wl_flag=True,force_90_pair=self.config.force_90_pair)
+                    max_snr = 1000., max_magA10=25.5,
+                    max_sigma_e=0.35,max_e =2.,
+                    use_wl_flag=True,force_90_pair=self.config.force_90_pair)
         catalog =  catalog[mask]
         if len(catalog)<2:
             return None
@@ -255,7 +257,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         pool.cacheClear()
         pool.storeSet(snr_lower=self.snr_lower,snr_upper=self.snr_upper,
                     res_lower=self.res_lower,res_upper=self.res_upper)
-        rows    =   Table.read('psfPre/info.csv')
+        rows    =   Table.read('info3.csv')[0:6400]
         outcomes=   pool.map(self.process,rows)
         outcomes=   [x for x in outcomes if x is not None]
         nsim    =   len(outcomes)
