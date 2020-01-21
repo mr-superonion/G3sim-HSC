@@ -29,10 +29,10 @@ version =   's19'
 baseDir =   'exfaGal-%s' %version
 if neiRep:
     baseDir+='-neiRep'
+
 obsFname=   'database/allObs-'+version+'-%s.fits'
 expname =   '%s/%s/calexp-HSC-I-%s-%s.fits'
 srcname =   '%s/%s/meas-HSC-I-%s-%s.fits'
-
 bnames  =   ['TPid', 'ra', 'dec', 'object_id', 'traceR16', \
             'traceR', 'traceRP', 'mag', 'mag16', 'xPix', 'yPix']
 
@@ -43,8 +43,8 @@ elif version=='s18':
     tractDirE=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
     tractDirS=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
 elif version=='s19':
-    tractDirE=  os.path.join(os.environ['s19w'],'deepCoadd-results/HSC-I/')
-    tractDirS=  os.path.join(os.environ['s19w'],'deepCoadd-results/HSC-I/')
+    tractDirE=  os.path.join(os.environ['s16w'],'deepCoadd/HSC-I/')
+    tractDirS=  os.path.join(os.environ['s16w'],'deepCoadd-results/HSC-I/')
 
 cmap    =   plt.cm.Paired
 norm    =   matplotlib.colors.Normalize(vmin=21,vmax=25.)
@@ -60,6 +60,7 @@ def getObsGalData(fname):
     mask    &=  (data['npass']>=2)
     mask    &=  (data['logb']<=-0.375)
     mask    &=  (~data['inS16'])
+    mask    &=  (~np.isnan(data['mag16']))
     return data[mask][bnames]
 
 def prepareXYpix(data):
