@@ -20,7 +20,7 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-version =   's18'
+version =   's16_calib'
 anaDir  =   'anaCat'
 # Checks that the paths provided are valid
 if not os.path.isdir(anaDir):
@@ -47,8 +47,8 @@ datanames   =   ['res','snr','mag','absE','logb','weight']
 
 def main():
     allSim,allObs=getAllDat()
-    finalPlot(allSim,allObs)
-    onePlot(allSim,allObs)
+    #finalPlot(allSim,allObs)
+    #onePlot(allSim,allObs)
     return
 
 def getAllDat():

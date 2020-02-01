@@ -31,8 +31,8 @@ class reGaus_shearCalibConfig(pexConfig.Config):
     ngal_bin    =   pexConfig.Field(dtype=int, default=150000, doc = 'number of bins for 1-D parameter space')
     use_model   =   pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
     reweight_s16a=  pexConfig.Field(dtype=bool, default=True, doc = 'reweigting?')
-    force_90_pair=  pexConfig.Field(dtype=bool, default=True, doc = 'whether to use orthogonal galaxies to cancel shape noise')
-    force_weight=   pexConfig.Field(dtype=bool, default=True, doc = 'test weight bias?')
+    force_90_pair=  pexConfig.Field(dtype=bool, default=True, doc = 'for selection bias')
+    force_weight=   pexConfig.Field(dtype=bool, default=True, doc = 'for weight bias')
     round_trip  =   pexConfig.Field(dtype=bool, default=False, doc = 'do a round trip?')
     test_weight_bias  =   pexConfig.Field(dtype=bool, default=False, doc = 'test weight bias?')
 

@@ -22,10 +22,9 @@ import lsst.afw.table as afwTable
 
 from lsst.meas.base.noiseReplacer import NoiseReplacerConfig,NoiseReplacer
 
-
 neiRep  =   False
 ngrid   =   32
-version =   's19'
+version =   's18'
 baseDir =   'exfaGal-%s' %version
 if neiRep:
     baseDir+='-neiRep'
@@ -43,8 +42,8 @@ elif version=='s18':
     tractDirE=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
     tractDirS=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
 elif version=='s19':
-    tractDirE=  os.path.join(os.environ['s16w'],'deepCoadd/HSC-I/')
-    tractDirS=  os.path.join(os.environ['s16w'],'deepCoadd-results/HSC-I/')
+    tractDirE=  os.path.join(os.environ['s19w'],'deepCoadd-results/HSC-I/')
+    tractDirS=  os.path.join(os.environ['s19w'],'deepCoadd-results/HSC-I/')
 
 cmap    =   plt.cm.Paired
 norm    =   matplotlib.colors.Normalize(vmin=21,vmax=25.)
@@ -61,9 +60,11 @@ def getObsGalData(fname):
     mask    &=  (data['logb']<=-0.375)
     mask    &=  (~data['inS16'])
     mask    &=  (~np.isnan(data['mag16']))
+    mask    &=  (np.abs(data['xPix'])<1.e5)
     return data[mask][bnames]
 
 def prepareXYpix(data):
+    print('preparing XY position')
     data['xPix']=   np.empty(len(data),dtype=int)
     data['yPix']=   np.empty(len(data),dtype=int)
     tpSet       =   list(set(data['TPid']))
@@ -73,6 +74,9 @@ def prepareXYpix(data):
         tract   =   tp//1000
         patch   =   '%d,%d' %(tp%1000//100,tp%1000%100)
         expFname=   os.path.join(tractDirE,expname %(tract,patch,tract,patch))
+        if not os.path.exists(expFname):
+            print('cannot find %s' %expFname)
+            continue
         wcs     =   afwImg.ExposureF.readFits(expFname).getWcs()
         for i in inds:
             ss      =   data[i]
@@ -205,7 +209,8 @@ def main():
             os.system('mkdir -p %s' %outDir)
 
         data        =   getObsGalData(obsFname %fn)
-        data        =   data[:27]
+        data        =   data[data['TPid']>=16008000]
+        data        =   data[:100]
         tpSet       =   list(set(data['TPid']))
         for tp in tpSet:
             gal,msk,psf,cat =   process(tp,data,outDir)
@@ -243,5 +248,6 @@ def main():
             plt.close('all')
             del fig
     return
+
 if __name__=='__main__':
     main()
