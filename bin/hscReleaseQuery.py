@@ -15,10 +15,9 @@ from sim_analysis_utilities import chunkNList
 
 version =   20190924.1
 args    =   None
-ngroups =   5
 doUnzip =   True
-doDownload  =   True
-diffver =   '-patch2'
+doDownload  =   False
+diffver =   ''
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -30,7 +29,6 @@ def main():
                         help='suppress email notice')
     parser.add_argument('--release_year', '-r', choices='s15 s16 s17 s18 s19'.split(), required=True,
                         help='the release year')
-    parser.add_argument('--tract_info', required=True, help='tract info file')
     parser.add_argument('--delete-job', '-D', action='store_true',
                         help='delete the job you submitted after your downloading')
     parser.add_argument('--password-env', default='HSC_SSP_CAS_PASSWORD',
@@ -44,28 +42,38 @@ def main():
     parser.add_argument('sql-file', type=argparse.FileType('r'),
                         help='SQL file')
 
-    global args,release_version,prefix
+    global args,release_version,prefix,prefix2,ngroups
     args = parser.parse_args()
     release_year   =   args.release_year
-    prefix  =   'database/%s%s/tracts' %(release_year,diffver)
+    prefix  =   'database/%s%s/sql' %(release_year,diffver)
+    prefix2 =   'database/%s%s/tracts' %(release_year,diffver)
     if not os.path.exists(prefix):
         os.system('mkdir -p %s' %prefix)
+    if not os.path.exists(prefix2):
+        os.system('mkdir -p %s' %prefix2)
 
-    if 's15' in release_year:
-        release_version =   'dr1'
-    elif 's16' in release_year:
-        release_version =   'dr1'
     elif 's17' in release_year:
         release_version =   'dr2'
+        ngroups =   5
+        tractname='./prepare2/fieldTractInfoS16.csv'
     elif 's18' in release_year:
         release_version =   'dr2'
+        ngroups =   10
+        tractname='./prepare2/fieldTractInfo.csv'
     elif 's19' in release_year:
         release_version =   'dr3'
+        ngroups =   5
+        tractname='./prepare2/fieldTractInfoS16.csv'
 
     global sql
     sql         =   args.__dict__['sql-file'].read()
+    """
+    codeDir     =   os.environ['codeDir']
+    sqlfname    =   os.path.join(codeDir,'sql','%sWL%s.sql' %(release_year,diffver))
+    sql         =   open(sqlfname).read()
+    """
 
-    tracts      =   ascii.read(args.tract_info)['tract']
+    tracts      =   ascii.read(tractname)['tract']
     tracts2     =   chunkNList(tracts,ngroups)
     if doDownload:
         global credential
@@ -90,7 +98,7 @@ def separateTracts(ig,tractL):
     print('read %s galaxies' %len(fitsAll))
 
     for tract in tractL:
-        outfname    =   os.path.join(prefix,'%s.fits' %(tract))
+        outfname    =   os.path.join(prefix2,'%s.fits' %(tract))
         if os.path.exists(outfname):
             print('already have file for tract: %s' \
                     %tract)

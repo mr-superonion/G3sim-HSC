@@ -19,6 +19,7 @@ SELECT
 , meas.i_cmodel_flag_badcentroid
 , meas.i_cmodel_flux
 , meas.i_cmodel_fluxsigma
+, meas.i_cmodel_objective
 
 -- unforced Aperture fluxes
 ,meas3.i_apertureflux_10_flux
@@ -209,7 +210,7 @@ LEFT JOIN s18a_wide.masks as masks using (object_id)
 WHERE
 meas.tract  IN  ({$tract})                              AND
 NOT meas_ireprocess.i_deblend_skipped                   AND
---NOT meas.i_cmodel_flag_badcentroid                   AND
+--NOT meas.i_cmodel_flag_badcentroid                    AND
 --# This flag was not included in S16A, but if we find anything wrong, we can get it back.
 NOT meas_ireprocess.i_sdsscentroid_flag                 AND
 NOT meas_ireprocess.i_pixelflags_edge                   AND

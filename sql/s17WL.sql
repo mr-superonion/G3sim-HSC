@@ -7,9 +7,6 @@ SELECT
 , meas.i_footprintarea_value
 , meas.i_deblend_parenttoobig
 
-, meas.i_cmodel_exp_niter
-, meas.i_cmodel_dev_niter
-
 -- photometry
 -- unforced kron magnitudes
 , meas2.i_kronflux_flux
@@ -25,6 +22,9 @@ SELECT
 , meas.i_cmodel_flag_badcentroid
 , meas.i_cmodel_flux
 , meas.i_cmodel_fluxsigma
+, meas.i_cmodel_objective
+, meas.i_cmodel_exp_niter
+, meas.i_cmodel_dev_niter
 
 -- unforced Aperture fluxes
 ,meas2.i_apertureflux_10_flux

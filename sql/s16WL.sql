@@ -126,7 +126,7 @@ LEFT JOIN s16a_wide2.meas2 as meas2 using (object_id)
 LEFT JOIN s16a_wide2.forced as forced using (object_id)
 
 WHERE
-meas.tract  IN  ({$tract})                  AND
+meas.tract  IN  ({$tract})                 AND
 NOT meas.ideblend_skipped                  AND
 NOT meas.iflags_badcentroid                AND
 NOT meas2.icentroid_sdss_flags             AND

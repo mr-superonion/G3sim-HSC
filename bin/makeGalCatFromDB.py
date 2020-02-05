@@ -63,7 +63,7 @@ def process(tract):
     """
     # Load diff Patch
     """
-    pDirL   =   glob.glob('database/%s-patch*/tracts/' %version)
+    pDirL   =   glob.glob('database/%s/tracts-diff*/' %version)
     for pp in pDirL:
         pfname  =   os.path.join(pp,'%s.fits' %tract)
         pf      =   astTable.Table.read(pfname)
@@ -83,8 +83,8 @@ def process(tract):
     """
     # FDFC, WL, BrightStar Mask
     """
-    sel     =   selectGalaxyCatalog(fits)
-    return fits[sel]
+    #sel     =   selectGalaxyCatalog(fits)
+    return fits
 
 def selectGalaxyCatalog(d):
     # apply FDFC mask
