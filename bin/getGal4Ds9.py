@@ -25,7 +25,7 @@ from lsst.meas.base.noiseReplacer import NoiseReplacerConfig,NoiseReplacer
 noiRep  =   True
 inSrc   =   False
 ngrid   =   64
-npg     =   100
+npg     =   500
 outDir  =   'exfaGalAll'
 if noiRep:
     outDir+='-noiRep'
@@ -42,49 +42,57 @@ norm    =   matplotlib.colors.Normalize(vmin=21,vmax=25.)
 mappable=   plt.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 def readData(version):
-    fname   =   'database/allObs-%s.fits' %version
-    names   =   ['TPid', 'ra', 'dec', 'object_id', 'traceR16', \
-            'traceR', 'mag', 'mag16', 'fieldname']
+    fname   =   'database/compare/match-%s.fits' %version
+    names   =   ['TPid', 'TPid16', 'ra', 'dec', 'snr', 'snr16', \
+                'object_id', 'object_id16', 'traceR', 'traceR16', \
+                'res', 'res16', 'mag', 'mag16', 'fieldname']
     data    =   Table.read(fname)
+    # Do mask
     mask    =   (~np.isnan(data['mag16']))
-    mask    =   (~np.isnan(data['mag']))
+    mask    &=  (~np.isnan(data['mag']))
     mask    &=  (~np.isnan(data['traceR16']))
     mask    &=  (~np.isnan(data['traceR']))
-    if version != 's16':
-        mask    &=  data['magA10']>25.5
-        mask    &=  data['inS16FDFC']
-        mask    &=  (data['npass']>=2)
-        mask    &=  (data['logb']<=-0.375)
-        mask    &=  (~data['inS16'])
-        mask    &=  ((data['traceR']-data['traceR16'])>0.5)
+    # WL cut
+    mask    &=  (data['mag']<24.5)
+    mask    &=  (data['res']>0.3)
+    mask    &=  (data['snr']>10.)
+    mask    &=  (data['npass']>=2)
+    mask    &=  (data['logb']<=-0.375)
+    # Bad cut
+    mask    &=  (data['mag16']>24.5)
+    mask    &=  (data['magA10']>25.5)
+    mask    &=  ((data['traceR']-data['traceR16'])>0.2)
+    #
+    mask    &=  (data['TPid']==data['TPid16'])
     return data[mask][names]
 
 def prepare():
-    if not os.path.exists('database/susMat-s18.fits'):
+    fname =   'database/compare/susMat-s18-s19.fits'
+    if not os.path.exists(fname):
         print('Preparing matched catalog')
         data18  =   readData('s18')
         data19  =   readData('s19')
 
-        match   =   smatch.match(data18['ra'],data18['dec'],0.5/3600.,\
+        match   =   smatch.match(data18['ra'],data18['dec'],0.4/3600.,\
             data19['ra'],data19['dec'],maxmatch=1)
         mask    =   data18[match['i1']]['TPid']==data19[match['i2']]['TPid']
         match   =   match[mask]
+        index   =   np.unique(match['i1'],return_index=True)[1]
+        match   =   match[index]
+
         data18  =   data18[match['i1']]
         data19  =   data19[match['i2']]
-
-        """
-        data16  =   prepareXYpix(data16)
-        data18  =   prepareXYpix(data18)
-        data19  =   prepareXYpix(data19)
-        """
-
-        data18.write('database/susMat-s18.fits')
-        data19.write('database/susMat-s19.fits')
+        data18['object_id19']=  data19['object_id']
+        data18['snr19']   =   data19['snr']
+        data18['mag19']   =   data19['mag']
+        data18['res19']   =   data19['res']
+        data18['traceR19']=   data19['traceR']
+        data18['TPid19']  =   data19['TPid']
+        data18.write(fname)
     else:
         print('Already have matched catalog')
-        data18=Table.read('database/susMat-s18.fits')
-        data19=Table.read('database/susMat-s19.fits')
-    return data18,data19
+        data18  =  Table.read(fname)
+    return data18
 
 def cutStampFromExposure(centroid,src,exposure):
     # Prepare
@@ -93,24 +101,24 @@ def cutStampFromExposure(centroid,src,exposure):
     expBox  =   exposure.getBBox()
     psfExp  =   exposure.getPsf()
 
-    centx       =   int(centroid.getX()+0.5-expBox.getBeginX())
-    centy       =   int(centroid.getY()+0.5-expBox.getBeginY())
-    rCut        =   min(centx,centy,expBox.getWidth()-1-centx,\
+    centx   =   int(centroid.getX()+0.5-expBox.getBeginX())
+    centy   =   int(centroid.getY()+0.5-expBox.getBeginY())
+    rCut    =   min(centx,centy,expBox.getWidth()-1-centx,\
                     expBox.getHeight()-1-centy,ngrid//2)
-    rCut        =   int(rCut)
+    rCut    =   int(rCut)
     if rCut<2:
         return None
     #get image
-    left        =   centx-rCut
-    right       =   centx+rCut
-    down        =   centy-rCut
-    up          =   centy+rCut
+    left    =   centx-rCut
+    right   =   centx+rCut
+    down    =   centy-rCut
+    up      =   centy+rCut
     #image, mask and PSF
-    galData     =   np.zeros((ngrid,ngrid))
-    mskData     =   np.zeros((ngrid,ngrid))
-    psfData     =   np.zeros((ngrid,ngrid))
-    shift       =   int(ngrid//2-rCut)
-    num         =   0
+    galData =   np.zeros((ngrid,ngrid))
+    mskData =   np.zeros((ngrid,ngrid))
+    psfData =   np.zeros((ngrid,ngrid))
+    shift   =   int(ngrid//2-rCut)
+    num     =   0
     for j in range(2*rCut):
         for i in range(2*rCut):
             galData[shift+j,shift+i]=   imDat[down+j,left+i]
@@ -136,22 +144,27 @@ def cutStampFromExposure(centroid,src,exposure):
             for i in range(ngrid):
                     psfData[j,i]=psfData2[shifty+j,shiftx+i]
     else:
-        shift=abs(shift)
+        shiftx=abs(shiftx)
+        shifty=abs(shifty)
         for j in range(ny):
             for i in range(nx):
                     psfData[j+shifty,i+shiftx]=psfData2[j,i]
     return galData,mskData,psfData,binary
 
 def process(data,version):
+    nGal    =   len(data)
     if version=='s16':
         tractDirE=  os.path.join(os.environ['s16w'],'deepCoadd/HSC-I/')
         tractDirS=  os.path.join(os.environ['s16w'],'deepCoadd-results/HSC-I/')
+        idname  =   'object_id16'
     elif version=='s18':
         tractDirE=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
         tractDirS=  os.path.join(os.environ['s18w'],'deepCoadd-results/HSC-I/')
+        idname  =   'object_id'
     elif version=='s19':
         tractDirE=  os.path.join(os.environ['s19w'],'deepCoadd-results/HSC-I/')
         tractDirS=  os.path.join(os.environ['s19w'],'deepCoadd-results/HSC-I/')
+        idname  =   'object_id19'
     Dir     =   os.path.join(outDir,version)
     if not os.path.exists(Dir):
         os.system('mkdir -p %s' %Dir)
@@ -162,6 +175,7 @@ def process(data,version):
     psfDataA    =   np.zeros((npg,ngrid,ngrid))
     catA        =   []
     tpSet       =   list(set(data['TPid']))
+    print(tpSet)
     for tp in tpSet:
         dataU   =   data[data['TPid']==tp]
         # Read Exposure and catalog
@@ -183,7 +197,7 @@ def process(data,version):
 
         for ss in dataU:
             # Find source
-            src =   sources.find(ss['object_id'])
+            src =   sources.find(ss[idname])
             if inSrc and noiRep:
                 noiseReplacer.insertSource(src.getId())
             #pixP2D= afwGeom.Point2I(ss['xPix'],ss['yPix'])
@@ -192,18 +206,17 @@ def process(data,version):
             if inSrc and noiRep:
                 noiseReplacer.removeSource(src.getId())
 
-            galDataA[igal]=galData
-            psfDataA[igal]=psfData
+            galDataA[igal%npg]=galData
+            psfDataA[igal%npg]=psfData
             catA.append(ss)
             igal+=1
-            if igal==npg:
+            if igal%npg==0 or igal==nGal:
                 outFnameG=   os.path.join(Dir,'gal-%d.fits' %igroup)
                 outFnameP=   os.path.join(Dir,'psf-%d.fits' %igroup)
                 outFnameC=   os.path.join(Dir,'cat-%d.csv'  %igroup)
                 fitsio.write(outFnameG,galDataA)
                 fitsio.write(outFnameP,psfDataA)
                 vstack(catA).write(outFnameC)
-                igal=0
                 igroup +=1
                 galDataA    =   np.zeros((npg,ngrid,ngrid))
                 psfDataA    =   np.zeros((npg,ngrid,ngrid))
@@ -247,11 +260,9 @@ def makePlot(gal,cat):
     return
 
 def main():
-    data18,data19=  prepare()
-    data18      =   data18[data18['fieldname']=='HECTOMAP']
-    data19      =   data19[data19['fieldname']=='HECTOMAP']
-    process(data18,'s18')
-    process(data19,'s19')
+    dataAll  =   prepare()
+    dataAll  =   dataAll[dataAll['fieldname']=='HECTOMAP']
+    process(dataAll,'s16')
     return
 
 if __name__=='__main__':

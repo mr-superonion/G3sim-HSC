@@ -13,6 +13,7 @@ matplotlib.use('agg')
 matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
+matplotlib.rcParams['font.size'] = 14
 
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
