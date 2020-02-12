@@ -22,7 +22,7 @@ import lsst.afw.table as afwTable
 
 from lsst.meas.base.noiseReplacer import NoiseReplacerConfig,NoiseReplacer
 
-noiRep  =   True
+noiRep  =   False
 inSrc   =   False
 ngrid   =   64
 npg     =   500
@@ -171,6 +171,7 @@ def process(data,version):
 
     igal        =   0
     igroup      =   0
+    mskDataA    =   np.zeros((npg,ngrid,ngrid))
     galDataA    =   np.zeros((npg,ngrid,ngrid))
     psfDataA    =   np.zeros((npg,ngrid,ngrid))
     catA        =   []
@@ -206,18 +207,24 @@ def process(data,version):
             if inSrc and noiRep:
                 noiseReplacer.removeSource(src.getId())
 
+            mskDataA[igal%npg]=mskData
             galDataA[igal%npg]=galData
             psfDataA[igal%npg]=psfData
             catA.append(ss)
             igal+=1
             if igal%npg==0 or igal==nGal:
+                outFnameM=   os.path.join(Dir,'msk-%d.fits' %igroup)
                 outFnameG=   os.path.join(Dir,'gal-%d.fits' %igroup)
                 outFnameP=   os.path.join(Dir,'psf-%d.fits' %igroup)
                 outFnameC=   os.path.join(Dir,'cat-%d.csv'  %igroup)
+                fitsio.write(outFnameM,mskDataA)
+                """
                 fitsio.write(outFnameG,galDataA)
                 fitsio.write(outFnameP,psfDataA)
                 vstack(catA).write(outFnameC)
+                """
                 igroup +=1
+                mskDataA    =   np.zeros((npg,ngrid,ngrid))
                 galDataA    =   np.zeros((npg,ngrid,ngrid))
                 psfDataA    =   np.zeros((npg,ngrid,ngrid))
                 catA        =   []
@@ -241,7 +248,7 @@ def makePlot(gal,cat):
         rg  =   min(rg,ngrid//2)
         rg16=   min(rg16,ngrid//2)
         clr =   cmap(norm(cc['mag']))
-        clr16=   cmap(norm(cc['mag16']))
+        clr16=  cmap(norm(cc['mag16']))
         xy  =   (ix*ngrid+ngrid//2,iy*ngrid+ngrid//2)
         cirG=   mpatches.Circle(xy, radius=rg, ls='-', \
                 facecolor='None', edgecolor=clr,lw=3.)
@@ -262,7 +269,7 @@ def makePlot(gal,cat):
 def main():
     dataAll  =   prepare()
     dataAll  =   dataAll[dataAll['fieldname']=='HECTOMAP']
-    process(dataAll,'s16')
+    process(dataAll,'s19')
     return
 
 if __name__=='__main__':

@@ -40,7 +40,7 @@ def getNumY(data,magX,doMask):
 def numPlot(version,axes):
     outfname    =   os.path.join(pltDir,'num_mag_%s.csv' %version)
     if not os.path.exists(outfname):
-        magX    =   np.arange(23,26.2,0.2)
+        magX    =   np.arange(23,27.6,0.5)
         data    =   prepare(version)
         numY1   =   getNumY(data,magX,False)
         numY2   =   getNumY(data,magX,True)
@@ -148,11 +148,11 @@ def main():
     numPlot('s16',axes)
     numPlot('s18',axes)
     numPlot('s19',axes)
-    ax1.set_xlim(26.2,23.8)
+    ax1.set_xlim(27.5,23.0)
     ax1.set_ylabel('num')
     ax1.set_xlabel('cmodel mag')
     ax1.grid()
-    ax2.set_xlim(26.2,23.8)
+    ax2.set_xlim(27.5,23.0)
     ax2.set_xlabel('cmodel mag')
     ax2.legend()
     ax2.grid()

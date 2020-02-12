@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
-import smatch
-import catSelect
+import treecorr
 import numpy as np
 from astropy.table import Table, vstack
 import astropy.io.fits as pyfits
@@ -20,73 +19,98 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-maxMag  =   20
-anaDir  =   'anaCat'
-version =   's16'
-obsDir  =   './database/%s/fields/' %version
-if not os.path.isdir(obsDir):
-    raise RuntimeError("Data catalog directory %s does not exist "
-         "or is not a directory" % (obsDir))
-obsDir0 =   './database/'
-boAname =   os.path.join(obsDir0,'allBri-%s.fits' %version)
-rAname  =   os.path.join(obsDir0,'allRan-%s.fits' %version)
+def cor2PNN(datA,datB,datR,pltDir,nbins=30,min_sep=0.05,max_sep=2.,unit='deg',label='base'):
+    catA    =   treecorr.Catalog(ra=datA['ra'],dec=datA['dec'],ra_units='deg',dec_units='deg')
+    catB    =   treecorr.Catalog(ra=datB['ra'],dec=datB['dec'],ra_units='deg',dec_units='deg')
+    catR    =   treecorr.Catalog(ra=datR['ra'],dec=datR['dec'],ra_units='deg',dec_units='deg')
 
-pltDir  =   './s18-2/plot/galCor-%s/' %version
-if not os.path.exists(pltDir):
-    os.system('mkdir -p %s' %pltDir)
+    ddFname =   os.path.join(pltDir,'cor2PNN-DD-%s.csv' %label)
+    if not os.path.exists(ddFname):
+        corDD   =   treecorr.NNCorrelation(nbins=nbins,min_sep=min_sep,max_sep=max_sep,sep_units=unit)
+        corDD.process(catA,catB)
+        corDD.write(ddFname)
+    else:
+        corDD   =   Table.read(ddFname)
 
-def main():
-    allBri,allRan=getAllObj()
+    drFname =   os.path.join(pltDir,'cor2PNN-DR-%s.csv' %label)
+    if not os.path.exists(drFname):
+        corDR   =   treecorr.NNCorrelation(nbins=nbins,min_sep=min_sep,max_sep=max_sep,sep_units=unit)
+        corDR.process(catB,catR)
+        corDR.write(drFname)
+    else:
+        corDR   =   Table.read(drFname)
+
+    rrFname =   os.path.join(pltDir,'cor2PNN-RR.csv')
+    if not os.path.exists(rrFname):
+        corRR   =   treecorr.NNCorrelation(nbins=nbins,min_sep=min_sep,max_sep=max_sep,sep_units=unit)
+        corRR.process(catR,catR)
+        corRR.write(rrFname)
+    else:
+        corRR   =   Table.read(rrFname)
     return
 
-def getAllObj():
-    print('Achieving bright objects')
-    if not os.path.exists(boAname):
-        allBri  =   list(map(getBriObj,utilities.field_keys.values()))
-        allBri  =   [x for x in allBri if x is not None]
-        allBri  =   vstack(allBri)
-        allBri.write(boAname)
+def prepareRan(version):
+    obsDir  =   'database/%s-rand/fields/' %version
+    if not os.path.isdir(obsDir):
+        raise RuntimeError("Data catalog directory %s does not exist "
+        "or is not a directory" % (obsDir))
+    cmpDir =   'database/compare/'
+    scatname=   os.path.join(cmpDir,'scat-%s-rand.fits' %version)
+    if not os.path.exists(scatname):
+        data  = []
+        for fn in utilities.field_keys.values():
+            print('Reading data from field %s' %fn)
+            ranFname=  os.path.join(obsDir,'%s_rand.fits' %fn)
+            tmp =   Table.read(ranFname)
+            tmp['inS16FDFC'] =   utilities.get_FDFC_flag(tmp,'s16')
+            data.append(tmp)
+        data  =   vstack(data)
+        data.write(scatname)
     else:
         print('Already have prepared catalog')
-        allBri=pyfits.getdata(boAname)
+        data=Table.read(scatname)
+    return data
 
-    print('Achieving random points')
-    if not os.path.exists(rAname):
-        allRan  =   list(map(getRanObj,utilities.field_keys.values()))
-        allRan  =   [x for x in allRan if x is not None]
-        allRan  =   vstack(allRan)
-        allRan.write(rAname)
-    else:
-        print('Already have prepared catalog')
-        allRan=pyfits.getdata(rAname)
-    return allBri,allRan
+def mainA():
+    version =   's18'
+    obsDir  =   './database/compare/'
+    if not os.path.isdir(obsDir):
+        raise RuntimeError("Data catalog directory %s does not exist "
+             "or is not a directory" % (obsDir))
+    #boAname =   os.path.join(obsDir,'scat-s16-brightGal.fits' )
+    boAname =   '/work/xiangchong.li/data/brightObjMask/Arcturus/stars/stars_all.fits'
+    inFname =   os.path.join(obsDir,'scat-s16-unmatch-%s.fits' %version)
 
-def getBriObj(fieldname):
-    datanames   =   ['ra','dec','mag','field','isStar']
-    print('Processing field %s' %fieldname)
-    print('Achieving bright galaxies')
-    galFname=   os.path.join(obsDir,'%s.fits' %(fieldname))
-    datG    =   pyfits.getdata(galFname)
-    raG,decG=   utilities.get_radec(datG)
-    magG    =   utilities.get_imag(datG)
-    fnG     =   [fieldname]*len(datG)
-    isStarG =   np.zeros(len(datG),dtype=bool)
-    datG    =   Table(data=[raG,decG,magG,fnG,isStarG]
-                ,names=datanames)
-    datG    =   datG[magG<maxMag]
+    boCat   =   pyfits.getdata(boAname,ext=1)
+    data    =   pyfits.getdata(inFname)
 
-    print('Achieving bright stars')
-    staFname=   os.path.join(obsDir,'%s_stars.fits' %(fieldname))
-    datS    =   pyfits.getdata(staFname)
-    raS,decS=   utilities.get_radec(datS)
-    magS    =   utilities.get_imag_psf(datS)
-    fnS     =   [fieldname]*len(datS)
-    isStarS =   np.ones(len(datS),dtype=bool)
-    datS    =   Table(data=[raS,decS,magS,fnS,isStarS]
-                ,names=datanames)
-    datS    =   datS[magS<maxMag]
-    return vstack([datG,datS])
+    pltDir  =   './s18-2/plot/galCor/'
+    if not os.path.exists(pltDir):
+        os.system('mkdir -p %s' %pltDir)
+    ranCat  =   prepareRan(version)
+    ranCat  =   ranCat[ranCat['inS16FDFC']]
+    cor2PNN(data,boCat,ranCat,pltDir)
+    return
 
-def getBriObj(fieldname):
+def mainB():
+    version =   's18'
+    obsDir  =   './database/compare/'
+    if not os.path.isdir(obsDir):
+        raise RuntimeError("Data catalog directory %s does not exist "
+             "or is not a directory" % (obsDir))
+    #boAname =   os.path.join(obsDir,'scat-s16-brightGal.fits' )
+    boAname =   '/work/xiangchong.li/data/brightObjMask/Arcturus/stars/stars_all.fits'
+    inFname =   os.path.join(obsDir,'scat-s16-unmatch-%s.fits' %version)
+
+    boCat   =   pyfits.getdata(boAname,ext=1)
+    data    =   pyfits.getdata(inFname)
+
+    pltDir  =   './s18-2/plot/galCor/'
+    if not os.path.exists(pltDir):
+        os.system('mkdir -p %s' %pltDir)
+    ranCat  =   prepareRan(version)
+    ranCat  =   ranCat[ranCat['inS16FDFC']]
+    cor2PNN(data,boCat,ranCat,pltDir,min_sep=0.5,max_sep=30.,unit='arcmin')
+    return
 if __name__=='__main__':
-    main()
+    mainA()

@@ -21,7 +21,7 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-version =   's19'
+version =   's18'
 matver  =   's16'
 anaDir  =   'anaCat'
 # Checks that the paths provided are valid
@@ -49,8 +49,8 @@ datanames   =   ['res','snr','mag','absE','logb','weight']
 
 def main():
     allSim,allObs=getAllDat()
-    #finalPlot(allSim,allObs)
-    onePlot(None,allObs)
+    for maglim in np.arange(26.0,25.0,-0.1):
+        finalPlot(allSim,allObs,'magA10',maglim)
     return
 
 def getAllDat():
@@ -226,7 +226,7 @@ def getSimGalData(fieldname):
                 'fwhm']
     return Table(data=dataTab,names=datanames+datanmA)
 
-def finalPlot(sims,data):
+def finalPlot(sims,data,oname,olim):
     """
     # Data Mask
     """
@@ -234,25 +234,15 @@ def finalPlot(sims,data):
     mask    =   np.ones(len(data),dtype=bool)
     mask    &=  (data['npass']>=2)
     mask    &=  (data['logb']<=-0.375)
-    #mask    &=  (data['magA10']<25.5)#|(data['bsf']<=0.03))
-    print(np.sum(mask)/nbf)
-    """
-    mask    &=  (data['inS16FDFC'])
-    mask    &=  (data['bsf']<=0.05)
-    mask    &=  (data['isIso'])
-    """
+    mask    &=  (data[oname]<olim)
     data    =   data[mask]
+    print(len(data)/nbf)
 
     """
     # Simulations Mask
     """
     maskS   =   (sims['logb']<=-0.375)
-    #maskS   &=  (sims['magA10']<25.5)
-    """
-    maskS   &=  sims['magA10']<25.5   #T3
-    #maskS   &=  (sims['bsf']<=0.05)
-    maskS   &=  (sims['isIso'])
-    """
+    maskS   &=  (sims[oname]<olim)
     sims    =   sims[maskS]
 
     fig2 = plt.figure(figsize=(15, 5))
@@ -318,72 +308,7 @@ def finalPlot(sims,data):
     # Save figure
     """
     plt.tight_layout()
-    fig2.savefig(os.path.join(pltDir2,'galDis2D_final_logbltm037_npass2_mag24.5.png'))
-    return
-
-def prepareColListB(pergroup):
-    colns1  =   ['snr','snr16','dTraceR']
-
-    colns2  =   ['res','res16','snr']
-
-    col1List=   utilities.chunkPList(colns1,pergroup)
-    col2List=   utilities.chunkPList(colns2,pergroup)
-    return col1List,col2List
-
-def onePlot(sims,data):
-    sims    =   None
-    tryList =  ['std-s16-all','std-s16-good','std-s16-suspect','std-s16-dR','std-s16-magA10']
-
-    data['dTraceR'] =   data['traceR']-data['traceR16']
-    for itry in tryList:
-        # Basic Mask for both data and sims
-        mList   =   itry.split('-')
-        if 'iso' in mList[0]:
-            mask=   (data['isIso'])
-            if sims:
-                maskS=  (sims['isIso'])
-        elif 'std' in mList[0]:
-            mask=   (data['logb']<=-0.375)
-            if sims:
-                maskS=  (sims['logb']<=-0.375)
-
-        if mList[1] in utilities.field_names.keys():
-            mask&=  (data['fieldname'] == mList[2])
-            if sims:
-                maskS&= (sims['fieldname'] == mList[2])
-        elif mList[1]=='s16':
-            mask&=  (data['inS16FDFC'])
-
-        mask    &=  (data['npass']>=2)
-
-        if mList[2]=='good':
-            mask&=  (data['inS16'])
-            cc  =   'Blues'
-        elif mList[2]=='suspect':
-            mask&=  (~data['inS16'])
-            cc  =   'Reds'
-        elif mList[2]=='all':
-            cc  =   'Greys'
-        elif mList[2]=='dR':
-            mask&=  (data['dTraceR']<0.12)
-            cc  =   'Greys'
-        elif mList[2]=='magA10':
-            mask&=  (data['magA10']<25.5)
-            if sims:
-                maskS&=  (sims['magA10']<25.5)
-            cc  =   'Greys'
-
-        dataU   =   data[mask]
-        if sims:
-            simsU   =   sims[maskS]
-        else:
-            simsU   =   None
-
-        # Do 2D Tests
-        pergroup=   3
-        col1List,col2List=prepareColListB(pergroup)
-        for i in range(len(col1List)):
-            pltUtil.cols2DPlot(dataU,col1List[i],col2List[i],pltDir=pltDir,color=cc,label=itry,sims=simsU,ngridH=128,ngridC=64,writeFits=False)
+    fig2.savefig(os.path.join(pltDir2,'galDis2D-final-%s-%.1f.png' %(oname,olim)))
     return
 
 if __name__=='__main__':
