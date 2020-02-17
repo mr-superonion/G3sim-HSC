@@ -21,7 +21,7 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-version =   's18'
+version =   's19'
 cmpDir  =   'database/compare/'
 catname =   os.path.join(cmpDir,'scat-%s.fits' %version)
 matname =   os.path.join(cmpDir,'match-%s.fits' %version)
@@ -71,8 +71,12 @@ def prepareColListB(pergroup):
 def prepareColListA(pergroup):
     colns1=[]
     colns2=[]
+    colns1.extend(['dmag'])
+    colns2.extend(['mag'])
+    """
     colns1.extend(['obj','obj','obj'])
     colns2.extend(['snr','mag','magA10'])
+    """
 
     col1List=   utilities.chunkPList(colns1,pergroup)
     col2List=   utilities.chunkPList(colns2,pergroup)
@@ -94,20 +98,22 @@ def onePlot(data,pergroup,pnd,col1List,col2List,cc='Greys'):
 
 def mainA(matDat):
     # Prepare column names to plot
-    pergroup=   3
+    pergroup=   1
     col1List,col2List=prepareColListA(pergroup)
     matDat['dTraceR'] =   matDat['traceR']-matDat['traceR16']
     matDat['dmag']    =   matDat['mag']-matDat['mag16']
     matDat['dsnr']    =   matDat['snr']-matDat['snr16']
 
     # Plot
-    pndL    =   ['-wl-good','-wl-bad']
+    pndL    =   ['-all-all']
     for pnd in pndL:
         if pnd.split('-')[1]=='wl':
             mask    =   (matDat['npass']>=2)
             mask    &=  (matDat['logb']<=-0.375)
             mask    &=  (matDat['res']>0.3)
             mask    &=  (matDat['snr']>10.)
+        if pnd.split('-')[1]=='all':
+            mask    =   np.ones(len(matDat),dtype=bool)
 
         if pnd.split('-')[2]=='good':
             mask    &=  (matDat['mag16']<24.5)
@@ -115,6 +121,9 @@ def mainA(matDat):
         elif pnd.split('-')[2]=='bad':
             mask    &=  (matDat['mag16']>24.5)
             cc  =   'Reds'
+        elif pnd.split('-')[2]=='all':
+            cc   =  'Greys'
+
         dataU  =   matDat[mask]
         onePlot(dataU,pergroup,pnd,col1List,col2List,cc=cc)
     return
@@ -142,14 +151,16 @@ def mainB(matDat,sims=None):
         pndU    =   pnd+'-%s-%.1f' %(cn,maglm)
         dataU   =   matDat[matDat[cn]<maglm]
         simsU   =   sims[sims[cn]<maglm]
-        onePlot(dataU,pergroup,'obs-'+pndU,col1List,col2List)
+        onePlot(dataU,pergroup,'obs'+pndU,col1List,col2List)
         if sims is not None:
-            onePlot(simsU,pergroup,'sim-'+pndU,col1List,col2List)
+            onePlot(simsU,pergroup,'sim'+pndU,col1List,col2List)
     return
 
 if __name__=='__main__':
     # Prepare data to plot
     matDat  =   matchT16()
+    mainA(matDat)
+    """
     sims    =   Table.read('s18-2/anaCat/allSim.fits')
-    #mainA(matDat)
     mainB(matDat,sims)
+    """

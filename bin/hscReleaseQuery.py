@@ -16,7 +16,7 @@ from sim_analysis_utilities import chunkNList
 version =   20190924.1
 args    =   None
 doUnzip =   True
-doDownload  =   False
+doDownload  =   True
 diffver =   ''
 
 def main():
@@ -62,8 +62,8 @@ def main():
         tractname='./prepare2/fieldTractInfo.csv'
     elif 's19' in release_year:
         release_version =   'dr3'
-        ngroups =   5
-        tractname='./prepare2/fieldTractInfoS16.csv'
+        ngroups =   10
+        tractname='./prepare2/fieldTractInfo.csv'
 
     global sql
     sql         =   args.__dict__['sql-file'].read()

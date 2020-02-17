@@ -3,6 +3,9 @@ SELECT
 , meas.parent_id
 , meas.i_ra
 , meas.i_dec
+, meas.i_variance_value
+, meas.i_footprintarea_value
+, meas.i_deblend_parenttoobig
 
 -- photometry
 -- unforced kron magnitudes
@@ -23,14 +26,6 @@ SELECT
 
 -- unforced Aperture fluxes
 ,meas3.i_apertureflux_10_flux
-,meas3.i_apertureflux_10_flux
-,meas3.i_apertureflux_10_fluxsigma
-,meas3.i_apertureflux_15_flux
-,meas3.i_apertureflux_15_fluxsigma
-,meas3.i_apertureflux_20_flux
-,meas3.i_apertureflux_20_fluxsigma
-,meas3.i_apertureflux_30_flux
-,meas3.i_apertureflux_30_fluxsigma
 ,meas3.i_apertureflux_10_fluxsigma
 ,meas3.i_apertureflux_15_flux
 ,meas3.i_apertureflux_15_fluxsigma

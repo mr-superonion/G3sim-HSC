@@ -19,98 +19,96 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-def cor2PNN(datA,datB,datR,pltDir,nbins=30,min_sep=0.05,max_sep=2.,unit='deg',label='base'):
-    catA    =   treecorr.Catalog(ra=datA['ra'],dec=datA['dec'],ra_units='deg',dec_units='deg')
-    catB    =   treecorr.Catalog(ra=datB['ra'],dec=datB['dec'],ra_units='deg',dec_units='deg')
-    catR    =   treecorr.Catalog(ra=datR['ra'],dec=datR['dec'],ra_units='deg',dec_units='deg')
+pltDir  =   './s18-2/plot/galCor/'
+if not os.path.exists(pltDir):
+    os.system('mkdir -p %s' %pltDir)
 
-    ddFname =   os.path.join(pltDir,'cor2PNN-DD-%s.csv' %label)
+version =   's18'
+obsDir  =   './database/compare/'
+if not os.path.isdir(obsDir):
+    raise RuntimeError("Data catalog directory %s does not exist "
+         "or is not a directory" % (obsDir))
+
+def cor2PNK(catN,catK,pltDir,nbins=30,min_sep=0.05,max_sep=2.,unit='deg',label='base'):
+    ddFname =   os.path.join(pltDir,'cor2PNK-%s.csv' %label)
     if not os.path.exists(ddFname):
-        corDD   =   treecorr.NNCorrelation(nbins=nbins,min_sep=min_sep,max_sep=max_sep,sep_units=unit)
-        corDD.process(catA,catB)
+        corDD   =   treecorr.NKCorrelation(nbins=nbins,min_sep=min_sep,max_sep=max_sep,sep_units=unit)
+        corDD.process(catN,catK)
         corDD.write(ddFname)
-    else:
-        corDD   =   Table.read(ddFname)
-
-    drFname =   os.path.join(pltDir,'cor2PNN-DR-%s.csv' %label)
-    if not os.path.exists(drFname):
-        corDR   =   treecorr.NNCorrelation(nbins=nbins,min_sep=min_sep,max_sep=max_sep,sep_units=unit)
-        corDR.process(catB,catR)
-        corDR.write(drFname)
-    else:
-        corDR   =   Table.read(drFname)
-
-    rrFname =   os.path.join(pltDir,'cor2PNN-RR.csv')
-    if not os.path.exists(rrFname):
-        corRR   =   treecorr.NNCorrelation(nbins=nbins,min_sep=min_sep,max_sep=max_sep,sep_units=unit)
-        corRR.process(catR,catR)
-        corRR.write(rrFname)
-    else:
-        corRR   =   Table.read(rrFname)
     return
 
-def prepareRan(version):
-    obsDir  =   'database/%s-rand/fields/' %version
-    if not os.path.isdir(obsDir):
-        raise RuntimeError("Data catalog directory %s does not exist "
-        "or is not a directory" % (obsDir))
-    cmpDir =   'database/compare/'
-    scatname=   os.path.join(cmpDir,'scat-%s-rand.fits' %version)
-    if not os.path.exists(scatname):
-        data  = []
-        for fn in utilities.field_keys.values():
-            print('Reading data from field %s' %fn)
-            ranFname=  os.path.join(obsDir,'%s_rand.fits' %fn)
-            tmp =   Table.read(ranFname)
-            tmp['inS16FDFC'] =   utilities.get_FDFC_flag(tmp,'s16')
-            data.append(tmp)
-        data  =   vstack(data)
-        data.write(scatname)
+def getWLMask(data):
+    mask    =   (data['npass']>=2)
+    mask    &=  (data['logb']<=-0.375)
+    mask    &=  (data['res']>0.3)
+    mask    &=  (data['snr']>10.)
+    mask    &=  (data['mag']<24.5)
+    return mask
+
+def getUnDetData():
+    inFname =   os.path.join(obsDir,'scat-s16-2.fits')
+    if not os.path.exists(inFname):
+        preFname=   os.path.join(obsDir,'scat-s16.fits')
+        data    =   Table.read(preFname)
+        inS18   =   np.zeros(len(data),dtype=bool)
+        inS19   =   np.zeros(len(data),dtype=bool)
+        info    =   pyfits.getdata(os.path.join(obsDir,'match-s18.fits'))
+        inS18[info['scat_id16']]=True
+        info    =   pyfits.getdata(os.path.join(obsDir,'match-s19.fits'))
+        inS19[info['scat_id16']]=True
+        data['inS18']=inS18
+        data['inS19']=inS19
+        data.write(inFname)
     else:
-        print('Already have prepared catalog')
-        data=Table.read(scatname)
+        data=pyfits.getdata(inFname)
     return data
 
+def getDetData():
+    inFname =   os.path.join(obsDir,'scat-%s.fits' %version)
+    data    =   pyfits.getdata(inFname)
+    return data
+
+def getMatData():
+    inFname =   os.path.join(obsDir,'match-%s.fits' %version)
+    data    =   pyfits.getdata(inFname)
+    mask    =   (~np.isnan(data['mag']))
+    mask   &=   (~np.isnan(data['mag16']))
+    mask   &=   ((data['mag16']>-100))
+    mask   &=   ((data['mag16']<100))
+    mask   &=   ((data['mag']>-100))
+    mask   &=   ((data['mag']<100))
+    return data[mask]
+
 def mainA():
-    version =   's18'
-    obsDir  =   './database/compare/'
-    if not os.path.isdir(obsDir):
-        raise RuntimeError("Data catalog directory %s does not exist "
-             "or is not a directory" % (obsDir))
-    #boAname =   os.path.join(obsDir,'scat-s16-brightGal.fits' )
-    boAname =   '/work/xiangchong.li/data/brightObjMask/Arcturus/stars/stars_all.fits'
-    inFname =   os.path.join(obsDir,'scat-s16-unmatch-%s.fits' %version)
+    label   =   'wl-star-mag'
+    if label.split('-')[2]=='undetect':
+        data    =   getUnDetData()
+        kappa   =   (~data['in%s' %version.upper()]).astype(int)
+    elif label.split('-')[2]=='mag':
+        data    =   getMatData()
+        kappa   =   data['mag16']-data['mag']
+    elif label.split('-')[2]=='detect':
+        data    =   getDetData()
+        kappa   =   np.ones(len(data))
 
-    boCat   =   pyfits.getdata(boAname,ext=1)
-    data    =   pyfits.getdata(inFname)
+    if label.split('-')[0]=='wl':
+        mask    =   getWLMask(data)
+        data    =   data[mask]
+        kappa   =   kappa[mask]
 
-    pltDir  =   './s18-2/plot/galCor/'
-    if not os.path.exists(pltDir):
-        os.system('mkdir -p %s' %pltDir)
-    ranCat  =   prepareRan(version)
-    ranCat  =   ranCat[ranCat['inS16FDFC']]
-    cor2PNN(data,boCat,ranCat,pltDir)
-    return
+    catK    =   treecorr.Catalog(ra=data['ra'],dec=data['dec'],k=kappa,ra_units='deg',dec_units='deg')
 
-def mainB():
-    version =   's18'
-    obsDir  =   './database/compare/'
-    if not os.path.isdir(obsDir):
-        raise RuntimeError("Data catalog directory %s does not exist "
-             "or is not a directory" % (obsDir))
-    #boAname =   os.path.join(obsDir,'scat-s16-brightGal.fits' )
-    boAname =   '/work/xiangchong.li/data/brightObjMask/Arcturus/stars/stars_all.fits'
-    inFname =   os.path.join(obsDir,'scat-s16-unmatch-%s.fits' %version)
+    if label.split('-')[1]=='star':
+        bsAname =   '/work/xiangchong.li/data/brightObjMask/Arcturus/stars/stars_all.fits'
+        bsCat   =   pyfits.getdata(bsAname,ext=1)
+    elif label.split('-')[1]=='CAMIRA':
+        bsAname =   '/work/xiangchong.li/work/lensCatalog/CAMIRA/CAMIRA_S16A.csv'
+        bsCat   =   Table.read(bsAname)
+        bsCat['coord_ra'].name='ra'
+        bsCat['coord_dec'].name='dec'
 
-    boCat   =   pyfits.getdata(boAname,ext=1)
-    data    =   pyfits.getdata(inFname)
-
-    pltDir  =   './s18-2/plot/galCor/'
-    if not os.path.exists(pltDir):
-        os.system('mkdir -p %s' %pltDir)
-    ranCat  =   prepareRan(version)
-    ranCat  =   ranCat[ranCat['inS16FDFC']]
-    cor2PNN(data,boCat,ranCat,pltDir,min_sep=0.5,max_sep=30.,unit='arcmin')
+    catN    =   treecorr.Catalog(ra=bsCat['ra'],dec=bsCat['dec'],ra_units='deg',dec_units='deg')
+    cor2PNK(catN,catK,pltDir,min_sep=0.1,max_sep=20.,unit='arcmin',label=label+'-%s'%version)
     return
 if __name__=='__main__':
     mainA()

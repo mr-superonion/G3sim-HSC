@@ -67,7 +67,7 @@ def readData(version):
     return data[mask][names]
 
 def prepare():
-    fname =   'database/compare/susMat-s18-s19.fits'
+    fname =   'database/compare/susMatch-s16-s18-s19.fits'
     if not os.path.exists(fname):
         print('Preparing matched catalog')
         data18  =   readData('s18')

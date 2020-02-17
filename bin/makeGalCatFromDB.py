@@ -9,7 +9,7 @@ import astropy.table as astTable
 import astropy.io.ascii as ascii
 import sim_analysis_utilities as utilities
 
-version     =   's18'
+version     =   's19'
 prefix      =   'database/%s/tracts/'%version
 outfix      =   'database/%s/fields/' %version
 fieldList   =   utilities.field_keys.values()
