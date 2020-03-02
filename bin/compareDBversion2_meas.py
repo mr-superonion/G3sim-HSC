@@ -71,8 +71,8 @@ def prepareColListB(pergroup):
 def prepareColListA(pergroup):
     colns1=[]
     colns2=[]
-    colns1.extend(['dmag'])
-    colns2.extend(['mag'])
+    colns1.extend(['dmag16','dmagA10','magA10'])
+    colns2.extend(['mag','mag','mag'])
     """
     colns1.extend(['obj','obj','obj'])
     colns2.extend(['snr','mag','magA10'])
@@ -100,9 +100,8 @@ def mainA(matDat):
     # Prepare column names to plot
     pergroup=   1
     col1List,col2List=prepareColListA(pergroup)
-    matDat['dTraceR'] =   matDat['traceR']-matDat['traceR16']
-    matDat['dmag']    =   matDat['mag']-matDat['mag16']
-    matDat['dsnr']    =   matDat['snr']-matDat['snr16']
+    matDat['dmag16']    =   matDat['mag']-matDat['mag16']
+    matDat['dmagA10']   =   matDat['mag']-matDat['magA10']
 
     # Plot
     pndL    =   ['-all-all']
@@ -132,9 +131,6 @@ def mainB(matDat,sims=None):
     # Prepare column names to plot
     pergroup=   3
     col1List,col2List=prepareColListB(pergroup)
-    matDat['dTraceR'] =   matDat['traceR']-matDat['traceR16']
-    matDat['dmag']    =   matDat['mag']-matDat['mag16']
-    matDat['dsnr']    =   matDat['snr']-matDat['snr16']
     # Plot
     pnd     =   '-wl'
     if pnd.split('-')[1]=='wl':
