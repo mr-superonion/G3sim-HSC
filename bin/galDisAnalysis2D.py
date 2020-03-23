@@ -21,7 +21,7 @@ import matplotlib.ticker as mtick
 import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
-version =   's19'
+version =   's18'
 matver  =   's16'
 anaDir  =   'anaCat'
 # Checks that the paths provided are valid
@@ -41,20 +41,21 @@ pltDir  =   'plot/galDis-%s/' %version
 if not os.path.exists(pltDir):
     os.system('mkdir -p %s' %pltDir)
 
-pltDir2 =   'plot/galDis-%s-final/' %version
+pltDir2 =   'plot/galDis-%s-final2/' %version
 if not os.path.exists(pltDir2):
     os.system('mkdir -p %s' %pltDir2)
 
 datanames   =   ['res','snr','mag','absE','logb','weight']
 
 def main():
+    #getAllDat()
     allSim,allObs=getAllDat2()
     for maglim in np.arange(27,24.0,-0.1):
-        finalPlot(allSim,allObs,'magA10',maglim,'scat')
+        finalPlot(allSim,allObs,'mag',maglim,'scat')
     return
 
 def getAllDat2():
-    allSim=None
+    allSim=pyfits.getdata(simAname)
     allObs=pyfits.getdata('../database/compare/scat-%s.fits' %version)
     return allSim,allObs
 
@@ -197,11 +198,11 @@ def getSimGalData(fieldname):
     simFname=   os.path.join(anaFieldDir,'%s.fits' %(fieldname))
     data    =   pyfits.getdata(simFname)
     data    =   utilities.update_wl_flags_sim(data)
+    """
     mask    =   data['weak_lensing_flag']
-    """
     mask    =   mask&(utilities.get_snr(data) < 80.)
-    """
     data    =   data[mask]
+    """
 
     absE    =   utilities.get_abs_ellip(data)
     res     =   utilities.get_res(data)

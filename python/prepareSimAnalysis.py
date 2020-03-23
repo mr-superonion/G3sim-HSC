@@ -98,7 +98,7 @@ class prepareSimAnalysisTask(BatchPoolTask):
         # Load the catalog from fits file
         filename    =   os.path.join(self.config.simDir,'src-%05d.fits' % ifield)
         # If the file does not exist, an IOError will be raised
-        catalog     =   utilities.prepare_catalog(filename,fieldname=cache.fieldname,isim=ifield)
+        catalog     =   utilities.prepare_field_catalog(filename,fieldname=cache.fieldname,isim=ifield)
         if catalog is None:
             self.log.info('failed to process subfield %d' %(ifield))
         return catalog

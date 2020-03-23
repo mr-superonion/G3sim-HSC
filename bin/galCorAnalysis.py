@@ -23,7 +23,7 @@ pltDir  =   './s18-2/plot/galCor/'
 if not os.path.exists(pltDir):
     os.system('mkdir -p %s' %pltDir)
 
-version =   's19'
+version =   's18'
 obsDir  =   './database/compare/'
 if not os.path.isdir(obsDir):
     raise RuntimeError("Data catalog directory %s does not exist "
@@ -89,9 +89,9 @@ def getMatData():
     return data[mask]
 
 def mainA():
-    sname   =   'sus'
-    ylable  =   'susRatio'
-    posName =   'Wang'
+    sname   =   'wl2'
+    ylable  =   'mag'
+    posName =   'CAMIRA'
     if posName=='star':
         """
         minlist =   [6,12,14,16]
@@ -101,12 +101,12 @@ def mainA():
         maxlist =   [18]
         nm  =   'mag'
     elif posName=='CAMIRA':
-        """
         minlist =   [10,15,20,30]
         maxlist =   [15,20,30,500]
         """
         minlist =   [10]
         maxlist =   [500]
+        """
         nm  =   'ncor'
     elif posName=='Wang':
         minlist =   [10,14.5,15.5,16.5]
@@ -122,12 +122,19 @@ def mainA():
             label   =   '%s-%s-%s-%s-g%d' %(sname,posName,ylable,nm,ig)
         else:
             label   =   '%s-%s-%s-%s-all' %(sname,posName,ylable,nm)
+
         if label.split('-')[2]=='undetect':
             data    =   getUnDetData()
             kappa   =   (~data['in%s' %version.upper()]).astype(int)
         elif label.split('-')[2]=='mag':
             data    =   getMatData()
             kappa   =   data['mag16']-data['mag']
+        elif label.split('-')[2]=='snr':
+            data    =   getMatData()
+            kappa   =   data['snr16']-data['snr']
+        elif label.split('-')[2]=='res':
+            data    =   getMatData()
+            kappa   =   data['res16']-data['res']
         elif label.split('-')[2]=='detect':
             data    =   getDetData()
             kappa   =   np.ones(len(data))
@@ -135,8 +142,14 @@ def mainA():
             data    =   getMatData()
             kappa   =   np.ones(len(data))
 
+
         if label.split('-')[0]=='wl':
             mask    =   getWLMask(data)
+            data    =   data[mask]
+            kappa   =   kappa[mask]
+        elif label.split('-')[0]=='wl2':
+            mask    =   getWLMask(data)
+            mask    &=   (data['magA10']<25.5)
             data    =   data[mask]
             kappa   =   kappa[mask]
         elif label.split('-')[0]=='sus':
