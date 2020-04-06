@@ -4,26 +4,12 @@ import treecorr
 import numpy as np
 from astropy.table import Table, vstack
 import astropy.io.fits as pyfits
-import sim_analysis_utilities as utilities
-import plot_catalog_utilities as pltUtil
 
-import matplotlib
-matplotlib.use('agg')
-matplotlib.rcParams['ps.useafm'] = True
-matplotlib.rcParams['pdf.use14corefonts'] = True
-matplotlib.rcParams['text.usetex'] = True
-
-import matplotlib.ticker as ticker
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
-import matplotlib.lines as mlines
-from matplotlib.colors import LogNorm
-
-pltDir  =   './s18-2/plot/galCor/'
+pltDir  =   './database/compare/plot/s18vs19/'
 if not os.path.exists(pltDir):
     os.system('mkdir -p %s' %pltDir)
 
-version =   's18'
+version =   's18-s19'
 obsDir  =   './database/compare/'
 if not os.path.isdir(obsDir):
     raise RuntimeError("Data catalog directory %s does not exist "
@@ -81,17 +67,17 @@ def getMatData():
     inFname =   os.path.join(obsDir,'match-%s.fits' %version)
     data    =   pyfits.getdata(inFname)
     mask    =   (~np.isnan(data['mag']))
-    mask   &=   (~np.isnan(data['mag16']))
-    mask   &=   ((data['mag16']>-100))
-    mask   &=   ((data['mag16']<100))
+    mask   &=   (~np.isnan(data['dmag1819']))
+    mask   &=   ((data['dmag1819']>-100))
+    mask   &=   ((data['dmag1819']<100))
     mask   &=   ((data['mag']>-100))
     mask   &=   ((data['mag']<100))
     return data[mask]
 
-def mainA():
+def main():
     sname   =   'wl2'
     ylable  =   'mag'
-    posName =   'CAMIRA'
+    posName =   'Wang'
     if posName=='star':
         """
         minlist =   [6,12,14,16]
@@ -128,7 +114,8 @@ def mainA():
             kappa   =   (~data['in%s' %version.upper()]).astype(int)
         elif label.split('-')[2]=='mag':
             data    =   getMatData()
-            kappa   =   data['mag16']-data['mag']
+            #kappa   =   data['mag16']-data['mag']
+            kappa   =   data['dmag1819']
         elif label.split('-')[2]=='snr':
             data    =   getMatData()
             kappa   =   data['snr16']-data['snr']
@@ -190,4 +177,4 @@ def mainA():
         cor2PNK(catN,catK,pltDir,min_sep=0.1,max_sep=20.,unit='arcmin',label=label+'-%s'%version)
     return
 if __name__=='__main__':
-    mainA()
+    main()

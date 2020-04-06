@@ -17,23 +17,16 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_shearCalibConfig(pexConfig.Config):
     anaDir      =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
-    pltDir      =   pexConfig.Field(dtype=str, default='plot/calibration', doc = 'simulation catalogs')
+    pltDir      =   pexConfig.Field(dtype=str, default='plot/reGausCalib', doc = 'simulation catalogs')
     nbin_1d     =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
     use_model   =   pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
-    reweight_s16a=  pexConfig.Field(dtype=bool, default=True, doc = 'reweigting?')
-    force_90_pair=  pexConfig.Field(dtype=bool, default=True, doc = 'for selection bias')
-    force_weight=   pexConfig.Field(dtype=bool, default=True, doc = 'for weight bias')
-    round_trip  =   pexConfig.Field(dtype=bool, default=False, doc = 'do a round trip?')
-    test_weight_bias  =   pexConfig.Field(dtype=bool, default=False, doc = 'test weight bias?')
+    reweight    =  pexConfig.Field(dtype=bool, default=True, doc = 'reweigting?')
+    force_weight=   pexConfig.Field(dtype=bool, default=False, doc = 'for weight bias')
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
         pexConfig.Config.validate(self)
-        if self.test_weight_bias and (not self.round_trip):
-            raise RuntimeError("Cannot test weight bias when not doing round trip")
-        if self.test_weight_bias and self.force_weight:
-            raise RuntimeError("Cannot test weight bias when forcing weight")
         # Checks that the paths provided are valid
         if not os.path.isdir(self.anaDir):
             raise RuntimeError("Simulation catalog directory %s does not exist "
@@ -48,17 +41,12 @@ def unpickle(factory, args, kwargs):
     return factory(*args, **kwargs)
 
 class reGaus_shearCalibTask(BatchPoolTask):
-    ConfigClass        RunnerClass     =   reGaus_shearCalibRunner
+    ConfigClass     =   reGaus_shearCalibConfig
+    RunnerClass     =   reGaus_shearCalibRunner
     _DefaultName    =   "reGaus_shearCalib"
 
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-        if self.config.force_weight:
-            self.prefix='shear'
-        else:
-            self.prefix='weightBias'
-        if self.config.round_trip:
-            self.prefix='test_'+self.prefix
 
         self.dshape     =   (self.config.nbin_1d,self.config.nbin_1d)
         self.snr_bins   =   np.zeros(self.dshape)
@@ -101,8 +89,6 @@ class reGaus_shearCalibTask(BatchPoolTask):
         catalog =   cache.dataF.xs(index,level='isim').to_records(index=True)
         if len(catalog)<2:
             return None
-        assert np.all(catalog['weight'][0::2]==catalog['weight'][1::2]), \
-                'Galaxies in pairs do not have the same reweight_s16a factors'
         fN=catalog[0]['fieldname']
         isim=index
         self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
@@ -110,10 +96,6 @@ class reGaus_shearCalibTask(BatchPoolTask):
 
         if self.config.force_weight:
             shape_weights[1::2] = shape_weights[0::2]
-
-        if self.config.round_trip:
-            model_m = utilities.get_m_model(catalog,weight_bias=self.config.test_weight_bias)
-            model_c1,model_c2 = utilities.get_c_model(catalog,weight_bias=self.config.test_weight_bias)
 
         # The shear estimation routine is built to work on simulation subfields
         # We need to iterate on all independent subfields
@@ -125,7 +107,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         g1_true, g2_true= utilities.get_true_shear(catalog[0])
         # Define the PSF shape
         psf_e1, psf_e2  =   utilities.get_psf_ellip(catalog[0])
-        weight_s16a     =   catalog['weight'][0]
+        reweight     =   catalog['weight'][0]
 
         # Get the estimate in bins in SNR/res as well.
         for j in range(self.config.nbin_1d):
@@ -133,15 +115,12 @@ class reGaus_shearCalibTask(BatchPoolTask):
                 # 90_degrees_rotation has already been forced
                 sbin=j*self.config.nbin_1d+k
                 mm  =   (catalog['calib_slide_ibins']==sbin)
-                if mm.astype(int).sum()>2 and np.sum(shape_weights[mm])>0:
-                    if self.config.round_trip:
-                        roundtrip_data = (model_m[mm], model_c1[mm], model_c2[mm])
-                    else:
-                        roundtrip_data = None
+                if mm.astype(int).sum()>4 and np.sum(shape_weights[mm])>0:
+                    roundtrip_data = None
                     tmp_g1, tmp_g2, tmp_resp = utilities.estimate_subfield_shear(
                         catalog[mm], use_model=self.config.use_model,
                         simple_resp=True, report_resp=True,
-                        reweight_s16a=self.config.reweight_s16a,
+                        reweight=self.config.reweight,
                         roundtrip_data=roundtrip_data,
                         force_weight=self.config.force_weight)
                     g1_bins[j,k] = tmp_g1
@@ -153,7 +132,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
                     sigma_g_bins[j,k] = 1.e12
 
         oDat    =   (g1_true,g2_true,g1_bins,g2_bins,sigma_g_bins,
-                    psf_e1,psf_e2,weight_s16a)
+                    psf_e1,psf_e2,reweight)
         return oDat
 
     @classmethod
