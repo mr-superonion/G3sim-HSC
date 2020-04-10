@@ -102,11 +102,11 @@ class reGaus_shearTestTask(BatchPoolTask):
         elif obsname=="res":
             min_obs=0.3
             obs_uppers=np.linspace(0.5,1.,self.config.nbin_1d)
-            return self.getBinNum(dataU,min_obs,obs_lowers,False)
+            return self.getBinNum(dataU,min_obs,obs_uppers,False)
         elif obsname=="snr":
             min_obs=10.
             obs_uppers=np.linspace(80,200,self.config.nbin_1d)
-            return self.getBinNum(dataU,min_obs,obs_lowers,False)
+            return self.getBinNum(dataU,min_obs,obs_uppers,False)
 
     def getBinNum(self,dataU,cut,cuts,doMag):
         """
