@@ -19,9 +19,7 @@ class reGaus_shearCalibConfig(pexConfig.Config):
     anaDir      =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
     pltDir      =   pexConfig.Field(dtype=str, default='plot/reGausCalib', doc = 'simulation catalogs')
     nbin_1d     =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
-    use_model   =   pexConfig.Field(dtype=bool, default=True, doc = 'whether to use model to estimate weight')
-    reweight    =  pexConfig.Field(dtype=bool, default=True, doc = 'reweigting?')
-    force_weight=   pexConfig.Field(dtype=bool, default=False, doc = 'for weight bias')
+    force_weight=   pexConfig.Field(dtype=bool, default=True, doc = 'for weight bias')
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
@@ -49,13 +47,6 @@ class reGaus_shearCalibTask(BatchPoolTask):
         BatchPoolTask.__init__(self, **kwargs)
 
         self.dshape     =   (self.config.nbin_1d,self.config.nbin_1d)
-        self.snr_bins   =   np.zeros(self.dshape)
-        self.res_bins   =   np.zeros(self.dshape)
-
-        self.m1_bins    =   np.zeros(self.dshape)
-        self.a1_bins    =   np.zeros(self.dshape)
-        self.sigm1_bins =   np.zeros(self.dshape)
-        self.siga1_bins =   np.zeros(self.dshape)
 
         self.log.info(' Beginning shearCalib analysis for the following scenario:')
         self.log.info('  %d bins in both SNR and resolution'%self.config.nbin_1d)
@@ -73,7 +64,7 @@ class reGaus_shearCalibTask(BatchPoolTask):
         dataF   =   dataF[dataF['wlmask_90rot']]
         pool    =   Pool("reGaus_shearCalib")
         pool.cacheClear()
-        pool.storeSet(dataF=dataF)
+        pool.storeSet(dataF=dataF,force_weight=self.config.force_weight)
         indexList=  dataF.index.levels[1]
         outcomes=   pool.map(self.process,indexList)
         outcomes=   [x for x in outcomes if x is not None]
@@ -87,14 +78,16 @@ class reGaus_shearCalibTask(BatchPoolTask):
     def process(self,cache,index):
         # Get catalog
         catalog =   cache.dataF.xs(index,level='isim').to_records(index=True)
+        assert np.all(catalog['ipos'][0::2]==(catalog['ipos'][1::2]-1))
         if len(catalog)<2:
             return None
         fN=catalog[0]['fieldname']
         isim=index
-        self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
+        self.log.info('processing field: %s, sim: %s' %(fN,isim))
         shape_weights = utilities.get_weight_model(catalog)*catalog['weight']
 
-        if self.config.force_weight:
+        force_weight    =   cache.force_weight
+        if force_weight:
             shape_weights[1::2] = shape_weights[0::2]
 
         # The shear estimation routine is built to work on simulation subfields
@@ -114,15 +107,16 @@ class reGaus_shearCalibTask(BatchPoolTask):
             for k in range(self.config.nbin_1d):
                 # 90_degrees_rotation has already been forced
                 sbin=j*self.config.nbin_1d+k
-                mm  =   (catalog['calib_slide_ibins']==sbin)
-                if mm.astype(int).sum()>4 and np.sum(shape_weights[mm])>0:
+                mm  =   ((catalog['calib_slide_ibins']&(2**sbin))!=0)
+                assert np.all(mm[1::2]==mm[0::2])
+                if mm.astype(int).sum()>2 and np.sum(shape_weights[mm])>0:
                     roundtrip_data = None
                     tmp_g1, tmp_g2, tmp_resp = utilities.estimate_subfield_shear(
-                        catalog[mm], use_model=self.config.use_model,
+                        catalog[mm], use_model=True,
                         simple_resp=True, report_resp=True,
-                        reweight=self.config.reweight,
+                        reweight=True,
                         roundtrip_data=roundtrip_data,
-                        force_weight=self.config.force_weight)
+                        force_weight=force_weight)
                     g1_bins[j,k] = tmp_g1
                     g2_bins[j,k] = tmp_g2
                     sigma_g_bins[j,k] = 0.25/np.sqrt(mm.astype(int).sum())

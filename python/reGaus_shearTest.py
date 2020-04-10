@@ -1,0 +1,232 @@
+#!/usr/bin/env python
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+import sim_analysis_utilities as utilities
+
+import lsst.daf.base as dafBase
+import lsst.pex.config as pexConfig
+import lsst.pipe.base as pipeBase
+
+from lsst.pipe.base import TaskRunner
+from lsst.ctrl.pool.parallel import BatchPoolTask
+from lsst.ctrl.pool.pool import Pool, abortOnError
+
+class reGaus_shearTestConfig(pexConfig.Config):
+    anaDir      =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
+    pltDir      =   pexConfig.Field(dtype=str, default='plot/selBias/', doc = 'simulation catalogs')
+    obsname     =   pexConfig.Field(dtype=str, default='mag', doc = 'name of the selection function')
+    nbin_1d     =   pexConfig.Field(dtype=int, default=6, doc = 'number of bins for 1-D parameter space')
+
+    def setDefaults(self):
+        pexConfig.Config.setDefaults(self)
+    def validate(self):
+        pexConfig.Config.validate(self)
+        # Checks that the paths provided are valid
+        if not os.path.isdir(self.anaDir):
+            raise RuntimeError("Simulation catalog directory %s does not exist "
+                         "or is not a directory" % (self.anaDir))
+
+class reGaus_shearTestRunner(TaskRunner):
+    @staticmethod
+    def getTargetList(parsedCmd, **kwargs):
+        return [(ref, kwargs) for ref in range(1)]
+def unpickle(factory, args, kwargs):
+    """Unpickle something by calling a factory"""
+    return factory(*args, **kwargs)
+
+class reGaus_shearTestTask(BatchPoolTask):
+    ConfigClass     =   reGaus_shearTestConfig
+    RunnerClass     =   reGaus_shearTestRunner
+    _DefaultName    =   "reGaus_shearTest"
+    def __init__(self,**kwargs):
+        BatchPoolTask.__init__(self, **kwargs)
+    def __reduce__(self):
+        """Pickler"""
+        return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
+                parentTask=self._parentTask, log=self.log))
+
+    def determineMask(self,dataF):
+        # Read catalog
+        data  =   dataF.to_records(index=True)
+        # Apply WL cut for simulations
+        # NOTE: We are using numpy record to do the selection
+        # TODO: Use pandas.DataFrame based in the future
+        max_mag =   24.5
+        max_magA10= 25.5
+        min_res =   0.3
+        min_snr =   10
+        max_snr =   200
+        max_logb=   -0.38
+        max_sigma_e=0.4
+        max_e   =   2.
+        if self.config.obsname=="mag":
+            max_mag=None
+        elif self.config.obsname=="magA10":
+            max_magA10=None
+        elif self.config.obsname=="res":
+            min_res=None
+        elif self.config.obsname=="snr":
+            min_snr=None
+
+        wlmaskS    =   utilities.galaxy_selector(
+                        catalog     =   data,
+                        min_snr     =   min_snr, #snr
+                        max_snr     =   max_snr,
+                        max_magA10  =   max_magA10, #magA10
+                        min_res     =   min_res, #res
+                        max_mag     =   max_mag, #mag
+                        max_logb    =   max_logb,#logb
+                        force_90_pair=  True,
+                        max_e       =   max_e,     #absE
+                        max_sigma_e =   max_sigma_e #sigma_e
+                        )
+        return wlmaskS
+
+    def determineBinNum(self,dataF):
+        obsname =   self.config.obsname
+        dataU   =   dataF.to_records(index=True)
+        assert np.all(dataU[0::2]['ipos']==(dataU['ipos'][1::2]-1))
+        assert np.all(dataU[0::2]['weight']==(dataU['weight'][1::2]))
+
+        if obsname=="mag":
+            max_obs=24.5
+            obs_lowers=np.linspace(21,22.5,self.config.nbin_1d)
+            return self.getBinNum(dataU,max_obs,obs_lowers,True)
+        elif obsname=="magA10":
+            max_obs=25.5
+            obs_lowers=np.linspace(23,24.5,self.config.nbin_1d)
+            return self.getBinNum(dataU,max_obs,obs_lowers,True)
+        elif obsname=="res":
+            min_obs=0.3
+            obs_uppers=np.linspace(0.5,1.,self.config.nbin_1d)
+            return self.getBinNum(dataU,min_obs,obs_lowers,False)
+        elif obsname=="snr":
+            min_obs=10.
+            obs_uppers=np.linspace(80,200,self.config.nbin_1d)
+            return self.getBinNum(dataU,min_obs,obs_lowers,False)
+
+    def getBinNum(self,dataU,cut,cuts,doMag):
+        """
+        Parameters
+        dataU: data after basic wl cut without the cut to test
+        cut: the cut at which the selection bias is estimated (won't force_90_pair)
+        cuts:the cuts at the other side (will force_90_pair)
+        """
+        slide_test_bins =   np.zeros(len(dataU),dtype=np.uint64)
+        if doMag:
+            for iu,ic in enumerate(cuts):
+                tmp_msk     =   (dataU[self.config.obsname]>ic)
+                tmp_msk[1::2]=  tmp_msk[0::2]
+                tmp_msk     &=  (dataU[self.config.obsname]<cut)
+                slide_test_bins[tmp_msk]=(slide_test_bins[tmp_msk]|np.uint(2**iu))
+        else:
+            for iu,ic in enumerate(cuts):
+                tmp_msk     =   (dataU[self.config.obsname]<ic)
+                tmp_msk[1::2]=  tmp_msk[0::2]
+                tmp_msk     &=  (dataU[self.config.obsname]>cut)
+                slide_test_bins[tmp_msk]=(slide_test_bins[tmp_msk]|np.uint(2**iu))
+        return slide_test_bins
+
+    @abortOnError
+    def run(self,Id):
+        obsname =   self.config.obsname
+        self.log.info('Loading Data')
+        inFname =   os.path.join(self.config.anaDir,'allSim.h5')
+        dataF   =   pd.read_hdf(inFname)
+
+        self.log.info('Determining Mask')
+        mskname =   'wlmask_90rot_no%s' %(obsname[0].upper()+obsname[1:])
+        wlmaskS =   self.determineMask(dataF)
+        dataF[mskname] =    wlmaskS
+
+        self.log.info('Determing Bin Number')
+        binsname=   'selbias_%s_ibins' %obsname
+        dataF[binsname]=    np.zeros(len(dataF),dtype=np.uint64)
+        dataF[binsname][wlmaskS]=self.determineBinNum(dataF[wlmaskS])
+
+        dataF.to_hdf(inFname,key='data')
+
+        pool    =   Pool("reGaus_shearTest")
+        pool.cacheClear()
+        pool.storeSet(dataF=dataF[wlmaskS],obsname=obsname)
+
+        indexList=  dataF.index.levels[1]
+        outcomes=   pool.map(self.process,indexList)
+        outcomes=   [x for x in outcomes if x is not None]
+        outFname=   os.path.join(self.config.pltDir,'shear_selbias_%s.npy' %obsname)
+        np.save(outFname,outcomes)
+        return
+
+    def process(self,cache,index):
+        # Get catalog
+        catalog =   cache.dataF.xs(index,level='isim').to_records(index=True)
+        obsname =   cache.obsname
+        if len(catalog)<50:
+            return None
+        fN      =   catalog[0]['fieldname']
+        isim    =   index
+        self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
+
+        # Do a round trip
+        model_m =   utilities.get_m_model(catalog,weight_bias=True)
+        model_c1,model_c2 = utilities.get_c_model(catalog,weight_bias=True)
+
+        # The shear estimation routine is built to work on simulation subfields
+        # We need to iterate on all independent subfields
+        g1_bins = np.zeros(self.config.nbin_1d)
+        g2_bins = np.zeros(self.config.nbin_1d)
+        sigma_g_bins= np.zeros(self.config.nbin_1d)
+
+        # Get true shear
+        g1_true, g2_true= utilities.get_true_shear(catalog[0])
+        # Define the PSF shape
+        psf_e1, psf_e2  =   utilities.get_psf_ellip(catalog[0])
+        reweight     =   catalog['weight'][0]
+
+        for j in range(self.config.nbin_1d):
+            # 90_degrees_rotation has already been forced
+            mm  =   (catalog['selbias_%s_ibins' %obsname]&(2**j))!=0
+            if mm.astype(int).sum()>4 and catalog['weight'][0]>0:
+                roundtrip_data = (model_m[mm], model_c1[mm], model_c2[mm])
+                tmp_g1, tmp_g2, tmp_resp = utilities.estimate_subfield_shear(
+                    catalog[mm], use_model=True,
+                    simple_resp=True, report_resp=True,
+                    reweight=True,
+                    roundtrip_data=roundtrip_data,
+                    force_weight=False)
+                g1_bins[j] = tmp_g1
+                g2_bins[j] = tmp_g2
+                sigma_g_bins[j] = 0.25/np.sqrt(mm.astype(int).sum())
+            else:
+                g1_bins[j] = 0.0
+                g2_bins[j] = 0.0
+                sigma_g_bins[j] = 1.e12
+
+        oDat    =   (g1_true,g2_true,g1_bins,g2_bins,sigma_g_bins,psf_e1,psf_e2,reweight)
+        return oDat
+
+    @classmethod
+    def _makeArgumentParser(cls, *args, **kwargs):
+        kwargs.pop("doBatch", False)
+        parser = pipeBase.ArgumentParser(name=cls._DefaultName)
+        return parser
+    @classmethod
+    def batchWallTime(cls, time, parsedCmd, numCpus):
+        return None
+    def writeConfig(self, butler, clobber=False, doBackup=False):
+        pass
+    def writeSchemas(self, butler, clobber=False, doBackup=False):
+        pass
+    def writeMetadata(self, ifield):
+        pass
+    def writeEupsVersions(self, butler, clobber=False, doBackup=False):
+        pass
+    def _getConfigName(self):
+        return None
+    def _getEupsVersionsName(self):
+        return None
+    def _getMetadataName(self):
+        return None
