@@ -46,8 +46,8 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class rgcSimConfig(pexConfig.Config):
     preDir  =   'prepare2'
-    expDir      =   pexConfig.Field(dtype=str, default='s18-2/expDir', doc = 'directory to store exposures')
-    catPre      =   pexConfig.Field(dtype=str, default='s18-2/catPre', doc = 'directory to store pre-catalog')
+    expDir      =   pexConfig.Field(dtype=str, default='s18-3/expDir', doc = 'directory to store exposures')
+    catPre      =   pexConfig.Field(dtype=str, default='s18-3/catPre', doc = 'directory to store pre-catalog')
     psfPre      =   pexConfig.Field(dtype=str, default='%s/psfPre' %preDir, doc = 'directory to store pre-PSF')
     corPre      =   pexConfig.Field(dtype=str, default='%s/corPre' %preDir, doc = 'directory to store pre-PSF')
     def setDefaults(self):
@@ -82,7 +82,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         self.log.info('simulating field %s' %(ifield))
         # Basic parameters
         ngrid       =   64
-        nx          =   50
+        nx          =   100
         ny          =   nx
         ndata       =   nx*ny
         nrot        =   2
