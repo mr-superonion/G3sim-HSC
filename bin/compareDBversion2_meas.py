@@ -6,7 +6,7 @@ import numpy as np
 from astropy.table import Table, vstack
 import astropy.io.fits as pyfits
 import sim_analysis_utilities as utilities
-import plot_catalog_utilities as pltUtil
+import plot_utilities as pltUtil
 
 import matplotlib
 matplotlib.use('agg')
