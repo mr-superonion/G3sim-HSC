@@ -20,8 +20,8 @@ def prepareBWeight(ngrid,wFname):
                 rc  =   np.sqrt(ic**2.+jc**2.)
                 if rc<rCut:
                     weightArray[j,i]=1.
-        weightArray =   np.fft.fftshift(np.fft.ifft2(abs(np.fft.fft2(weightArray))**2.).real) 
-        Bweights[rCut-8,:,:]    =   weightArray        
+        weightArray =   np.fft.fftshift(np.fft.ifft2(abs(np.fft.fft2(weightArray))**2.).real)
+        Bweights[rCut-8,:,:]    =   weightArray
     np.save(wFname,Bweights)
     return
 
@@ -50,6 +50,6 @@ def main():
         outPows[irad-8,0,:,:]=inoiPow
     np.save(outFname,outPows)
     return
-    
+
 if __name__ == '__main__':
     main()

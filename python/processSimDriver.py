@@ -79,8 +79,8 @@ class processSimTask(pipeBase.CmdLineTask):
 
     @pipeBase.timeMethod
     def runDataRef(self,isim):
-        info3       =   Table.read('../s19-pre/info.csv')
-        ifield      =   int(info3[isim]['num'])
+        info        =   Table.read('../s19-pre/info.csv')
+        ifield      =   int(info[isim]['num'])
         self.log.info('begining for field %05d' %(ifield))
         inputdir=  './expDir/'
 

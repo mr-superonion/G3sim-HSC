@@ -73,7 +73,7 @@ class prepareSimAnalysisTask(BatchPoolTask):
                 parentTask=self._parentTask, log=self.log))
 
     @abortOnError
-    def run(self,fieldKey):
+    def runDataRef(self,fieldKey):
         fieldname   =   utilities.field_keys[fieldKey]
         self.log.info('Processing field: %s' %(fieldname))
         outFname    =   os.path.join(self.config.anaDir,fieldname,'%s.fits'%(fieldname))
@@ -85,9 +85,17 @@ class prepareSimAnalysisTask(BatchPoolTask):
         pool        =   Pool("processSim")
         pool.cacheClear()
         pool.storeSet(fieldname=fieldname)
-        simList     =   Table.read('info3.csv')[:6400]
-        simList     =   simList[simList['field']==fieldname]['num']
-        outcomes    =   pool.map(self.process,simList)
+        simList     =   Table.read('info.csv')
+        if not 'field' in simList.colnames:
+            simList['field']=None
+            fieldInfo=Table.read('../../fieldTractInfoS19.csv')
+            for row in simList:
+                row['field']=fieldInfo[fieldInfo['tract']==row['tract']]['field'][0]
+            simList.write('info.csv',overwrite=True)
+
+        simList     =   simList[0:2500]
+        numList     =   simList[simList['field']==fieldname]['num']
+        outcomes    =   pool.map(self.process,numList)
         outcomes    =   [x for x in outcomes if x is not None]
         catalogAll  =   vstack(outcomes)
         catalogAll.write(outFname)
