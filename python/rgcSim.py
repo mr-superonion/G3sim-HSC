@@ -45,9 +45,10 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
 class rgcSimConfig(pexConfig.Config):
-    preDir  =   'prepare2'
-    expDir      =   pexConfig.Field(dtype=str, default='s18-3/expDir', doc = 'directory to store exposures')
-    catPre      =   pexConfig.Field(dtype=str, default='s18-3/catPre', doc = 'directory to store pre-catalog')
+    preDir      =   's19-pre'
+    outDir      =   's19-1'
+    expDir      =   pexConfig.Field(dtype=str, default='%s/expDir' %outDir, doc = 'directory to store exposures')
+    catPre      =   pexConfig.Field(dtype=str, default='%s/catPre' %outDir, doc = 'directory to store pre-catalog')
     psfPre      =   pexConfig.Field(dtype=str, default='%s/psfPre' %preDir, doc = 'directory to store pre-PSF')
     corPre      =   pexConfig.Field(dtype=str, default='%s/corPre' %preDir, doc = 'directory to store pre-PSF')
     def setDefaults(self):
@@ -70,9 +71,9 @@ class rgcSimTask(pipeBase.CmdLineTask):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
 
     @pipeBase.timeMethod
-    def run(self,isim):
-        info3       =   Table.read('./prepare2/info3.csv')
-        ifield      =   int(info3[isim]['num'])
+    def runDataRef(self,isim):
+        info        =   Table.read('./s19-pre/info.csv')
+        ifield      =   int(info[isim]['num'])
         badIDENT    =   [78798,276775,908556,81452,200743]
         self.log.info('begining for field %05d' %(ifield))
         outFname    =   os.path.join(self.config.expDir,'image-%05d.fits' %(ifield))
@@ -90,7 +91,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         ngridTot    =   ngrid*nx
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         flux_scaling=   2.587
-        varRatio    =   1.78
+        varRatio    =   1.25
 
         # Get the psf and nosie information
         psfFname    =   os.path.join(self.config.psfPre,'psf-%05d.fits'%(ifield))
@@ -116,7 +117,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         Xnames      =   ['best','median','worst']
         Xname       =   Xnames[iparent]
         catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
-        directory   =   '../galsim_train/parent_%s_processed' %(Xname)
+        directory   =   '../../galsim_train/parent_%s_processed' %(Xname)
         rgc         =   galsim.RealGalaxyCatalog(catName,dir=directory)
         rgcCat      =   rgc.cat
         nrgcDat     =   len(rgcCat)
@@ -124,7 +125,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
             badIdList   =   [148999,100999]
         else:
             badIdList   =   []
-        extFname    =   '../galsim_train/cosmos_extinction_HSC.hdf5'
+        extFname    =   '../../galsim_train/cosmos_extinction_HSC.hdf5'
         extTab      =   Table.read(extFname,"/%s" %iparent)
         assert  len(extTab)==nrgcDat, 'number of galaxies in extinction file does not math that of rgc catalog'
 
@@ -216,14 +217,14 @@ class rgcSimTask(pipeBase.CmdLineTask):
         cdelt   =   (0.168*afwGeom.arcseconds)
         CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
         #wcs
-        crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees)
+        crval   =   afwGeom.SpherePoint(afwGeom.Angle(0.,afwGeom.degrees),afwGeom.Angle(0.,afwGeom.degrees))
+        #crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6
         crpix   =   afwGeom.Point2D(0.0, 0.0)
         dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
         exposure.setWcs(dataWcs)
         #prepare the frc
-        dataCalib = afwImg.Calib()
-        dataCalib.setFluxMag0(63095734448.0194)
-        exposure.setCalib(dataCalib)
+        dataCalib = afwImg.makePhotoCalibFromCalibZeroPoint(63095734448.0194)
+        exposure.setPhotoCalib(dataCalib)
         self.log.info('writing exposure')
         exposure.writeFits(outFname)
         del exposure
@@ -279,7 +280,7 @@ class rgcSimBatchTask(BatchPoolTask):
         return
 
     @abortOnError
-    def run(self,Id):
+    def runDataRef(self,Id):
         self.log.info('beginning group %d' %(Id))
         perGroup=   self.config.perGroup
         fMin    =   perGroup*Id
@@ -298,7 +299,7 @@ class rgcSimBatchTask(BatchPoolTask):
         except:
             self.log.info('fail to finish field %05d'%(isim) )
         """
-        self.rgcSim.run(isim)
+        self.rgcSim.runDataRef(isim)
         self.log.info('finish field %05d' %(isim))
         return
 

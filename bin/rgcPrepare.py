@@ -8,12 +8,17 @@ from astropy.table import Table,vstack
 import astropy.io.ascii as ascii
 
 ngroup  =   8
-Dir     =   '/work/xiangchong.li/work/S18ASimHSC/prepare2/'
-psfDir  =   os.path.join(Dir,'psfPre')
+Dir     =   's19-pre/'
+psfCatDir=  os.path.join(Dir,'from_Hironao/psf-catalogs/')
+psfImgDir=  os.path.join(Dir,'from_Hironao/psf-images/')
+psfOutDir=  os.path.join(Dir,'psfPre')
+corOutDir=  os.path.join(Dir,'corPre')
 pfname  =   os.path.join(Dir,'info.csv')
 
-if not os.path.isdir(psfDir):
-    os.system('mkdir -p %s' %psfDir)
+if not os.path.isdir(psfOutDir):
+    os.system('mkdir -p %s' %psfOutDir)
+if not os.path.isdir(corOutDir):
+    os.system('mkdir -p %s' %corOutDir)
 
 def PreparePSF():
     print('Preparing PSF')
@@ -28,23 +33,25 @@ def PreparePSF():
     patches =   []
     groups  =   []
 
-    fNlist  =   glob.glob('./from_Hironao/psf-catalogs/psf-catalog-*')
+    fNlist  =   glob.glob(os.path.join(psfCatDir,'psf-catalog-*'))
     nPerT   =   1
-    for ifile,fname in enumerate(fNlist):
+    ifile   =   0
+    for fname in fNlist:
         preAll  =   pyfits.getdata(fname)
         if len(preAll)==0:
             os.popen('rm %s' %fname)
             continue
         tract   =   preAll[0]['tract']
         patch   =   preAll[0]['patch']
-        imFname =   './from_Hironao/psf-images/psf-images-%s-%s.fits' %(tract,patch)
+        print('processing tract: %s, patch: %s' %(tract,patch))
+        imFname =   os.path.join(psfImgDir,'psf-%s-%s.fits' %(tract,patch))
         if not os.path.exists(imFname):
             continue
         psfAll  =   pyfits.open(imFname)
         nsample =   len(preAll)
         for fid in range(nPerT):
             ifield  =   ifile*nPerT+fid
-            outFname=   os.path.join(psfDir,'psf-%05d.fits' %ifield)
+            outFname=   os.path.join(psfOutDir,'psf-%05d.fits' %ifield)
             np.random.seed(ifield)
             g1      =   np.random.rand()*0.06-0.03
             g2      =   np.random.rand()*0.06-0.03
@@ -81,6 +88,7 @@ def PreparePSF():
             tracts.append(header['tract'])
             patches.append(header['patch'])
             groups.append(ifield%ngroup)
+        ifile+=1
     names   =   ('num','fwhm','var','varPlane','tract','patch','group')
     data    =   (nums,fwhms,var_meas,var_plane,tracts,patches,groups)
     table   =   Table(data=data,names=names)
@@ -90,46 +98,46 @@ def PreparePSF():
 def PrepareNoiCor():
     print("preparing noise correaltions")
     #Do for tract
-    info    =   Table.read('./info.csv')
+    info    =   Table.read(pfname)
     tractAll=   list(set(info['tract']))
-    corAll  =   np.zeros((20,20))
+    corAll  =   np.zeros((21,21))
     nAll    =   0
     for tract in tractAll:
-        corTract    =   np.zeros((20,20))
+        corTract    =   np.zeros((21,21))
         nInTract    =   0
-        fnames  =   glob.glob('from_Hironao/psf-catalogs/psf-catalog-%s-*.fits' %(tract))
+        fnames  =   glob.glob(os.path.join(psfCatDir,'psf-catalog-%s-*.fits' %(tract)))
         for fn in fnames:
             preAll  =   pyfits.getdata(fn)
             corr    =   np.average(preAll['corr'],axis=0).reshape(21,21)
-            corTract+=  corr[:-1,:-1]
+            corTract+=  corr
             nInTract+=  1.
         corAll  +=  corTract
         nAll    +=  nInTract
         corTract/=  nInTract
-        pyfits.writeto('./corPre/corTract-%s.fits' %(tract),corTract)
-    pyfits.writeto('./corPre/corStack.fits',corAll/nAll)
+        pyfits.writeto(os.path.join(corOutDir,'corTract-%s.fits' %(tract)),corTract)
+    pyfits.writeto(os.path.join(corOutDir,'corStack.fits'),corAll/nAll)
 
     #Do for group
-    corGroup=   np.zeros((ngroup,20,20))
+    corGroup=   np.zeros((ngroup,21,21))
     nPG     =   np.zeros(ngroup)
     for row in info:
         tract   =   row['tract']
         patch   =   row['patch']
         group   =   row['group']
-        fn      =   'from_Hironao/psf-catalogs/psf-catalog-%s-%s.fits' %(tract,patch)
+        fn      =   os.path.join(psfCatDir,'psf-catalog-%s-%s.fits' %(tract,patch))
         preAll  =   pyfits.getdata(fn)
         corr    =   np.average(preAll['corr'],axis=0).reshape(21,21)
-        corGroup[group]+=  corr[:-1,:-1]
+        corGroup[group]+=  corr
         nPG[group]      +=  1.
 
     for ig in range(ngroup):
-        pyfits.writeto('./corPre/corGroup-%02d.fits' %ig,corGroup[ig]/nPG[ig])
+        pyfits.writeto(os.path.join(corOutDir,'corGroup-%02d.fits' %ig),corGroup[ig]/nPG[ig])
     return
 
 def main():
     if not os.path.exists(pfname):
         PreparePSF()
-    #PrepareNoiCor()
+    PrepareNoiCor()
     return
 
 if __name__=="__main__":

@@ -19,7 +19,7 @@ def main(exe,ndiv,nodes,procs,minG,maxG):
         end     =   min((i+1)*per,nt)+minG
         if end<= begin:
             continue
-        command =   '%s $s18w --output ./ --batch-type=pbs --nodes %d --procs %d --time 100000000 --job try1-s18G3-%d --queue %s  --minGroup %d --maxGroup %d --clobber-versions ' %(exe,nodes,procs,i,qq,begin,end)
+        command =   '%s $s19w --output ./ --batch-type=pbs --nodes %d --procs %d --time 100000000 --job s19G3-%d --queue %s  --minGroup %d --maxGroup %d --clobber-versions ' %(exe,nodes,procs,i,qq,begin,end)
         print(command)
         os.system(command)
     return

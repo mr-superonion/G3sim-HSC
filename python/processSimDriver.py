@@ -78,8 +78,8 @@ class processSimTask(pipeBase.CmdLineTask):
         self.makeSubtask("readDataSim",schema=self.schema)
 
     @pipeBase.timeMethod
-    def run(self,isim):
-        info3       =   Table.read('../prepare2/info3.csv')
+    def runDataRef(self,isim):
+        info3       =   Table.read('../s19-pre/info.csv')
         ifield      =   int(info3[isim]['num'])
         self.log.info('begining for field %05d' %(ifield))
         inputdir=  './expDir/'
@@ -98,7 +98,7 @@ class processSimTask(pipeBase.CmdLineTask):
         if self.config.doFPFS:
             assert dataStruct.noiPows != None,\
                     self.log.info('do not have noiPows')
-            self.fpfsBase.run(dataStruct)
+            self.fpfsBase.runDataRef(dataStruct)
             outputdir   =  './outcomeFPFS/'
             outFname    =   'src-%05d.fits'  %(ifield)
             outFname    =   os.path.join(outputdir,outFname)
@@ -160,7 +160,7 @@ class processSimDriverTask(BatchPoolTask):
         self.makeSubtask("processSim")
 
     @abortOnError
-    def run(self,Id):
+    def runDataRef(self,Id):
         self.log.info('beginning group %d' %(Id))
         perGroup=   self.config.perGroup
         fMin    =   perGroup*Id
@@ -173,7 +173,7 @@ class processSimDriverTask(BatchPoolTask):
         return
 
     def process(self,cache,isim):
-        self.processSim.run(isim)
+        self.processSim.runDataRef(isim)
         self.log.info('finish field %05d' %(isim))
         return
 
