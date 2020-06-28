@@ -24,7 +24,7 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 anaDir  =   'anaCat'
-obsDir  =   '../database/s18-10-12/fields/'
+obsDir  =   '../../database/s19-Hironao-2/fields/'
 pltDir  =   'plot/galDis1D/'
 
 if not os.path.isdir(anaDir):
@@ -315,7 +315,7 @@ def finalPlot():
     ax.set_title('All')
     figM.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figM.savefig(os.path.join(pltDir,'magDis.pdf'))
+    figM.savefig(os.path.join(pltDir,'magDis.png'))
 
     ax      =   figA.add_subplot(3,3,7)
     gg      =   absEGrid
@@ -330,7 +330,7 @@ def finalPlot():
     ax.set_title('All')
     figA.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figA.savefig(os.path.join(pltDir,'absEDis.pdf'))
+    figA.savefig(os.path.join(pltDir,'absEDis.png'))
     return
 
 if __name__=='__main__':

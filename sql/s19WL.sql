@@ -101,6 +101,64 @@ SELECT
 , forced.y_cmodel_fluxerr   as forced_y_cmodel_fluxerr
 , forced.y_cmodel_flag      as forced_y_cmodel_flag
 
+-- columns which can be used for selection
+
+, forced3.g_apertureflux_10_mag as forced_g_apertureflux_10_mag
+, forced3.g_apertureflux_10_magerr as forced_g_apertureflux_10_magerr
+, forced3.r_apertureflux_10_mag as forced_r_apertureflux_10_mag
+, forced3.r_apertureflux_10_magerr as forced_r_apertureflux_10_magerr
+, forced3.i_apertureflux_10_mag as forced_i_apertureflux_10_mag
+, forced3.i_apertureflux_10_magerr as forced_i_apertureflux_10_magerr
+, forced3.z_apertureflux_10_mag as forced_z_apertureflux_10_mag
+, forced3.z_apertureflux_10_magerr as forced_z_apertureflux_10_magerr
+, forced3.y_apertureflux_10_mag as forced_y_apertureflux_10_mag
+, forced3.y_apertureflux_10_magerr as forced_y_apertureflux_10_magerr
+
+, forced3.g_apertureflux_15_mag as forced_g_apertureflux_15_mag
+, forced3.g_apertureflux_15_magerr as forced_g_apertureflux_15_magerr
+, forced3.r_apertureflux_15_mag as forced_r_apertureflux_15_mag
+, forced3.r_apertureflux_15_magerr as forced_r_apertureflux_15_magerr
+, forced3.i_apertureflux_15_mag as forced_i_apertureflux_15_mag
+, forced3.i_apertureflux_15_magerr as forced_i_apertureflux_15_magerr
+, forced3.z_apertureflux_15_mag as forced_z_apertureflux_15_mag
+, forced3.z_apertureflux_15_magerr as forced_z_apertureflux_15_magerr
+, forced3.y_apertureflux_15_mag as forced_y_apertureflux_15_mag
+, forced3.y_apertureflux_15_magerr as forced_y_apertureflux_15_magerr
+
+, forced3.g_apertureflux_20_mag as forced_g_apertureflux_20_mag
+, forced3.g_apertureflux_20_magerr as forced_g_apertureflux_20_magerr
+, forced3.r_apertureflux_20_mag as forced_r_apertureflux_20_mag
+, forced3.r_apertureflux_20_magerr as forced_r_apertureflux_20_magerr
+, forced3.i_apertureflux_20_mag as forced_i_apertureflux_20_mag
+, forced3.i_apertureflux_20_magerr as forced_i_apertureflux_20_magerr
+, forced3.z_apertureflux_20_mag as forced_z_apertureflux_20_mag
+, forced3.z_apertureflux_20_magerr as forced_z_apertureflux_20_magerr
+, forced3.y_apertureflux_20_mag as forced_y_apertureflux_20_mag
+, forced3.y_apertureflux_20_magerr as forced_y_apertureflux_20_magerr
+
+, forced3.g_apertureflux_30_mag as forced_g_apertureflux_30_mag
+, forced3.g_apertureflux_30_magerr as forced_g_apertureflux_30_magerr
+, forced3.r_apertureflux_30_mag as forced_r_apertureflux_30_mag
+, forced3.r_apertureflux_30_magerr as forced_r_apertureflux_30_magerr
+, forced3.i_apertureflux_30_mag as forced_i_apertureflux_30_mag
+, forced3.i_apertureflux_30_magerr as forced_i_apertureflux_30_magerr
+, forced3.z_apertureflux_30_mag as forced_z_apertureflux_30_mag
+, forced3.z_apertureflux_30_magerr as forced_z_apertureflux_30_magerr
+, forced3.y_apertureflux_30_mag as forced_y_apertureflux_30_mag
+, forced3.y_apertureflux_30_magerr as forced_y_apertureflux_30_magerr
+
+,meas3.i_apertureflux_10_mag
+,meas3.i_apertureflux_10_magerr
+,meas3.i_apertureflux_15_mag
+,meas3.i_apertureflux_15_magerr
+,meas3.i_apertureflux_20_mag
+,meas3.i_apertureflux_20_magerr
+,meas3.i_apertureflux_30_mag
+,meas3.i_apertureflux_30_magerr
+
+,meas2.i_psfflux_mag
+,meas2.i_psfflux_magerr
+
 -- shapes
 -- hsm regauss shapes
 , meas2.i_hsmshaperegauss_e1

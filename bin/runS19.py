@@ -24,7 +24,6 @@ def main(exe,ndiv,nodes,procs,minG,maxG):
         os.system(command)
     return
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--exe", type=str, help="execute command")

@@ -16,7 +16,7 @@ mpl.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
 anaDir  =   'anaCat'
-obsDir  =   '../database/s18-10-12/fields/'
+obsDir  =   '../../database/s19-Hironao-2/fields/'
 pltDir  =   'plot/psfNoi/'
 if not os.path.isdir(anaDir):
     raise RuntimeError("Simulation catalog directory %s does not exist "
