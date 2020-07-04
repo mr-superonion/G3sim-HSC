@@ -75,14 +75,13 @@ class reGaus_shearCalibTask(BatchPoolTask):
         np.save(outFname,outcomes)
         return
 
-    def process(self,cache,index):
+    def process(self,cache,isim):
         # Get catalog
-        catalog =   cache.dataF.xs(index,level='isim').to_records(index=True)
+        catalog =   cache.dataF.xs(isim,level='isim').to_records(isim=True)
         assert np.all(catalog['ipos'][0::2]==(catalog['ipos'][1::2]-1))
         if len(catalog)<2:
             return None
-        fN=catalog[0]['fieldname']
-        isim=index
+        fN      =   catalog[0]['fieldname']
         self.log.info('processing field: %s, sim: %s' %(fN,isim))
         shape_weights = utilities.get_weight_model(catalog)*catalog['weight']
 

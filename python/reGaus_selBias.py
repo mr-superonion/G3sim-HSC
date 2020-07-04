@@ -15,7 +15,7 @@ from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
-class reGaus_shearTestConfig(pexConfig.Config):
+class reGaus_selBiasConfig(pexConfig.Config):
     anaDir      =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
     pltDir      =   pexConfig.Field(dtype=str, default='plot/selBias/', doc = 'simulation catalogs')
     obsname     =   pexConfig.Field(dtype=str, default='mag', doc = 'name of the selection function')
@@ -30,7 +30,7 @@ class reGaus_shearTestConfig(pexConfig.Config):
             raise RuntimeError("Simulation catalog directory %s does not exist "
                          "or is not a directory" % (self.anaDir))
 
-class reGaus_shearTestRunner(TaskRunner):
+class reGaus_selBiasRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         return [(ref, kwargs) for ref in range(1)]
@@ -38,10 +38,10 @@ def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
 
-class reGaus_shearTestTask(BatchPoolTask):
-    ConfigClass     =   reGaus_shearTestConfig
-    RunnerClass     =   reGaus_shearTestRunner
-    _DefaultName    =   "reGaus_shearTest"
+class reGaus_selBiasTask(BatchPoolTask):
+    ConfigClass     =   reGaus_selBiasConfig
+    RunnerClass     =   reGaus_selBiasRunner
+    _DefaultName    =   "reGaus_selBias"
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
     def __reduce__(self):
@@ -133,15 +133,15 @@ class reGaus_shearTestTask(BatchPoolTask):
         return slide_test_bins
 
     @abortOnError
-    def run(self,Id):
+    def runDataRef(self,Id):
         obsname =   self.config.obsname
-        pool    =   Pool("reGaus_shearTest")
+        pool    =   Pool("reGaus_selBias")
         pool.cacheClear()
         pool.storeSet(anaDir=self.config.anaDir,
                 obsname=obsname,nbin_1d=self.config.nbin_1d,
                 force_90_pair=self.config.force_90_pair)
 
-        indexList=  range(6400)
+        indexList=  range(2500)
         outcomes=   pool.map(self.process,indexList)
         outcomes=   [x for x in outcomes if x is not None]
         if not self.config.force_90_pair:
@@ -151,18 +151,17 @@ class reGaus_shearTestTask(BatchPoolTask):
         np.save(outFname,outcomes)
         return
 
-    def process(self,cache,index):
+    def process(self,cache,isim):
         # Get catalog
-        inFname =   os.path.join(cache.anaDir,'allSimIsim.h5')
+        inFname =   os.path.join(cache.anaDir,'allSim-2.h5')
         try:
-            catalog =   pd.read_hdf(inFname,key='sim%d' %index).to_records()
+            catalog =   pd.read_hdf(inFname).xs(isim,level='isim').to_records(index=True)
         except:
+            self.log.info('Do not have sim-%05d' %isim)
             return None
-
-        if len(catalog)<50:
+        if len(catalog)<2:
             return None
         fN      =   catalog[0]['fieldname']
-        isim    =   index
         self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
 
         self.log.info('Applying WL mask')
