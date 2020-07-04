@@ -25,7 +25,9 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 anaDir  =   'anaCat'
 obsDir  =   '../../database/s19-Hironao-2/fields/'
-pltDir  =   'plot/galDis1D/'
+pltDir  =   'plot/galDis1D-2/'
+## galDis1D is without magA10 cut
+## galDis1D-2 is with magA10 cut
 
 if not os.path.isdir(anaDir):
     raise RuntimeError("Simulation catalog directory %s does not exist "
@@ -90,8 +92,10 @@ def process(fieldname):
 
 def getObsGalDis(obsFname):
     data    =   fitsio.read(obsFname)
-    """
+    magA10  =   utilities.get_imag_A10(data)
     mask    =   np.ones(len(data)).astype(bool)
+    mask    &=  (magA10<25.5)
+    """
     mask    =   mask&(utilities.get_snr(data) < 80.)
     data    =   data[mask]
     """
@@ -112,7 +116,9 @@ def getSimGalDis(simFname):
     #Get the noise variance and psf information
     data    =   fitsio.read(simFname)
     data    =   utilities.update_wl_flags_sim(data)
+    magA10  =   utilities.get_imag_A10(data)
     mask    =   data['weak_lensing_flag']
+    mask    &=  (magA10<25.5)
     #mask    =   mask&(utilities.get_snr(data) < 80.)
     data    =   data[mask]
     ndata   =   len(data)*np.ones(nbin2-1)

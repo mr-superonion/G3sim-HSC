@@ -241,7 +241,7 @@ def finalPlot(sims,data,oname,olim,pend):
     mask    &=  (data['snr']>10.)
     mask    &=  (data['absE']<2.)
     if oname!='mag':
-        mask    &=  (data['mag']<24.5)
+        mask    &=  ((data['mag']-data['a_i'])<24.5)
     mask    &=  (data[oname]<olim)
     data    =   data[mask]
     if 'weight' in data.dtype.names:
@@ -258,7 +258,7 @@ def finalPlot(sims,data,oname,olim,pend):
         maskS   &=  (sims['snr']>10.)
         maskS   &=  (sims['absE']<2.)
         if oname!='mag':
-            maskS   &=  (sims['mag']<24.5)
+            maskS   &=  ((sims['mag']-sims['a_i'])<24.5)
         maskS   &=  (sims[oname]<olim)
         sims    =   sims[maskS]
         if 'weight' in sims.dtype.names:
