@@ -143,7 +143,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     ax.legend()
     plt.xlabel('resolution')
     plt.ylabel('prob')
-    plt.savefig(os.path.join(anaFieldDir,'resHist.png'))
+    plt.savefig(os.path.join(anaFieldDir,'resHist.eps'))
     plt.close()
 
     fig =   plt.figure()
@@ -153,7 +153,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     ax.legend()
     plt.xlabel('CModel SNR')
     plt.ylabel('prob')
-    plt.savefig(os.path.join(anaFieldDir,'snrHist.png'))
+    plt.savefig(os.path.join(anaFieldDir,'snrHist.eps'))
     plt.close()
 
     fig =   plt.figure()
@@ -163,7 +163,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     ax.legend()
     plt.xlabel('CModel mag')
     plt.ylabel('prob')
-    plt.savefig(os.path.join(anaFieldDir,'magHist.png'))
+    plt.savefig(os.path.join(anaFieldDir,'magHist.eps'))
     plt.close()
 
     fig =   plt.figure()
@@ -174,7 +174,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     ax.legend()
     plt.xlabel('reGaus |e|')
     plt.ylabel('prob')
-    plt.savefig(os.path.join(anaFieldDir,'absEHist.png'))
+    plt.savefig(os.path.join(anaFieldDir,'absEHist.eps'))
     plt.close()
     return
 
@@ -291,7 +291,7 @@ def finalPlot():
     ax.set_title('All')
     figN.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figN.savefig(os.path.join(pltDir,'snrDis.png'))
+    figN.savefig(os.path.join(pltDir,'snrDis.eps'))
 
     ax      =   figP.add_subplot(3,3,7)
     gg      =   resGrid
@@ -306,7 +306,7 @@ def finalPlot():
     ax.set_title('All')
     figP.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figP.savefig(os.path.join(pltDir,'resolutionDis.png'))
+    figP.savefig(os.path.join(pltDir,'resolutionDis.eps'))
 
     ax      =   figM.add_subplot(3,3,7)
     gg      =   magGrid
@@ -321,7 +321,7 @@ def finalPlot():
     ax.set_title('All')
     figM.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figM.savefig(os.path.join(pltDir,'magDis.png'))
+    figM.savefig(os.path.join(pltDir,'magDis.eps'))
 
     ax      =   figA.add_subplot(3,3,7)
     gg      =   absEGrid
@@ -336,7 +336,7 @@ def finalPlot():
     ax.set_title('All')
     figA.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figA.savefig(os.path.join(pltDir,'absEDis.png'))
+    figA.savefig(os.path.join(pltDir,'absEDis.eps'))
     return
 
 if __name__=='__main__':
