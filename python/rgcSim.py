@@ -101,17 +101,16 @@ class rgcSimTask(pipeBase.CmdLineTask):
         # Get the shear information
         g1          =   noiseHead['g1']
         g2          =   noiseHead['g2']
-        fwhm        =   noiseHead['fwhm']
+        fwhm        =   noiseHead['fwhm']*0.168
         group       =   noiseHead['group']
         if fwhm <0.6 and fwhm>0.2:
             iparent =   0
         elif fwhm<=0.85 and fwhm>=0.6:
-            iparent =   0
+            iparent =   1
         elif fwhm>0.85:
-            iparent =   0
-        else:
-            self.log.info('incorrect PSF fwhm')
-            return
+            iparent =   2
+        # Force to use best sample
+        iparent     =   0
         # Get the  galaxy generator
         # Load data
         Xnames      =   ['best','median','worst']
