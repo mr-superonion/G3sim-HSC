@@ -139,7 +139,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     fig =   plt.figure()
     ax  =   fig.add_subplot(111)
     ax.plot(t_dis_obs['gridRes'],t_dis_obs['histRes'],'-',label='obs',c='b')
-    ax.plot(t_dis_rw['gridRes'],t_dis_rw['histRes'],'--',label='reweight',c='r')
+    ax.plot(t_dis_rw['gridRes'],t_dis_rw['histRes'],'--',label='sim',c='r')
     ax.legend()
     plt.xlabel('resolution')
     plt.ylabel('prob')
@@ -149,7 +149,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     fig =   plt.figure()
     ax  =   fig.add_subplot(111)
     ax.plot(t_dis_obs['gridSnr'],t_dis_obs['histSnr'],'-',label='obs',c='b')
-    ax.plot(t_dis_rw['gridSnr'],t_dis_rw['histSnr'],'--',label='reweight',c='r')
+    ax.plot(t_dis_rw['gridSnr'],t_dis_rw['histSnr'],'--',label='sim',c='r')
     ax.legend()
     plt.xlabel('CModel SNR')
     plt.ylabel('prob')
@@ -159,7 +159,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     fig =   plt.figure()
     ax  =   fig.add_subplot(111)
     ax.plot(t_dis_obs['gridMag'],t_dis_obs['histMag'],'-',label='obs',c='b')
-    ax.plot(t_dis_rw['gridMag'],t_dis_rw['histMag'],'--',label='reweight',c='r')
+    ax.plot(t_dis_rw['gridMag'],t_dis_rw['histMag'],'--',label='sim',c='r')
     ax.legend()
     plt.xlabel('CModel mag')
     plt.ylabel('prob')
@@ -169,7 +169,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     fig =   plt.figure()
     ax  =   fig.add_subplot(111)
     ax.plot(t_dis_obs['gridAbsE'],t_dis_obs['histAbsE'],'-',label='obs',c='b')
-    ax.plot(t_dis_rw['gridAbsE'],t_dis_rw['histAbsE'],'--',label='reweight',c='r')
+    ax.plot(t_dis_rw['gridAbsE'],t_dis_rw['histAbsE'],'--',label='sim',c='r')
 
     ax.legend()
     plt.xlabel('reGaus |e|')
@@ -223,7 +223,7 @@ def finalPlot():
         hh2     =   t_dis_rw['histSnr']
         dg      =   gg1[1]-gg1[0]
         ax.plot(gg1,hh1,'-',label='obs',c='b')
-        ax.plot(gg2,hh2,'--',label='reweight',c='r')
+        ax.plot(gg2,hh2,'--',label='sim',c='r')
         ax.axvline(x=sum(gg1*hh1)*dg,ls='-',c='blue')
         ax.axvline(x=sum(gg2*hh2)*dg,ls='--',c='red')
         ax.set_xlabel('CModel SNR')
@@ -237,7 +237,7 @@ def finalPlot():
         hh2     =   t_dis_rw['histRes']
         dg      =   gg1[1]-gg1[0]
         ax.plot(gg1,hh1,'-',label='obs',c='b')
-        ax.plot(gg2,hh2,'--',label='reweight',c='r')
+        ax.plot(gg2,hh2,'--',label='sim',c='r')
         ax.axvline(x=sum(gg1*hh1)*dg,ls='-',c='blue')
         ax.axvline(x=sum(gg2*hh2)*dg,ls='--',c='red')
         ax.set_title(fieldname)
@@ -250,7 +250,7 @@ def finalPlot():
         hh2     =   t_dis_rw['histMag']
         dg      =   gg1[1]-gg1[0]
         ax.plot(gg1,hh1,'-',label='obs',c='b')
-        ax.plot(gg2,hh2,'--',label='reweight',c='r')
+        ax.plot(gg2,hh2,'--',label='sim',c='r')
         ax.axvline(x=sum(gg1*hh1)*dg,ls='-',c='blue')
         ax.axvline(x=sum(gg2*hh2)*dg,ls='--',c='red')
         ax.set_title(fieldname)
@@ -263,7 +263,7 @@ def finalPlot():
         hh2     =   t_dis_rw['histAbsE']
         dg      =   gg1[1]-gg1[0]
         ax.plot(gg1,hh1,'-',label='obs',c='b')
-        ax.plot(gg2,hh2,'--',label='reweight',c='r')
+        ax.plot(gg2,hh2,'--',label='sim',c='r')
         ax.axvline(x=sum(gg1*hh1)*dg,ls='-',c='blue')
         ax.axvline(x=sum(gg2*hh2)*dg,ls='--',c='red')
         ax.set_title(fieldname)
@@ -284,7 +284,7 @@ def finalPlot():
     hh2     =   simRDis_snr
     dg      =   gg[1]-gg[0]
     ax.plot(gg,hh1,'-',label='obs',c='b')
-    ax.plot(gg,hh2,'--',label='reweight',c='r')
+    ax.plot(gg,hh2,'--',label='sim',c='r')
     ax.axvline(x=sum(gg*hh1)*dg,ls='-',c='blue')
     ax.axvline(x=sum(gg*hh2)*dg,ls='--',c='red')
     ax.set_xlabel('CModel SNR')
@@ -299,7 +299,7 @@ def finalPlot():
     hh2     =   simRDis_res
     dg      =   gg[1]-gg[0]
     ax.plot(gg,hh1,'-',label='obs',c='b')
-    ax.plot(gg,hh2,'--',label='reweight',c='r')
+    ax.plot(gg,hh2,'--',label='sim',c='r')
     ax.axvline(x=sum(gg*hh1)*dg,ls='-',c='blue')
     ax.axvline(x=sum(gg*hh2)*dg,ls='--',c='red')
     ax.set_xlabel('reGaus resolution')
@@ -314,7 +314,7 @@ def finalPlot():
     hh2     =   simRDis_mag
     dg      =   gg[1]-gg[0]
     ax.plot(gg,hh1,'-',label='obs',c='b')
-    ax.plot(gg,hh2,'--',label='reweight',c='r')
+    ax.plot(gg,hh2,'--',label='sim',c='r')
     ax.axvline(x=sum(gg*hh1)*dg,ls='-',c='blue')
     ax.axvline(x=sum(gg*hh2)*dg,ls='--',c='red')
     ax.set_xlabel('CModel mag')
@@ -329,7 +329,7 @@ def finalPlot():
     hh2     =   simRDis_abs
     dg      =   gg[1]-gg[0]
     ax.plot(gg,hh1,'-',label='obs',c='b')
-    ax.plot(gg,hh2,'--',label='reweight',c='r')
+    ax.plot(gg,hh2,'--',label='sim',c='r')
     ax.axvline(x=sum(gg*hh1)*dg,ls='-',c='blue')
     ax.axvline(x=sum(gg*hh2)*dg,ls='--',c='red')
     ax.set_xlabel(r'reGaus $|e|$')
