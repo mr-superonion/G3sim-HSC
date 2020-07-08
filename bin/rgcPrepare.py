@@ -13,7 +13,7 @@ psfCatDir=  os.path.join(Dir,'from_Hironao/psf-catalogs/')
 psfImgDir=  os.path.join(Dir,'from_Hironao/psf-images/')
 psfOutDir=  os.path.join(Dir,'psfPre')
 corOutDir=  os.path.join(Dir,'corPre')
-pfname  =   os.path.join(Dir,'info.csv')
+pfname  =   os.path.join(Dir,'info2.csv')
 
 if not os.path.isdir(psfOutDir):
     os.system('mkdir -p %s' %psfOutDir)
@@ -22,8 +22,8 @@ if not os.path.isdir(corOutDir):
 
 def PreparePSF():
     print('Preparing PSF')
-    nameList=   ['patch','tract','ra','dec','var','var_varplane','count_inputs']
-    headList=   ['patch','tract','ra','dec','var','varPlane','count']
+    nameList=   ['patch','tract','ra','dec','var','var_varplane','count_inputs','ra','dec']
+    headList=   ['patch','tract','ra','dec','var','varPlane','count','psf_ra','psf_dec']
 
     nums    =   []
     fwhms   =   []
@@ -32,6 +32,8 @@ def PreparePSF():
     tracts  =   []
     patches =   []
     groups  =   []
+    ras     =   []
+    decs    =   []
 
     fNlist  =   glob.glob(os.path.join(psfCatDir,'psf-catalog-*'))
     nPerT   =   1
@@ -80,17 +82,19 @@ def PreparePSF():
             fwhm    =   2.355*psfImg.FindAdaptiveMom().moments_sigma
             header['fwhm']=  fwhm
             hduList =   pyfits.HDUList([hduOut])
-            hduList.writeto(outFname,overwrite=True)
+            #hduList.writeto(outFname,overwrite=True)
             nums.append(ifield)
             fwhms.append(header['fwhm'])
             var_meas.append(header['var'])
             var_plane.append(header['varPlane'])
             tracts.append(header['tract'])
             patches.append(header['patch'])
+            ras.append(header['psf_ra'])
+            decs.append(header['psf_dec'])
             groups.append(ifield%ngroup)
         ifile+=1
-    names   =   ('num','fwhm','var','varPlane','tract','patch','group')
-    data    =   (nums,fwhms,var_meas,var_plane,tracts,patches,groups)
+    names   =   ('num','fwhm','var','varPlane','tract','patch','psf_ra','psf_dec','group')
+    data    =   (nums,fwhms,var_meas,var_plane,tracts,patches,ras,decs,groups)
     table   =   Table(data=data,names=names)
     table.write(pfname,overwrite=True)
     return
@@ -137,7 +141,7 @@ def PrepareNoiCor():
 def main():
     if not os.path.exists(pfname):
         PreparePSF()
-    PrepareNoiCor()
+    #PrepareNoiCor()
     return
 
 if __name__=="__main__":
