@@ -13,7 +13,7 @@ psfCatDir=  os.path.join(Dir,'from_Hironao/psf-catalogs/')
 psfImgDir=  os.path.join(Dir,'from_Hironao/psf-images/')
 psfOutDir=  os.path.join(Dir,'psfPre')
 corOutDir=  os.path.join(Dir,'corPre')
-pfname  =   os.path.join(Dir,'info2.csv')
+pfname  =   os.path.join(Dir,'info3.csv')
 
 if not os.path.isdir(psfOutDir):
     os.system('mkdir -p %s' %psfOutDir)
@@ -22,8 +22,8 @@ if not os.path.isdir(corOutDir):
 
 def PreparePSF():
     print('Preparing PSF')
-    nameList=   ['patch','tract','ra','dec','var','var_varplane','count_inputs','ra','dec']
-    headList=   ['patch','tract','ra','dec','var','varPlane','count','psf_ra','psf_dec']
+    nameList=   ['patch','tract','ra','dec','var','var_varplane','count_inputs','ra','dec','object_id']
+    headList=   ['patch','tract','ra','dec','var','varPlane','count','psf_ra','psf_dec','object_id']
 
     nums    =   []
     fwhms   =   []
@@ -34,6 +34,7 @@ def PreparePSF():
     groups  =   []
     ras     =   []
     decs    =   []
+    ids     =   []
 
     fNlist  =   glob.glob(os.path.join(psfCatDir,'psf-catalog-*'))
     nPerT   =   1
@@ -81,7 +82,7 @@ def PreparePSF():
             header['g2'] =   g2
             fwhm    =   2.355*psfImg.FindAdaptiveMom().moments_sigma
             header['fwhm']=  fwhm
-            hduList =   pyfits.HDUList([hduOut])
+            #hduList =   pyfits.HDUList([hduOut])
             #hduList.writeto(outFname,overwrite=True)
             nums.append(ifield)
             fwhms.append(header['fwhm'])
@@ -92,9 +93,10 @@ def PreparePSF():
             ras.append(header['psf_ra'])
             decs.append(header['psf_dec'])
             groups.append(ifield%ngroup)
+            ids.append(header['object_id'])
         ifile+=1
-    names   =   ('num','fwhm','var','varPlane','tract','patch','psf_ra','psf_dec','group')
-    data    =   (nums,fwhms,var_meas,var_plane,tracts,patches,ras,decs,groups)
+    names   =   ('num','fwhm','var','varPlane','tract','patch','psf_ra','psf_dec','group','object_id')
+    data    =   (nums,fwhms,var_meas,var_plane,tracts,patches,ras,decs,groups,ids)
     table   =   Table(data=data,names=names)
     table.write(pfname,overwrite=True)
     return

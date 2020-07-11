@@ -21,20 +21,29 @@ SELECT
 ,meas3.i_apertureflux_10_fluxerr
 ,meas3.i_apertureflux_15_flux
 ,meas3.i_apertureflux_15_fluxerr
-,meas3.i_apertureflux_20_flux
-,meas3.i_apertureflux_20_fluxerr
-,meas3.i_apertureflux_30_flux
-,meas3.i_apertureflux_30_fluxerr
-,meas3.i_apertureflux_40_flux
-,meas3.i_apertureflux_40_fluxerr
+
+
+,meas3.i_apertureflux_10_mag
+,meas3.i_apertureflux_10_magerr
+,meas3.i_apertureflux_15_mag
+,meas3.i_apertureflux_15_magerr
+
+
+,meas2.i_hsmpsfmoments_shape11
+,meas2.i_hsmpsfmoments_shape22
+,meas2.i_hsmpsfmoments_shape12
+
+,meas2.i_hsmsourcemoments_shape11
+,meas2.i_hsmsourcemoments_shape22
+,meas2.i_hsmsourcemoments_shape12
 
 -- forced measurement
--- extinction
 , forced.a_g
 , forced.a_r
 , forced.a_i
 , forced.a_z
 , forced.a_y
+
 
 -- forced CModel magnitudes and fluxes
 , forced.g_cmodel_mag       as forced_g_cmodel_mag
@@ -67,14 +76,6 @@ SELECT
 , forced.y_cmodel_fluxerr   as forced_y_cmodel_fluxerr
 , forced.y_cmodel_flag      as forced_y_cmodel_flag
 
-,meas3.i_apertureflux_10_mag
-,meas3.i_apertureflux_10_magerr
-,meas3.i_apertureflux_15_mag
-,meas3.i_apertureflux_15_magerr
-,meas3.i_apertureflux_20_mag
-,meas3.i_apertureflux_20_magerr
-,meas3.i_apertureflux_30_mag
-,meas3.i_apertureflux_30_magerr
 
 ,meas2.i_psfflux_mag
 ,meas2.i_psfflux_magerr
@@ -85,14 +86,6 @@ SELECT
 , meas2.i_hsmshaperegauss_e2
 , meas2.i_hsmshaperegauss_sigma
 , meas2.i_hsmshaperegauss_resolution
--- derived hsm regauss quantitites
--- weight assuming rms_e = 0.365
-, 1./(meas2.i_hsmshaperegauss_sigma*meas2.i_hsmshaperegauss_sigma + 0.365*0.365) as i_hsmshaperegauss_derived_weight
-, meas2.i_hsmshaperegauss_sigma     as i_hsmshaperegauss_derived_sigma_e
-, CAST(0.365 as FLOAT)              as i_hsmshaperegauss_derived_rms_e
-, CAST(0. as FLOAT)                 as i_hsmshaperegauss_derived_bias_m
-, CAST(0. as FLOAT)                 as i_hsmshaperegauss_derived_bias_c1
-, CAST(0. as FLOAT)                 as i_hsmshaperegauss_derived_bias_c2
 
 -- sdss shapes (without PSF correction)
 , meas2.i_sdssshape_shape11
@@ -101,18 +94,6 @@ SELECT
 , meas2.i_sdssshape_psf_shape11
 , meas2.i_sdssshape_psf_shape22
 , meas2.i_sdssshape_psf_shape12
-
-
--- columns which can be used for selection
-, meas.tract
-, meas.patch
-, meas.merge_peak_g
-, meas.merge_peak_r
-, meas.merge_peak_r2
-, meas.merge_peak_i
-, meas.merge_peak_i2
-, meas.merge_peak_z
-, meas.merge_peak_y
 
 -- Input exposures number
 , meas.g_inputcount_value
@@ -124,6 +105,14 @@ SELECT
 -- Mask plane
 , meas.i_pixelflags_inexact_psfcenter
 , meas.i_pixelflags_inexact_psf
+, meas.i_pixelflags_clipped
+, meas.i_pixelflags_edge
+, meas.i_pixelflags_interpolatedcenter
+, meas.i_pixelflags_saturatedcenter
+, meas.i_pixelflags_crcenter
+, meas.i_pixelflags_bad
+, meas.i_pixelflags_suspectcenter
+
 -- Bright object mask (Arcturus)
 , masks.g_mask_s18a_bright_objectcenter
 , masks.r_mask_s18a_bright_objectcenter
@@ -151,15 +140,11 @@ LEFT JOIN s19a_wide.photoz_mizuki as mizuki using (object_id)
 
 WHERE
 meas.tract  IN  (9570,9571,9812,9813,9814,10054,10055,10056) AND
+boxSearch(coord, 149, 151, 1.5, 3.0)        AND
 NOT meas.i_deblend_skipped                  AND
 NOT meas2.i_sdsscentroid_flag               AND
-NOT meas.i_pixelflags_edge                  AND
-NOT meas.i_pixelflags_interpolatedcenter    AND
-NOT meas.i_pixelflags_saturatedcenter       AND
-NOT meas.i_pixelflags_crcenter              AND
-NOT meas.i_pixelflags_bad                   AND
-NOT meas.i_pixelflags_suspectcenter         AND
-NOT meas.i_pixelflags_clipped               AND
+
+
 meas.i_detect_isprimary                     AND
 NOT meas2.i_hsmshaperegauss_flag            AND
 meas.i_extendedness_value != 0              AND

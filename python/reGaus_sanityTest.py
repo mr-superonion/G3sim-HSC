@@ -56,25 +56,33 @@ class reGaus_sanityTestTask(BatchPoolTask):
         if obsname=="mag":
             min_obs=21.5
             max_obs=24.5
+            obs_bounds  =   np.linspace(min_obs,max_obs,nbin_1d+1)
         elif obsname=="magA10":
             min_obs=22.5
             max_obs=25.5
+            obs_bounds  =   np.linspace(min_obs,max_obs,nbin_1d+1)
         elif obsname=="res":
             min_obs=0.3
             max_obs=1.0
+            obs_bounds  =   np.linspace(min_obs,max_obs,nbin_1d+1)
         elif obsname=="snr":
             min_obs=10.
             max_obs=100.
+            obs_bounds  =   np.linspace(min_obs,max_obs,nbin_1d+1)
         elif obsname=="COSMOS_Z":
-            min_obs=0.01
-            max_obs=1.5
+            obs_bounds  =   np.array([0.0,0.7,1.25,3.])
+        elif obsname=="COSMOS15_Z":
+            obs_bounds  =   np.array([0.0,0.7,1.25,3.])
+        elif obsname=="mizuki_Z":
+            obs_bounds  =   np.array([0.0,0.7,1.25,3.])
         elif obsname=="COSMOS_Mag":
             min_obs=21.5
             max_obs=24.5
+            obs_bounds  =   np.linspace(min_obs,max_obs,nbin_1d+1)
         elif obsname=="fwhm":
             min_obs=0.3
             max_obs=0.9
-        obs_bounds  =   np.linspace(min_obs,max_obs,nbin_1d+1)
+            obs_bounds  =   np.linspace(min_obs,max_obs,nbin_1d+1)
         obs_lowers  =   obs_bounds[:-1]
         obs_uppers  =   obs_bounds[1:]
 
@@ -102,7 +110,7 @@ class reGaus_sanityTestTask(BatchPoolTask):
 
     def process(self,cache,isim):
         # Get catalog
-        inFname =   os.path.join(cache.anaDir,'allSim-2.h5')
+        inFname =   os.path.join(cache.anaDir,'allSim-3.h5')
         try:
             catalog =   pd.read_hdf(inFname).xs(isim,level='isim').to_records(index=True)
         except:
