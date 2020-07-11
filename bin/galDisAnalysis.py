@@ -1,33 +1,21 @@
 #!/usr/bin/env python
 import os
-import sys
-import glob
 import fitsio
-import optparse
-import sim_analysis_utilities as utilities
 import numpy as np
+import sim_analysis_utilities as utilities
 from astropy.table import Table, vstack
 
-import matplotlib
-matplotlib.use('agg')
-matplotlib.rcParams['ps.useafm'] = True
-matplotlib.rcParams['pdf.use14corefonts'] = True
-matplotlib.rcParams['text.usetex'] = True
-
+import matplotlib as mpl
+mpl.use('agg')
+mpl.rcParams['ps.useafm'] = True
+mpl.rcParams['pdf.use14corefonts'] = True
+mpl.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
-import lsst.daf.base as dafBase
-import lsst.pex.config as pexConfig
-import lsst.pipe.base as pipeBase
 
-from lsst.pipe.base import TaskRunner
-from lsst.ctrl.pool.parallel import BatchPoolTask
-from lsst.ctrl.pool.pool import Pool, abortOnError
 
-anaDir  =   'anaCat'
+anaDir  =   'anaCat_newS19Mask'
 obsDir  =   '../../database/s19-Hironao-2/fields/'
-pltDir  =   'plot/galDis1D-2/'
-## galDis1D is without magA10 cut
-## galDis1D-2 is with magA10 cut
+pltDir  =   'plot/galDis1D/'
 
 if not os.path.isdir(anaDir):
     raise RuntimeError("Simulation catalog directory %s does not exist "
@@ -95,9 +83,9 @@ def getObsGalDis(obsFname):
     magA10  =   utilities.get_imag_A10(data)
     mask    =   np.ones(len(data)).astype(bool)
     mask    &=  (magA10<25.5)
+    data    =   data[mask]
     """
     mask    =   mask&(utilities.get_snr(data) < 80.)
-    data    =   data[mask]
     """
     absE    =   utilities.get_abs_ellip(data)
     Res     =   utilities.get_res(data)
@@ -108,7 +96,7 @@ def getObsGalDis(obsFname):
     histSnr =   np.histogram(snr,bins=snr_bin,density=True)[0]
     histMag =   np.histogram(mag,bins=mag_bin,density=True)[0]
     histAbsE=   np.histogram(absE,bins=absE_bin,density=True)[0]
-    obscols = [resGrid,histRes,snrGrid,histSnr,magGrid,histMag,absEGrid,histAbsE,ndata]
+    obscols =   [resGrid,histRes,snrGrid,histSnr,magGrid,histMag,absEGrid,histAbsE,ndata]
     t_dis_obs=   Table(data=obscols,names=datanames)
     return t_dis_obs
 
@@ -116,9 +104,7 @@ def getSimGalDis(simFname):
     #Get the noise variance and psf information
     data    =   fitsio.read(simFname)
     data    =   utilities.update_wl_flags_sim(data)
-    magA10  =   utilities.get_imag_A10(data)
     mask    =   data['weak_lensing_flag']
-    mask    &=  (magA10<25.5)
     #mask    =   mask&(utilities.get_snr(data) < 80.)
     data    =   data[mask]
     ndata   =   len(data)*np.ones(nbin2-1)
@@ -143,7 +129,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     ax.legend()
     plt.xlabel('resolution')
     plt.ylabel('prob')
-    plt.savefig(os.path.join(anaFieldDir,'resHist.pdf'))
+    plt.savefig(os.path.join(anaFieldDir,'resHist.png'))
     plt.close()
 
     fig =   plt.figure()
@@ -153,7 +139,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     ax.legend()
     plt.xlabel('CModel SNR')
     plt.ylabel('prob')
-    plt.savefig(os.path.join(anaFieldDir,'snrHist.pdf'))
+    plt.savefig(os.path.join(anaFieldDir,'snrHist.png'))
     plt.close()
 
     fig =   plt.figure()
@@ -163,7 +149,7 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     ax.legend()
     plt.xlabel('CModel mag')
     plt.ylabel('prob')
-    plt.savefig(os.path.join(anaFieldDir,'magHist.pdf'))
+    plt.savefig(os.path.join(anaFieldDir,'magHist.png'))
     plt.close()
 
     fig =   plt.figure()
@@ -172,9 +158,9 @@ def plotGalDis(t_dis_obs,t_dis_rw,anaFieldDir):
     ax.plot(t_dis_rw['gridAbsE'],t_dis_rw['histAbsE'],'--',label='sim',c='r')
 
     ax.legend()
-    plt.xlabel('reGaus |e|')
+    plt.xlabel(r'reGaus $\mid e \mid$')
     plt.ylabel('prob')
-    plt.savefig(os.path.join(anaFieldDir,'absEHist.pdf'))
+    plt.savefig(os.path.join(anaFieldDir,'absEHist.png'))
     plt.close()
     return
 
@@ -224,8 +210,8 @@ def finalPlot():
         dg      =   gg1[1]-gg1[0]
         ax.plot(gg1,hh1,'-',label='obs',c='b')
         ax.plot(gg2,hh2,'--',label='sim',c='r')
-        ax.axvline(x=sum(gg1*hh1)*dg,ls='-',c='blue')
-        ax.axvline(x=sum(gg2*hh2)*dg,ls='--',c='red')
+        ax.axvline(x=np.sum(gg1*hh1)*dg,ls='-',c='blue')
+        ax.axvline(x=np.sum(gg2*hh2)*dg,ls='--',c='red')
         ax.set_xlabel('CModel SNR')
         ax.set_title(fieldname)
 
@@ -291,7 +277,7 @@ def finalPlot():
     ax.set_title('All')
     figN.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figN.savefig(os.path.join(pltDir,'snrDis.pdf'))
+    figN.savefig(os.path.join(pltDir,'snrDis.eps'))
 
     ax      =   figP.add_subplot(3,3,7)
     gg      =   resGrid
@@ -306,7 +292,7 @@ def finalPlot():
     ax.set_title('All')
     figP.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figP.savefig(os.path.join(pltDir,'resolutionDis.pdf'))
+    figP.savefig(os.path.join(pltDir,'resolutionDis.eps'))
 
     ax      =   figM.add_subplot(3,3,7)
     gg      =   magGrid
@@ -321,7 +307,7 @@ def finalPlot():
     ax.set_title('All')
     figM.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figM.savefig(os.path.join(pltDir,'magDis.pdf'))
+    figM.savefig(os.path.join(pltDir,'magDis.eps'))
 
     ax      =   figA.add_subplot(3,3,7)
     gg      =   absEGrid
@@ -332,11 +318,11 @@ def finalPlot():
     ax.plot(gg,hh2,'--',label='sim',c='r')
     ax.axvline(x=sum(gg*hh1)*dg,ls='-',c='blue')
     ax.axvline(x=sum(gg*hh2)*dg,ls='--',c='red')
-    ax.set_xlabel(r'reGaus $|e|$')
+    ax.set_xlabel(r'reGaus $\mid e \mid$')
     ax.set_title('All')
     figA.tight_layout()
     ax.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figA.savefig(os.path.join(pltDir,'absEDis.pdf'))
+    figA.savefig(os.path.join(pltDir,'absEDis.eps'))
     return
 
 if __name__=='__main__':
