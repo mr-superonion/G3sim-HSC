@@ -39,8 +39,9 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class prepareSimAnalysisConfig(pexConfig.Config):
-    anaDir  =   pexConfig.Field(dtype=str, default='anaCat', doc = 'output catalogs')
+    anaDir  =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask', doc = 'output catalogs')
     simDir  =   pexConfig.Field(dtype=str, default='outcomeHSM', doc = 'input catalogs')
+    infoName=   pexConfig.Field(dtype=str, default='info_newS19Mask_sim.csv', doc = 'input catalogs')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
@@ -85,15 +86,14 @@ class prepareSimAnalysisTask(BatchPoolTask):
         pool        =   Pool("processSim")
         pool.cacheClear()
         pool.storeSet(fieldname=fieldname)
-        simList     =   Table.read('info.csv')
+        simList     =   Table.read(self.config.infoName)
         if not 'field' in simList.colnames:
             simList['field']=None
             fieldInfo=Table.read('../../fieldTractInfoS19.csv')
             for row in simList:
                 row['field']=fieldInfo[fieldInfo['tract']==row['tract']]['field'][0]
-            simList.write('info.csv',overwrite=True)
+            simList.write(self.config.infoName,overwrite=True)
 
-        simList     =   simList[0:2500]
         numList     =   simList[simList['field']==fieldname]['num']
         outcomes    =   pool.map(self.process,numList)
         outcomes    =   [x for x in outcomes if x is not None]
