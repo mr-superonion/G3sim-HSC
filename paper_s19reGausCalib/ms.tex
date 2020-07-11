@@ -44,14 +44,20 @@
 \centering{
 \includegraphics[width=0.9\textwidth]{snrDis.eps}
 }
-\caption{}
+\caption{The first 6 panels compare the number histograms of CModel SNR between the observation and 
+the simulation for galaxies in 6 fields of the second year HSC shape catalog. The last panel shows 
+the histograms for the galaxies in all of the fields. The blue solid lines are for the observation 
+and the red dashed lines are for the simulation.}
 \end{figure*}
 
 \begin{figure*}[ht!]
 \centering{
 \includegraphics[width=0.9\textwidth]{resolutionDis.eps}
 }
-\caption{}
+\caption{The first 6 panels compare the number histograms of resolution between the observation and 
+the simulation for galaxies in 6 fields of the second year HSC shape catalog. The last panel shows 
+the histograms for the galaxies in all of the fields. The blue solid lines are for the observation 
+and the red dashed lines are for the simulation.}
 \end{figure*}
 
 
@@ -59,14 +65,21 @@
 \centering{
 \includegraphics[width=0.9\textwidth]{magDis.eps}
 }
-\caption{}
+\caption{The first 6 panels compare the number histograms of CModel magnitude between the observation and 
+the simulation for galaxies in 6 fields of the second year HSC shape catalog. The last panel shows 
+the histograms for the galaxies in all of the fields. The blue solid lines are for the observation 
+and the red dashed lines are for the simulation.}
 \end{figure*}
 
 \begin{figure*}[ht!]
 \centering{
 \includegraphics[width=0.9\textwidth]{absEDis.eps}
 }
-\caption{}
+\caption{The first 6 panels compare the number histograms of amplitude of ellipticity measured by 
+re-gaussianization algorithm  between the observation and 
+the simulation for galaxies in 6 fields of the second year HSC shape catalog. The last panel shows 
+the histograms for the galaxies in all of the fields. The blue solid lines are for the observation 
+and the red dashed lines are for the simulation.}
 \end{figure*}
 
 \begin{figure*}[ht!]
@@ -74,19 +87,42 @@
 \includegraphics[width=0.45\textwidth]{sigmae_estimated.eps}
 \includegraphics[width=0.45\textwidth]{intrinsicshape_2d.eps}
 }
-\caption{}
+\caption{The left panel shows the shape measurement error per component ($\sigma_e$) 
+        estimated with the simulation in different (SNR, resolution) bins. 
+        The right panel shows the intrinsic shape ($e_{\rm{RMS}}$)per component as function 
+        of (SNR, resolution). }      
 \end{figure*}
 \subsection{Optimization}
 
+\begin{equation}
+\sigma_e = 0.277 (\frac{SNR}{20})^{-0.962} (\frac{res}{0.5})^{-1.003}
+\end{equation}
+
 \subsection{Calibration}
+\begin{equation}
+\hat{g}_1=\frac{\sum_i w_i e_{1,i}}{2r(1+\hat{m}) \sum_i w_i}-\frac{\hat{c}_1}{1+\hat{m}}
+\end{equation}
 
-\subsection{Shear bias}
+\subsection{Shear Bias}
 
-\subsection{Weight bias}
+\begin{equation}
+m \sim (\frac{\rm{res}}{0.5})^{1.51}(\frac{\rm{snr}}{20})^{-1.12} + \rm{constant}
+\end{equation}
+\begin{equation}
+a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.92}
+\end{equation}
 
-\subsection{Redshfit Dependence}
+\subsection{Weight Bias}
 
-\subsection{Selection bias}
+\subsection{Redshfit Dependency}
+
+\subsubsection{Measurement Error and Intrinsic Shape}
+
+\subsubsection{Bias}
+
+\subsection{Sanity Test}
+
+\subsection{Selection Bias}
 
 
 
