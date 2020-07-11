@@ -1,18 +1,14 @@
-\documentclass{pasj01}
-%\draft
+\documentclass[useamsfonts]{pasj01}
+\draft
+\usepackage{natbib}
+\usepackage{url}
+
 \newcommand \redColor{}%\color{red}}
 \newcommand \bColor{}%\color{blue}}
 \newcommand \oColor{}%\color{orange}}
 \renewcommand\labelenumi{(\roman{enumi})}
 \renewcommand\theenumi\labelenumi
-\newcommand{\jcap}{JCAP}
 \renewcommand{\vec}[1]{\boldsymbol{#1}}
-
-\usepackage{epstopdf}
-\usepackage{color}
-\usepackage{natbib}
-\usepackage{graphicx}
-\usepackage[colorlinks=true,urlcolor=blue,linkcolor=blue,citecolor=blue]{hyperref}
 
 \begin{document}
 
@@ -30,10 +26,18 @@
 \begin{abstract}
 \end{abstract}
 
-\section{Introduction}
-
-
 \section{Simulation}
+
+\subsection{Galaxies}
+We use the galaxy training sample created by \citet{HSC1-GREAT3Sim} as our input galaxies. \citet{HSC1-
+GREAT3Sim} selects galaxies from the HSC WIDE-DEPTH layer \citep{HSC1-data} with CModel magnitude less 
+than $25.2$. Subsequently, \citet{HSC1-GREAT3Sim} finds the centers of these selected galaxies on the
+COSMOS-HST \citep{HST-ACSpipe} exposures and cuts out postage-stamps around these positions. These positions
+are set to as the centers of the postage-stamps and the postage sizes are required to be larger than $10.75$
+arcsec to contain the galaxy light and structures of neighboring sources.
+
+
+\subsection{Noise and PSF}
 
 
 \section{Results}
@@ -125,8 +129,9 @@ a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.92}
 \subsection{Selection Bias}
 
 
-
+\bibliographystyle{apj}
 \bibliography{weak_lensing,lensCat,cosmoSim,cmbObs,gglens,shearCor,massMap,other}
+
 
 \appendix
 \end{document}

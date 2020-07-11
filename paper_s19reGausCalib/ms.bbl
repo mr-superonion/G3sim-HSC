@@ -1,0 +1,34 @@
+\begin{thebibliography}{}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+
+\bibitem[{{Aihara} {et~al.}(2018){Aihara}, {Armstrong}, {Bickerton}, {Bosch},
+  {Coupon}, {Furusawa}, {Hayashi}, {Ikeda}, {Kamata}, {Karoji}, {Kawanomoto},
+  {Koike}, {Komiyama}, {Lang}, {Lupton}, {Mineo}, {Miyatake}, {Miyazaki},
+  {Morokuma}, {Obuchi}, {Oishi}, {Okura}, {Price}, {Takata}, {Tanaka},
+  {Tanaka}, {Tanaka}, {Uchida}, {Uraguchi}, {Utsumi}, {Wang}, {Yamada},
+  {Yamanoi}, {Yasuda}, {Arimoto}, {Chiba}, {Finet}, {Fujimori}, {Fujimoto},
+  {Furusawa}, {Goto}, {Goulding}, {Gunn}, {Harikane}, {Hattori}, {Hayashi},
+  {He{\l}miniak}, {Higuchi}, {Hikage}, {Ho}, {Hsieh}, {Huang}, {Huang},
+  {Imanishi}, {Iwata}, {Jaelani}, {Jian}, {Kashikawa}, {Katayama}, {Kojima},
+  {Konno}, {Koshida}, {Kusakabe}, {Leauthaud}, {Lee}, {Lin}, {Lin},
+  {Mandelbaum}, {Matsuoka}, {Medezinski}, {Miyama}, {Momose}, {More}, {More},
+  {Mukae}, {Murata}, {Murayama}, {Nagao}, {Nakata}, {Niida}, {Niikura},
+  {Nishizawa}, {Oguri}, {Okabe}, {Ono}, {Onodera}, {Onoue}, {Ouchi}, {Pyo},
+  {Shibuya}, {Shimasaku}, {Simet}, {Speagle}, {Spergel}, {Strauss}, {Sugahara},
+  {Sugiyama}, {Suto}, {Suzuki}, {Tait}, {Takada}, {Terai}, {Toba}, {Turner},
+  {Uchiyama}, {Umetsu}, {Urata}, {Usuda}, {Yeh}, \& {Yuma}}]{HSC1-data}
+{Aihara}, H., {Armstrong}, R., {Bickerton}, S., {et~al.} 2018, \pasj, 70, S8
+
+\bibitem[{{Koekemoer} {et~al.}(2007){Koekemoer}, {Aussel}, {Calzetti}, {Capak},
+  {Giavalisco}, {Kneib}, {Leauthaud}, {Le F{\`e}vre}, {McCracken}, {Massey},
+  {Mobasher}, {Rhodes}, {Scoville}, \& {Shopbell}}]{HST-ACSpipe}
+{Koekemoer}, A.~M., {Aussel}, H., {Calzetti}, D., {et~al.} 2007, \apjs, 172,
+  196
+
+\bibitem[{{Mandelbaum} {et~al.}(2018){Mandelbaum}, {Lanusse}, {Leauthaud},
+  {Armstrong}, {Simet}, {Miyatake}, {Meyers}, {Bosch}, {Murata}, \&
+  {Miyazaki}}]{HSC1-GREAT3Sim}
+{Mandelbaum}, R., {Lanusse}, F., {Leauthaud}, A., {et~al.} 2018, \mnras, 481,
+  3170
+
+\end{thebibliography}
