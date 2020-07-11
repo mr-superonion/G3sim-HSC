@@ -15,7 +15,7 @@ mpl.rcParams['pdf.use14corefonts'] = True
 mpl.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
-anaDir  =   'anaCat'
+anaDir  =   'anaCat_newS19Mask/'
 obsDir  =   '../../database/s19-Hironao-2/fields/'
 pltDir  =   'plot/psfNoi/'
 if not os.path.isdir(anaDir):
@@ -27,16 +27,17 @@ if not os.path.isdir(obsDir):
 if not os.path.exists(pltDir):
     os.system('mkdir -p %s'%pltDir)
 
-nbin1      =   20
-disnames   =   ('gridNoi','histNoi','gridPsf','histPsf','num')
-fwhm_bin   =   np.linspace(0.3,0.9,nbin1)
-fwhm_bin_0 =   fwhm_bin[:-1]
-fwhm_bin_1 =   fwhm_bin[1:]
-gridPsf    =   (fwhm_bin_0+fwhm_bin_1)/2.
-var_bin    =   np.linspace(0.001,0.01,nbin1)
-var_bin_0  =   var_bin[:-1]
-var_bin_1  =   var_bin[1:]
-gridNoi    =   (var_bin_0+var_bin_1)/2.
+nbin1       =   20
+disnames    =   ('gridNoi','histNoi','gridPsf','histPsf','num')
+fwhm_bin    =   np.linspace(0.3,0.9,nbin1)
+fwhm_bin_0  =   fwhm_bin[:-1]
+fwhm_bin_1  =   fwhm_bin[1:]
+gridPsf     =   (fwhm_bin_0+fwhm_bin_1)/2.
+var_bin     =   np.linspace(0.001,0.01,nbin1)
+var_bin_0   =   var_bin[:-1]
+var_bin_1   =   var_bin[1:]
+gridNoi     =   (var_bin_0+var_bin_1)/2.
+colors      =   ['blue','red']
 
 def main():
     for fname in utilities.field_keys.values():
@@ -148,7 +149,7 @@ def plotNoiPsf(t_dis,t_dis_obs,t_dis_rw,anaFieldDir):
     ax = fig.add_subplot(111)
     ax.plot(t_dis['gridNoi'],t_dis['histNoi'],'--',label='sim',c='y')
     ax.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'-',label='obs',c='b')
-    ax.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'--',label='reweight',c='r')
+    ax.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'--',label='sim',c='r')
     ax.legend()
     plt.xlabel('noise variance')
     plt.ylabel('prob')
@@ -158,7 +159,7 @@ def plotNoiPsf(t_dis,t_dis_obs,t_dis_rw,anaFieldDir):
     ax = fig.add_subplot(111)
     ax.plot(t_dis['gridPsf'],t_dis['histPsf'],'--',label='sim',c='y')
     ax.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'-',label='obs',c='b')
-    ax.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'--',label='reweight',c='r')
+    ax.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'--',label='sim',c='r')
     ax.legend()
     plt.xlabel('PSF FWHM [arcsec]')
     plt.ylabel('prob')
@@ -206,13 +207,43 @@ def finalPlot():
         simRNum     +=  t_dis_rw['num']
 
         axN =   figN.add_subplot(3,3,ii+1)
-        axN.plot(t_dis_obs['gridNoi'],t_dis_obs['histNoi'],'-',label='obs',c='b')
-        axN.plot(t_dis_rw['gridNoi'],t_dis_rw['histNoi'],'--',label='reweight',c='r')
-        axN.set_xlabel('noise variance')
+        gg1 =   t_dis_obs['gridNoi']*100
+        hh1 =   t_dis_obs['histNoi']
+        gg2 =   t_dis_rw['gridNoi']*100
+        hh2 =   t_dis_rw['histNoi']
+        dg  =   gg1[1]-gg1[0]
+        axN.plot(gg1,hh1,'-',label='obs',c='b')
+        axN.plot(gg2,hh2,'--',label='sim',c='r')
+        ave1=   np.sum(gg1*hh1)*dg/100.
+        ave2=   np.sum(gg2*hh2)*dg/100.
+        axN.axvline(x=ave1,ls='-',c='blue')
+        axN.axvline(x=ave2,ls='--',c='red')
+        ymin,ymax=axN.get_ylim()
+        axN.text(0.8,0.8*ymax+0.2*ymin, '%.2f' %ave1,
+            color='blue')
+        axN.text(0.8,0.6*ymax+0.4*ymin , '%.2f' %ave2,
+            color='red')
+        axN.set_xlabel(r'noise variance [$\times 10^2$]')
         axN.set_title(fieldname)
+
         axP =   figP.add_subplot(3,3,ii+1)
-        axP.plot(t_dis_obs['gridPsf'],t_dis_obs['histPsf'],'-',label='obs',c='b')
-        axP.plot(t_dis_rw['gridPsf'],t_dis_rw['histPsf'],'--',label='reweight',c='r')
+        gg1 =   t_dis_obs['gridPsf']
+        hh1 =   t_dis_obs['histPsf']
+        gg2 =   t_dis_rw['gridPsf']
+        hh2 =   t_dis_rw['histPsf']
+        dg  =   gg1[1]-gg1[0]
+        axP.plot(gg1,hh1,'-',label='obs',c='b')
+        axP.plot(gg2,hh2,'--',label='sim',c='r')
+        ave1=   np.sum(gg1*hh1)*dg
+        ave2=   np.sum(gg2*hh2)*dg
+        axP.axvline(x=ave1,ls='-',c='blue')
+        axP.axvline(x=ave2,ls='--',c='red')
+
+        ymin,ymax=axP.get_ylim()
+        axP.text(0.8,0.8*ymax+0.2*ymin, '%.2f' %ave1,
+            color='blue')
+        axP.text(0.8,0.6*ymax+0.4*ymin , '%.2f' %ave2,
+            color='red')
         axP.set_xlabel('PSF FWHM [arcsec]')
         axP.set_title(fieldname)
     """
@@ -226,22 +257,43 @@ def finalPlot():
     simRDis_fwhm/=simRNum
 
     axN =   figN.add_subplot(3,3,7)
-    axN.plot(gridNoi,obsDis_var,'-',label='obs',c='b')
-    axN.plot(gridNoi,simRDis_var,'--',label='reweight',c='r')
-    axN.set_xlabel('noise variance')
+    axN.plot(gridNoi*100,obsDis_var,'-',label='obs',c='b')
+    axN.plot(gridNoi*100,simRDis_var,'--',label='sim',c='r')
+    dg  =   (gridNoi[1]-gridNoi[0])*100.
+    ave1=   sum(gridNoi*obsDis_var)*dg
+    ave2=   sum(gridNoi*simRDis_var)*dg
+    axN.axvline(x=ave1,ls='-',c='blue')
+    axN.axvline(x=ave2,ls='--',c='red')
+    ymin,ymax=axN.get_ylim()
+    axN.text(0.8,0.8*ymax+0.2*ymin, '%.2f' %ave1,
+        color='blue')
+    axN.text(0.8,0.6*ymax+0.4*ymin , '%.2f' %ave2,
+        color='red')
+
+    axN.set_xlabel(r'noise variance [$\times 10^2$]')
     axN.set_title('All')
     figN.tight_layout()
     axN.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figN.savefig(os.path.join(pltDir,'noiVar2.png'))
+    figN.savefig(os.path.join(pltDir,'noiVar2.eps'))
 
     axP =   figP.add_subplot(3,3,7)
     axP.plot(gridPsf,obsDis_fwhm,'-',label='obs',c='b')
-    axP.plot(gridPsf,simRDis_fwhm,'--',label='reweight',c='r')
+    axP.plot(gridPsf,simRDis_fwhm,'--',label='sim',c='r')
+    dg  =   gridPsf[1]-gridPsf[0]
+    ave1=sum(gridPsf*obsDis_fwhm)*dg
+    ave2=sum(gridPsf*simRDis_fwhm)*dg
+    axP.axvline(x=ave1,ls='-',c='blue')
+    axP.axvline(x=ave2,ls='--',c='red')
+    ymin,ymax=axP.get_ylim()
+    axP.text(0.8,0.8*ymax+0.2*ymin, '%.2f' %ave1,
+        color='blue')
+    axP.text(0.8,0.6*ymax+0.4*ymin , '%.2f' %ave2,
+        color='red')
     axP.set_xlabel('PSF FWHM [arcsec]')
     axP.set_title('All')
     figP.tight_layout()
     axP.legend(loc='center', bbox_to_anchor=(1.5, 0.5),fontsize=15)
-    figP.savefig(os.path.join(pltDir,'psfFWHM2.png'))
+    figP.savefig(os.path.join(pltDir,'psfFWHM2.eps'))
     return
 
 if __name__=='__main__':
