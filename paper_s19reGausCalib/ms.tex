@@ -28,21 +28,61 @@
 
 \section{Simulation}
 
-\subsection{Galaxies}
-We use the galaxy training sample created by \citet{HSC1-GREAT3Sim} as our input galaxies. \citet{HSC1-
-GREAT3Sim} selects galaxies from the HSC WIDE-DEPTH layer \citep{HSC1-data} with CModel magnitude less 
-than $25.2$. Subsequently, \citet{HSC1-GREAT3Sim} finds the centers of these selected galaxies on the
-COSMOS-HST \citep{HST-ACSpipe} exposures and cuts out postage-stamps around these positions. These positions
-are set to as the centers of the postage-stamps and the postage sizes are required to be larger than $10.75$
-arcsec to contain the galaxy light and structures of neighboring sources.
-
-
 \subsection{Noise and PSF}
+
+Our simulation is divided into $2500$ sub-samples. The noise property and PSF are the same for galaxies in
+one sub-sample while they vary among different sub-samples. We randomly sample $2500$ noise variances and 
+PSF models from the coadd images of HSC-WIDE layer within the footprint of the HSC shape catalog. The PSF 
+models are reconstructed by the HSC pipeline.
+
+Noise on the coadd images has spacial correlation due to the warping process to resample single exposures on 
+the common pixel frame. We sample the noise correlations from the blank pixels on the coadd images. The sampled
+correlations, which are noisy at individual level, are subsequently divided into eight groups and stacked in 
+each group to create eight different noise correlations with high signal to noise ratio.
+
+Each sub-sample is assigned with a noise PSF model, noise variance and noise correlation function. We then reweight
+each subsample to match the seeing histograms and noise variance histograms of the simulation to the observation. 
+To note, the HSC WIDE layer is divided six observational fields (XMM, GAMA09H, WIDE12H, GAMA15H, VVDS, HECTOMAP) 
+and the reweighting is conducted for each field. The seeing histograms and noise variance histograms of the observation
+and simulation are shown in Figure \ref{fig:noiHist} and Figure \ref{fig:fwhmHist}.
+
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{noiVar2.eps}
+}
+\caption{The first $6$ panels show the number histograms of noise variance for $6$ fields of the observation 
+and the simulation. The last panel shows the histograms for the galaxies in all of the fields. The blue solid 
+lines denote the observation and the red dashed lines denote the simulation. The blue texts show the average 
+noise variance of the observation while the red texts show the average noise variance of the simulation.}
+\label{fig:noiHist}
+\end{figure*}
+
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{psfFWHM2.eps}
+}
+\caption{The first $6$ panels show the number histograms of noise variance for the $6$ fields of the observation 
+and the simulation. The last panel shows the histograms for the galaxies in all of the fields. The blue solid 
+lines denote the observation and the red dashed lines denote the simulation. The blue texts show the average 
+FWHM of the observation while the red texts show the average FWHM of the simulation.}
+\label{fig:fwhmHist}
+\end{figure*}
+
+\subsection{Galaxies}
+We use the galaxy training sample created by \citet{HSC1-GREAT3Sim} as our input galaxies. \citet{HSC1-GREAT3Sim} 
+selects galaxies from the HSC WIDE-DEPTH layer \citep{HSC1-data} with CModel magnitude less than $25.2$. 
+Subsequently, \citet{HSC1-GREAT3Sim} finds the centers of these selected galaxies on the COSMOS-HST 
+\citep{HST-ACSpipe} exposures and cuts out postage-stamps around these positions. These positions are set 
+to as the centers of the postage-stamps and the postage sizes are required to be larger than $10.75$ arcsec 
+to contain the galaxy light and structures of neighboring sources. 
+
+We use Galsim \citep{Galsim}, which is an open-source package for galaxy image simulation to simulate the HSC-like 
+images. The PSF effect is removed from each input postage-stamp by deconvolving the COSMOS HST PSF model then the
+postage-stamp is convolved with an assigned HSC PSF model. The original noise is whitened for each postage stamp 
+then a noise with an assigned HSC variance and an assigned HSC nosie correlation function is added to the postage-stamp.
 
 
 \section{Results}
-
-\subsection{Galaxy Properties}
 
 \begin{figure*}[ht!]
 \centering{
@@ -93,13 +133,13 @@ and the red dashed lines are for the simulation.}
 }
 \caption{The left panel shows the shape measurement error per component ($\sigma_e$) 
         estimated with the simulation in different (SNR, resolution) bins. 
-        The right panel shows the intrinsic shape ($e_{\rm{RMS}}$)per component as function 
-        of (SNR, resolution). }      
+        The right panel shows the intrinsic shape per component ($e_{\rm{RMS}}$) as 
+        function of (SNR, resolution). }      
 \end{figure*}
 \subsection{Optimization}
 
 \begin{equation}
-\sigma_e = 0.277 (\frac{SNR}{20})^{-0.962} (\frac{res}{0.5})^{-1.003}
+\sigma_e = 0.277 (\frac{\rm{SNR}}{20})^{-0.962} (\frac{\rm{res}}{0.5})^{-1.003}
 \end{equation}
 
 \subsection{Calibration}
@@ -134,4 +174,6 @@ a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.92}
 
 
 \appendix
+
+\section*{}
 \end{document}

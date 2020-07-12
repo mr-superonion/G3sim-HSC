@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  11 JUL 2020 20:21
+This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  12 JUL 2020 22:20
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -274,22 +274,19 @@ LaTeX Font Warning: Font shape `U/lasy/m/n' in size <8.5> not available
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <4.25> not available
 (Font)              size <5> substituted on input line 27.
 
+Do not use \includegraphics directly. Use \FigureFile for graphics.
+File: noiVar2.eps Graphic file (type eps)
+<noiVar2.eps>
+Do not use \includegraphics directly. Use \FigureFile for graphics.
+File: psfFWHM2.eps Graphic file (type eps)
+<psfFWHM2.eps>
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
-LaTeX Font Warning: Font shape `TU/ptm/bx/n' undefined
-(Font)              using `TU/ptm/m/n' instead on input line 33.
-
-
-Package natbib Warning: Citation `HSC1- GREAT3Sim' on page 1 undefined on input
- line 33.
-
-
-Package natbib Warning: Citation `HSC1-data' on page 1 undefined on input line 
-33.
+ [1
 
 
-Package natbib Warning: Citation `HST-ACSpipe' on page 1 undefined on input lin
-e 35.
-
+]
+[2]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: snrDis.eps Graphic file (type eps)
 <snrDis.eps>
@@ -308,25 +305,11 @@ File: sigmae_estimated.eps Graphic file (type eps)
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: intrinsicshape_2d.eps Graphic file (type eps)
 <intrinsicshape_2d.eps>
-Underfull \vbox (badness 2401) has occurred while \output is active []
 
- [1
+LaTeX Font Warning: Font shape `TU/ptm/bx/n' undefined
+(Font)              using `TU/ptm/m/n' instead on input line 163.
 
-
-]
-(./ms.bbl
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [2])
-
-Package natbib Warning: There were undefined citations.
-
-[3] [4] [5] (./ms.aux
-
-Package natbib Warning: Citation(s) may have changed.
-(natbib)                Rerun to get citations correct.
-
-)
+(./ms.bbl [3]) [4] [5] [6] [7] (./ms.aux)
 
 LaTeX Font Warning: Size substitutions with differences
 (Font)              up to 0.75pt have occurred.
@@ -336,12 +319,12 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 2442 strings out of 493007
- 29247 string characters out of 6136720
- 149768 words of memory out of 5000000
- 6394 multiletter control sequences out of 15000+600000
+ 2451 strings out of 493007
+ 29380 string characters out of 6136720
+ 150831 words of memory out of 5000000
+ 6401 multiletter control sequences out of 15000+600000
  13716 words of font info for 69 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 32i,5n,28p,1212b,254s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 32i,5n,28p,1214b,254s stack positions out of 5000i,500n,10000p,200000b,80000s
 
-Output written on ms.pdf (5 pages).
+Output written on ms.pdf (7 pages).
