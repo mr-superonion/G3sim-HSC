@@ -16,7 +16,7 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_shearCalibConfig(pexConfig.Config):
-    anaDir      =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
+    anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask', doc = 'simulation catalogs')
     pltDir      =   pexConfig.Field(dtype=str, default='plot/reGausCalib', doc = 'simulation catalogs')
     nbin_1d     =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
     force_weight=   pexConfig.Field(dtype=bool, default=False, doc = 'for weight bias')
@@ -28,7 +28,7 @@ class reGaus_shearCalibConfig(pexConfig.Config):
         # Checks that the paths provided are valid
         if not os.path.isdir(self.anaDir):
             raise RuntimeError("Simulation catalog directory %s does not exist "
-                         "or is not a directory" % (self.anaDir))
+                 "or is not a directory" % (self.anaDir))
 
 class reGaus_shearCalibRunner(TaskRunner):
     @staticmethod
@@ -47,7 +47,6 @@ class reGaus_shearCalibTask(BatchPoolTask):
         BatchPoolTask.__init__(self, **kwargs)
 
         self.dshape     =   (self.config.nbin_1d,self.config.nbin_1d)
-
         self.log.info(' Beginning shearCalib analysis for the following scenario:')
         self.log.info('  %d bins in both SNR and resolution'%self.config.nbin_1d)
 
@@ -59,13 +58,14 @@ class reGaus_shearCalibTask(BatchPoolTask):
     @abortOnError
     def runDataRef(self,Id):
         self.log.info('Estimating bias for each bin')
-        inFname =   os.path.join(self.config.anaDir,'allSim-2.h5')
+        inFname =   os.path.join(self.config.anaDir,'allSim.h5')
         dataF   =   pd.read_hdf(inFname)
         dataF   =   dataF[dataF['wlmask_90rot']]
+        indexList=  dataF.index.levels[1]
         pool    =   Pool("reGaus_shearCalib")
         pool.cacheClear()
-        pool.storeSet(dataF=dataF,force_weight=self.config.force_weight)
-        indexList=  dataF.index.levels[1]
+        pool.storeSet(anaDir=self.config.anaDir,
+            force_weight=self.config.force_weight)
         outcomes=   pool.map(self.process,indexList)
         outcomes=   [x for x in outcomes if x is not None]
         if self.config.force_weight:
@@ -77,7 +77,9 @@ class reGaus_shearCalibTask(BatchPoolTask):
 
     def process(self,cache,isim):
         # Get catalog
-        catalog =   cache.dataF.xs(isim,level='isim').to_records(isim=True)
+        inFname =   os.path.join(cache.anaDir,'allSim.h5')
+        catalog =   pd.read_hdf(inFname).xs(isim,level='isim').to_records(index=True)
+        catalog =   catalog[catalog['wlmask_90rot']]
         assert np.all(catalog['ipos'][0::2]==(catalog['ipos'][1::2]-1))
         if len(catalog)<2:
             return None
