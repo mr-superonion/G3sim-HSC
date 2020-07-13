@@ -151,7 +151,7 @@ def finalPlot(sims,data,oname,olim,pend):
     """
     # Save figure
     """
-    fig2.savefig(os.path.join(pltDir2,'galDis2D-final-%s-%.1f-%s.png' %(oname,olim,pend)))
+    fig2.savefig(os.path.join(pltDir2,'galDis2D-final-%s-%.1f-%s.eps' %(oname,olim,pend)))
     return
 
 if __name__=='__main__':

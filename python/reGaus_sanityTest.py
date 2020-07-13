@@ -73,13 +73,13 @@ class reGaus_sanityTestTask(BatchPoolTask):
             nbin_1d=3
             obs_bounds  =   np.linspace(min_obs,max_obs,nbin_1d+1)
         elif obsname=="COSMOS_Z":
-            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.])
+            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,4.])
             nbin_1d     =   len(obs_bounds)-1
         elif obsname=="COSMOS15_Z":
-            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.])
+            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,4.])
             nbin_1d     =   len(obs_bounds)-1
         elif obsname=="mizuki_Z":
-            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.])
+            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,4.])
             nbin_1d     =   len(obs_bounds)-1
         elif obsname=="COSMOS_Mag":
             min_obs=21.5
