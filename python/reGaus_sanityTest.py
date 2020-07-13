@@ -17,8 +17,9 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_sanityTestConfig(pexConfig.Config):
     anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask', doc = 'simulation catalogs')
-    pltDir      =   pexConfig.Field(dtype=str, default='plot/sanityTest/', doc = 'simulation catalogs')
+    pltDir      =   pexConfig.Field(dtype=str, default='plot/sanityTest_withZ/', doc = 'simulation catalogs')
     obsname     =   pexConfig.Field(dtype=str, default='mag', doc = 'name of the selection function')
+    photo_z_dep =   pexConfig.Field(dtype=bool, default=True, doc = 'weather model photo-z dependence?')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
@@ -104,10 +105,11 @@ class reGaus_sanityTestTask(BatchPoolTask):
     @abortOnError
     def runDataRef(self,Id):
         obsname =   self.config.obsname
+        photo_z_dep =   self.config.photo_z_dep
         pool    =   Pool("reGaus_sanityTest")
         pool.cacheClear()
         pool.storeSet(anaDir=self.config.anaDir,
-                obsname=obsname)
+                obsname=obsname,photo_z_dep=photo_z_dep)
 
         indexList=  range(2500)
         outcomes=   pool.map(self.process,indexList)
@@ -131,15 +133,16 @@ class reGaus_sanityTestTask(BatchPoolTask):
 
         self.log.info('Applying WL mask')
         obsname =   cache.obsname
-        wlmaskS =   catalog['wlmask_90rot']
+        wlmaskS =   catalog['wlmask_90rot']&(~np.isnan(catalog['mizuki_Z']))
         catalog =   catalog[wlmaskS]
 
         self.log.info('Determining bin number')
         binMsk,nbin_1d  =   self.determineBinMask(catalog,obsname)
 
         # Do a round trip
-        model_m =   utilities.get_m_model(catalog,weight_bias=True)
-        model_c1,model_c2 = utilities.get_c_model(catalog,weight_bias=True)
+        photo_z_dep=cache.photo_z_dep
+        model_m =   utilities.get_m_model(catalog,weight_bias=True,photo_z_dep=photo_z_dep)
+        model_c1,model_c2 = utilities.get_c_model(catalog,weight_bias=True,photo_z_dep=photo_z_dep)
 
         # The shear estimation routine is built to work on simulation subfields
         # We need to iterate on all independent subfields
