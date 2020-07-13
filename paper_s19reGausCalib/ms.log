@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  13 JUL 2020 00:12
+This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  14 JUL 2020 00:27
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -300,6 +300,9 @@ Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: absEDis.eps Graphic file (type eps)
 <absEDis.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
+File: galDis2D-final-magA10-25.5-wl.eps Graphic file (type eps)
+<galDis2D-final-magA10-25.5-wl.eps>
+Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: sigmae_estimated.eps Graphic file (type eps)
 <sigmae_estimated.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
@@ -319,7 +322,7 @@ File: weightBias_a_2d.eps Graphic file (type eps)
 <weightBias_a_2d.eps> [3]
 
 LaTeX Font Warning: Font shape `TU/ptm/bx/n' undefined
-(Font)              using `TU/ptm/m/n' instead on input line 187.
+(Font)              using `TU/ptm/m/n' instead on input line 197.
 
 (./ms.bbl) [4] [5] [6] [7] [8] [9] (./ms.aux)
 
@@ -331,12 +334,12 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 2463 strings out of 493007
- 29630 string characters out of 6136720
- 151839 words of memory out of 5000000
- 6409 multiletter control sequences out of 15000+600000
+ 2467 strings out of 493007
+ 29760 string characters out of 6136720
+ 152839 words of memory out of 5000000
+ 6412 multiletter control sequences out of 15000+600000
  13716 words of font info for 69 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 32i,5n,28p,1214b,254s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 32i,5n,28p,1214b,255s stack positions out of 5000i,500n,10000p,200000b,80000s
 
 Output written on ms.pdf (9 pages).
