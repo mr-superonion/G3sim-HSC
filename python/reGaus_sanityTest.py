@@ -73,13 +73,13 @@ class reGaus_sanityTestTask(BatchPoolTask):
             nbin_1d=3
             obs_bounds  =   np.linspace(min_obs,max_obs,nbin_1d+1)
         elif obsname=="COSMOS_Z":
-            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.])
+            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.5,4.])
             nbin_1d     =   len(obs_bounds)-1
         elif obsname=="COSMOS15_Z":
-            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.])
+            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.5,4.])
             nbin_1d     =   len(obs_bounds)-1
         elif obsname=="mizuki_Z":
-            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.])
+            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.5,4.])
             nbin_1d     =   len(obs_bounds)-1
         elif obsname=="COSMOS_Mag":
             min_obs=21.5
@@ -112,7 +112,7 @@ class reGaus_sanityTestTask(BatchPoolTask):
         indexList=  range(2500)
         outcomes=   pool.map(self.process,indexList)
         outcomes=   [x for x in outcomes if x is not None]
-        outFname=   os.path.join(self.config.pltDir,'shear_sanitytest_%s_90rot.npy' %obsname)
+        outFname=   os.path.join(self.config.pltDir,'shear_sanitytest_%s_90rot-2.npy' %obsname)
         np.save(outFname,outcomes)
         return
 
