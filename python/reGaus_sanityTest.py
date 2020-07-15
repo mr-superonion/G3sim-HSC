@@ -111,7 +111,7 @@ class reGaus_sanityTestTask(BatchPoolTask):
         indexList=  range(2500)
         outcomes=   pool.map(self.process,indexList)
         outcomes=   [x for x in outcomes if x is not None]
-        outFname=   os.path.join(self.config.pltDir,'shear_sanitytest_%s_90rot-2.npy' %obsname)
+        outFname=   os.path.join(self.config.pltDir,'shear_sanitytest_%s_90rot.npy' %obsname)
         np.save(outFname,outcomes)
         return
 
