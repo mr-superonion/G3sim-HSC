@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 import os
-import gc
-import sys
 
 import numpy as np
 import pandas as pd
@@ -47,7 +45,6 @@ class reGaus_sanityTestTask(BatchPoolTask):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
                 parentTask=self._parentTask, log=self.log))
-
 
     def determineBinMask(self,dataU,obsname):
         slide_test_bins =   np.zeros(len(dataU),dtype=np.uint64)
@@ -109,7 +106,7 @@ class reGaus_sanityTestTask(BatchPoolTask):
         pool    =   Pool("reGaus_sanityTest")
         pool.cacheClear()
         pool.storeSet(anaDir=self.config.anaDir,
-                obsname=obsname,photo_z_dep=photo_z_dep)
+            obsname=obsname,photo_z_dep=photo_z_dep)
 
         indexList=  range(2500)
         outcomes=   pool.map(self.process,indexList)
@@ -126,8 +123,6 @@ class reGaus_sanityTestTask(BatchPoolTask):
         except:
             self.log.info('Do not have sim-%05d' %isim)
             return None
-        if len(catalog)<2:
-            return None
         fN      =   catalog[0]['fieldname']
         self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
 
@@ -135,9 +130,15 @@ class reGaus_sanityTestTask(BatchPoolTask):
         obsname =   cache.obsname
         wlmaskS =   catalog['wlmask_90rot']&(~np.isnan(catalog['mizuki_Z']))
         catalog =   catalog[wlmaskS]
+        if len(catalog)<2:
+            self.log.info('No satisfactory galaxy in sim-%05d' %isim)
+            return None
 
         self.log.info('Determining bin number')
         binMsk,nbin_1d  =   self.determineBinMask(catalog,obsname)
+        if not np.any(binMsk>0):
+            self.log.info('No satisfactory galaxy in sim-%05d' %isim)
+            return None
 
         # Do a round trip
         photo_z_dep=cache.photo_z_dep

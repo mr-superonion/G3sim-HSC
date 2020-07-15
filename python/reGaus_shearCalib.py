@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 import os
-import sys
 
 import numpy as np
 import pandas as pd
-import scipy.stats as stats
 import sim_analysis_utilities as utilities
 
 import lsst.daf.base as dafBase
