@@ -81,8 +81,11 @@ images. The PSF effect is removed from each input postage-stamp by deconvolving 
 postage-stamp is convolved with an assigned HSC PSF model. The original noise is whitened for each postage stamp 
 then a noise with an assigned HSC variance and an assigned HSC nosie correlation function is added to the postage-stamp.
 
-
 \section{Results}
+\subsection{Optimization}
+\begin{equation}
+\sigma_e = 0.277 (\frac{\rm{SNR}}{20})^{-0.962} (\frac{\rm{res}}{0.5})^{-1.002}
+\end{equation}
 
 \begin{figure*}[ht!]
 \centering{
@@ -146,7 +149,9 @@ contours of the simulation.}
         The right panel shows the intrinsic shape per component ($e_{\rm{RMS}}$) as 
         function of (SNR, resolution).}      
 \end{figure*}
-\subsection{Optimization}
+
+\subsection{Calibration}
+\subsubsection{Shear Bias}
 
 \begin{figure*}[ht!]
 \centering{
@@ -161,25 +166,20 @@ contours of the simulation.}
         simulation.
         }      
 \end{figure*}
-\begin{equation}
-\sigma_e = 0.277 (\frac{\rm{SNR}}{20})^{-0.962} (\frac{\rm{res}}{0.5})^{-1.003}
-\end{equation}
-
-\subsection{Calibration}
-\begin{equation}
-\hat{g}_1=\frac{\sum_i w_i e_{1,i}}{2r(1+\hat{m}) \sum_i w_i}-\frac{\hat{c}_1}{1+\hat{m}}
-\end{equation}
-
-\subsection{Shear Bias}
 
 \begin{equation}
-m \sim (\frac{\rm{res}}{0.5})^{1.51}(\frac{\rm{snr}}{20})^{-1.12} + \rm{constant}
-\end{equation}
-\begin{equation}
-a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.92}
+\hat{g}_1=\frac{\sum_i w_i e_{1,i}}{2R(1+\hat{m}) \sum_i w_i}-\frac{\hat{c}_1}{1+\hat{m}}
 \end{equation}
 
-\subsection{Weight Bias}
+
+\begin{equation}
+m + \rm{const.} \sim (\frac{\rm{res}}{0.5})^{1.53}(\frac{\rm{snr}}{20})^{-1.13}
+\end{equation}
+\begin{equation}
+a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.96}
+\end{equation}
+
+\subsubsection{Weight Bias}
 \begin{figure*}[ht!]
 \centering{
 \includegraphics[width=0.45\textwidth]{weightBias_m_2d.eps}
@@ -192,13 +192,36 @@ a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.92}
         of the additive bias estimated in (SNR,resolution) bins with the simulation.
         }      
 \end{figure*}
-\subsection{Redshfit Dependency}
 
-\subsubsection{Measurement Error and Intrinsic Shape}
-
-\subsubsection{Bias}
+\subsubsection{Redshift Dependence}
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{calibration_residual_mizuki_Z_calib.eps}
+}
+\caption{The left panel shows the multiplicative bias residual estimated in photo-$z$
+        bins. The right panel shows the additive bias residual estimated in photo-$z$
+        bins.}
+\end{figure*}
 
 \subsection{Sanity Test}
+\subsubsection{Modeled Observables}
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{calibration_residual_snr.eps}
+\includegraphics[width=0.9\textwidth]{calibration_residual_res.eps}
+}
+\caption{
+        }      
+\end{figure*}
+
+\subsubsection{Marginalized Observables}
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{calibration_residual_mag.eps}
+}
+\caption{
+        }      
+\end{figure*}
 
 \subsection{Selection Bias}
 
