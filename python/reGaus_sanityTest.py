@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 import os
+import glob
 
 import numpy as np
 import pandas as pd
+import astropy.io.fits as pyfits
 import sim_analysis_utilities as utilities
 
 import lsst.daf.base as dafBase
@@ -128,7 +130,7 @@ class reGaus_sanityTestTask(BatchPoolTask):
 
         self.log.info('Applying WL mask')
         obsname =   cache.obsname
-        wlmaskS =   catalog['wlmask_90rot']&(~np.isnan(catalog['mizuki_Z']))
+        wlmaskS =   catalog['wlmask_90rot']&(~np.isnan(utilities.get_photo_z(catalog,'mizuki')))
         catalog =   catalog[wlmaskS]
         if len(catalog)<2:
             self.log.info('No satisfactory galaxy in sim-%05d' %isim)

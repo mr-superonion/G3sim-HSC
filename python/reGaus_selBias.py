@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 import os
-import gc
-import sys
+import glob
 
 import numpy as np
 import pandas as pd
+import fitsio
 import sim_analysis_utilities as utilities
 
 import lsst.daf.base as dafBase
@@ -16,7 +16,7 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_selBiasConfig(pexConfig.Config):
-    anaDir      =   pexConfig.Field(dtype=str, default='anaCat', doc = 'simulation catalogs')
+    anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask', doc = 'simulation catalogs')
     pltDir      =   pexConfig.Field(dtype=str, default='plot/selBias/', doc = 'simulation catalogs')
     obsname     =   pexConfig.Field(dtype=str, default='mag', doc = 'name of the selection function')
     nbin_1d     =   pexConfig.Field(dtype=int, default=6, doc = 'number of bins for 1-D parameter space')
@@ -141,8 +141,9 @@ class reGaus_selBiasTask(BatchPoolTask):
                 obsname=obsname,nbin_1d=self.config.nbin_1d,
                 force_90_pair=self.config.force_90_pair)
 
-        indexList=  range(2500)
-        outcomes=   pool.map(self.process,indexList)
+        gfn     =   os.path.join(self.config.anaDir,'*/smallcats/*.fits')
+        fnList  =   glob.glob(gfn)
+        outcomes=   pool.map(self.process,fnList)
         outcomes=   [x for x in outcomes if x is not None]
         if not self.config.force_90_pair:
             outFname=   os.path.join(self.config.pltDir,'shear_selbias_%s.npy' %obsname)
@@ -151,32 +152,27 @@ class reGaus_selBiasTask(BatchPoolTask):
         np.save(outFname,outcomes)
         return
 
-    def process(self,cache,isim):
+    def process(self,cache,fname):
         # Get catalog
-        inFname =   os.path.join(cache.anaDir,'allSim-2.h5')
-        try:
-            catalog =   pd.read_hdf(inFname).xs(isim,level='isim').to_records(index=True)
-        except:
-            self.log.info('Do not have sim-%05d' %isim)
-            return None
+        catalog =   fitsio.read(fname)
         if len(catalog)<2:
             return None
-        fN      =   catalog[0]['fieldname']
-        self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
+        self.log.info('Processing file: %s' %(fname))
 
         self.log.info('Applying WL mask')
         obsname =   cache.obsname
         nbin_1d =   cache.nbin_1d
         force_90_pair =   cache.force_90_pair
         wlmaskS =   self.determineMask(catalog,obsname)
+        wlmaskS =   wlmaskS&(~np.isnan(utilities.get_photo_z(catalog,'mizuki')))
         catalog =   catalog[wlmaskS]
 
         self.log.info('Determining bin number')
         binMsk  =   self.determineBinMask(catalog,obsname,nbin_1d,force_90_pair)
 
         # Do a round trip
-        model_m =   utilities.get_m_model(catalog,weight_bias=True)
-        model_c1,model_c2 = utilities.get_c_model(catalog,weight_bias=True)
+        model_m =   utilities.get_m_model(catalog,weight_bias=True,photo_z_dep=True)
+        model_c1,model_c2 = utilities.get_c_model(catalog,weight_bias=True,photo_z_dep=True)
 
         # The shear estimation routine is built to work on simulation subfields
         # We need to iterate on all independent subfields
