@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  14 JUL 2020 09:22
+This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  16 JUL 2020 15:57
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -280,7 +280,7 @@ File: noiVar2.eps Graphic file (type eps)
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: psfFWHM2.eps Graphic file (type eps)
 <psfFWHM2.eps>
-Underfull \vbox (badness 10000) has occurred while \output is active []
+Underfull \vbox (badness 5970) has occurred while \output is active []
 
  [1
 
@@ -310,23 +310,23 @@ File: intrinsicshape_2d.eps Graphic file (type eps)
 <intrinsicshape_2d.eps>
 
 LaTeX Font Warning: Font shape `TU/ptm/bx/n' undefined
-(Font)              using `TU/ptm/m/n' instead on input line 154.
+(Font)              using `TU/ptm/m/n' instead on input line 159.
 
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: shear_m_2d.eps Graphic file (type eps)
 <shear_m_2d.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: shear_a_2d.eps Graphic file (type eps)
-<shear_a_2d.eps>
+<shear_a_2d.eps> [3]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: weightBias_m_2d.eps Graphic file (type eps)
 <weightBias_m_2d.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: weightBias_a_2d.eps Graphic file (type eps)
-<weightBias_a_2d.eps> [3]
+<weightBias_a_2d.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
-File: calibration_residual_mizuki_Z_calib.eps Graphic file (type eps)
-<calibration_residual_mizuki_Z_calib.eps>
+File: calibration_residual_mizuki_Z.eps Graphic file (type eps)
+<calibration_residual_mizuki_Z.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: calibration_residual_snr.eps Graphic file (type eps)
 <calibration_residual_snr.eps>
@@ -335,8 +335,11 @@ File: calibration_residual_res.eps Graphic file (type eps)
 <calibration_residual_res.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: calibration_residual_mag.eps Graphic file (type eps)
-<calibration_residual_mag.eps> (./ms.bbl) [4] [5] [6] [7] [8] [9] [10]
-(./ms.aux)
+<calibration_residual_mag.eps>
+Do not use \includegraphics directly. Use \FigureFile for graphics.
+File: calibration_residual_fwhm.eps Graphic file (type eps)
+<calibration_residual_fwhm.eps> (./ms.bbl [4]) [5] [6] [7] [8] [9] [10]
+[11] (./ms.aux)
 
 LaTeX Font Warning: Size substitutions with differences
 (Font)              up to 0.75pt have occurred.
@@ -346,12 +349,12 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 2479 strings out of 493007
- 30181 string characters out of 6136720
- 152839 words of memory out of 5000000
- 6420 multiletter control sequences out of 15000+600000
+ 2482 strings out of 493007
+ 30263 string characters out of 6136720
+ 151839 words of memory out of 5000000
+ 6422 multiletter control sequences out of 15000+600000
  13716 words of font info for 69 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 32i,5n,28p,1214b,254s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 32i,5n,28p,1214b,255s stack positions out of 5000i,500n,10000p,200000b,80000s
 
-Output written on ms.pdf (10 pages).
+Output written on ms.pdf (11 pages).
