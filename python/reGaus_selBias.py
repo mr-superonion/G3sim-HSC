@@ -58,7 +58,7 @@ class reGaus_selBiasTask(BatchPoolTask):
         max_magA10= 25.5
         min_res =   0.3
         min_snr =   10
-        max_snr =   200
+        max_snr =   None
         max_logb=   -0.38
         max_sigma_e=0.4
         max_e   =   2.
