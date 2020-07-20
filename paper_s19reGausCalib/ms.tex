@@ -1,6 +1,9 @@
 \documentclass[useamsfonts]{pasj01}
 \draft
-\usepackage{natbib}
+\usepackage{latexsym}%,amssymb}
+\usepackage{natbib,amssymb}
+\usepackage{amsmath}
+
 \usepackage{url}
 
 \newcommand \redColor{}%\color{red}}
@@ -12,6 +15,13 @@
 
 \newcommand{\galsim}{\texttt{GalSim}}
 \newcommand{\sersic}{{S\'ersic}}
+\newcommand{\res}{\mathcal {R}}
+
+\newcommand{\mtrv}[1]{#1}
+\newcommand{\rmrv}[1]{#1}
+\newcommand{\hmrv}[1]{#1}
+\newcommand{\smrv}[1]{#1}
+
 
 \begin{document}
 
@@ -35,14 +45,16 @@
 
 Our simulation is divided into $2500$ sub-samples and each sub-sample contains $10^4$ postage-stamps with
 $64\times 64$ pixels. The pixel size is set to $0.168$ arcesc. The noise property and PSF are the same for
-galaxies in one sub-sample while they vary among different sub-samples. We randomly sample $2500$ noise
-variances and PSF models from the coadd images of HSC-WIDE layer within the footprint of the HSC shape catalog.
-The PSF models are reconstructed by the HSC pipeline.
+galaxies in one sub-sample while they vary among different sub-samples. The HSC pipeline reconstruct the PSF
+models and noise variances for any position on the coadd images. We collect $2500$ noise variances and PSF
+models from a set of random positions on the coadd images of HSC-WIDE layer within the footprint of the HSC
+shape catalog.
 
-Noise on the coadd images has spacial correlation due to the warping process to resample single exposures on
-the common pixel frame. We sample the noise correlations from the blank pixels on the coadd images. The sampled
-correlations, which are noisy at individual level, are subsequently divided into eight groups and stacked in
-each group to create eight different noise correlations with high signal to noise ratio.
+Noise on the coadd images has spacial correlation due to the warping kernel used to resample single exposures
+on the common pixel frame in the coadding process. We sample the noise correlations from the blank pixels on
+the coadd images. The sampled noise correlations, which are noisy at individual level, are subsequently divided
+into eight groups and stacked in each group to create eight different noise correlations with high signal to
+noise ratio.
 
 Each sub-sample is assigned with a noise PSF model, noise variance and noise correlation function. We then reweight
 each subsample to match the seeing histograms and noise variance histograms of the simulation to the observation.
@@ -74,20 +86,26 @@ FWHM of the observation while the red texts show the average FWHM of the simulat
 
 \subsection{Galaxies}
 We use the galaxy training sample created by \citet{HSC1-GREAT3Sim} as our input galaxies. \citet{HSC1-GREAT3Sim}
-selects galaxies from the HSC WIDE-DEPTH layer \citep{HSC1-data} with CModel magnitude less than $25.2$.
+selects galaxies from the HSC WIDE-DEPTH coadds \citep{HSC1-data} with CModel magnitude less than $25.2$.
 Subsequently, \citet{HSC1-GREAT3Sim} finds the centers of these selected galaxies on the COSMOS-HST
 \citep{HST-ACSpipe} exposures and cuts out postage-stamps around these positions. These positions are set
 to as the centers of the postage-stamps and the postage sizes are required to be larger than $10.75$ arcsec
 to contain the galaxy light and structures of neighboring sources.
 
-We use Galsim \citep{Galsim}, which is an open-source package for galaxy image simulation to simulate the HSC-like
-images. The PSF effect is removed from each input postage-stamp by deconvolving the COSMOS HST PSF model then the
+\citet{HSC1-GREAT3Sim} creates three training samples from three WIDE-DEPTH coadds with different seeing values which are
+0.5\arcsec, 0.7\arcsec and 1.0\arcsec. We use the training sample with the best seeing as our input galaxy sample since it
+has the largest number of galaxies.
+
+\galsim \citep{Galsim}, which is an open-source package for galaxy image simulation, is used to simulate the HSC-like
+postage-stamps from the COSMOS HST postage-stamp. The PSF is deconvolved from each input postage-stamp and then the
 postage-stamp is convolved with an assigned HSC PSF model. The original noise is whitened for each postage stamp
-then a noise with an assigned HSC variance and an assigned HSC nosie correlation function is added to the postage-stamp.
+then a noise with an assigned HSC variance and HSC nosie correlation function is added to the postage-stamp.
 
-\section{Results}
+\subsection{Image Processing}
+HSC pipeline is being developed to process the data of HSC survey and will finally be applied to LSST survey. We use HSC
+pipeline to detect galaxies from the simulated images and isolate blended galaxies with HSC deblender to define a sample
+of sources. Subsequently, the HSC pipeline is used to perform magnitude and shape measurements on the detected sources.
 
-\subsection{Galaxy properties}
 
 \begin{figure*}[ht!]
 \centering{
@@ -114,10 +132,10 @@ and the red dashed lines are for the simulation.}
 \centering{
 \includegraphics[width=0.9\textwidth]{magDis.eps}
 }
-\caption{The first 6 panels compare the number histograms of CModel magnitude between the observation and
-the simulation for galaxies in 6 fields of the second year HSC shape catalog. The last panel shows
-the histograms for the galaxies in all of the fields. The blue solid lines are for the observation
-and the red dashed lines are for the simulation.}
+\caption{The first 6 panels compare the number histograms of CModel magnitude between the observation
+and the simulation for galaxies in 6 fields of the second year HSC shape catalog. The last panel shows
+the histograms for the galaxies in all of the fields. The blue solid lines are for the observation and
+the red dashed lines are for the simulation.}
 \end{figure*}
 
 \begin{figure*}[ht!]
@@ -130,6 +148,10 @@ the simulation for galaxies in 6 fields of the second year HSC shape catalog. Th
 the histograms for the galaxies in all of the fields. The blue solid lines are for the observation
 and the red dashed lines are for the simulation.}
 \end{figure*}
+
+
+\section{Analysis}
+
 
 \begin{figure*}[ht!]
 \centering{
@@ -176,15 +198,15 @@ contours of the simulation.}
 \end{figure*}
 
 \begin{equation}
-\hat{g}_1=\frac{\sum_i w_i e_{1,i}}{2R(1+\hat{m}) \sum_i w_i}-\frac{\hat{c}_1}{1+\hat{m}}
+\hat{g}_{(1,2)}=\frac{\sum_i w_i e_{(1,2),i} }{2\res (1+\hat{m}) \sum_i w_i}-\frac{\hat{c}_{(1,2)}}{1+\hat{m}}
 \end{equation}
 
 
 \begin{equation}
-m + \rm{const.} \sim (\frac{\rm{res}}{0.5})^{1.53}(\frac{\rm{snr}}{20})^{-1.13}
+m + \rm{const.} \propto (\frac{\rm{res}}{0.5})^{1.53}(\frac{\rm{snr}}{20})^{-1.13}
 \end{equation}
 \begin{equation}
-a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.96}
+a \propto (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.96}
 \end{equation}
 
 \subsubsection{Weight Bias}
@@ -215,8 +237,7 @@ a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.96}
 \subsubsection{Modeled Observables}
 \begin{figure*}[ht!]
 \centering{
-\includegraphics[width=0.9\textwidth]{calibration_residual_snr.eps}
-\includegraphics[width=0.9\textwidth]{calibration_residual_res.eps}
+\includegraphics[width=0.9\textwidth]{calibration_residual_modeled.eps}
 }
 \caption{
         }
@@ -225,15 +246,77 @@ a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.96}
 \subsubsection{Marginalized Observables}
 \begin{figure*}[ht!]
 \centering{
-\includegraphics[width=0.9\textwidth]{calibration_residual_mag.eps}
-\includegraphics[width=0.9\textwidth]{calibration_residual_fwhm.eps}
+\includegraphics[width=0.9\textwidth]{calibration_residual_marginalized.eps}
 }
 \caption{
         }
 \end{figure*}
 
 \subsection{Selection Bias}
+Selection bias refers to the multiplicative bias or additive bias caused by selection. Such bias emerges 
+if the observable used for selection correlates with the shear signal or the ellipticities of PSF. We denote 
+the observable used for selection as $X$ and the correlation with the shear or PSF ellipticities has the form
+\begin{equation}
+X=\bar{X}+g_1Y_1+e_{\rm{PSF,1}}Z_1+....
+\end{equation}
+Here $\bar{X}$ refers to the intrinsic property before the shear distortion and PSF smearing, $Y$ refers to the
+response of the property $\bar{X}$ to the shear which is a spin-$2$ property, and $Z$ quantifies the correlation
+between the observed property $X$ and the shape of PSF which is caused by the imperfect PSF revision in the 
+observation of $X$. We follow \citet{HSC1-GREAT3Sim} and give out the changes in the first component of ellipticities
+due to the selection
+\begin{equation}
+\begin{split}
+\Delta \left\langle e_1\right \rangle  &= g_1\int \frac{dn}{Nd\Omega } |_{X=X_{\rm{edge}}} Y_1 e_1 d\Omega \\
+        &+ e_{\rm{PSF,1}} \int \frac{dn}{Nd\Omega}|_{X=X_{\rm{edge}}} Z_1 e_1 d\Omega.
+\end{split}
+\end{equation}
+Then with the assumption that
+\begin{equation}
+\begin{split}
+ \frac{dn}{Nd\Omega}&=p_a(X)p_b(\Omega')\\
+\end{split}
+\end{equation}
+we have
+\begin{equation}
+\begin{split}
+\Delta \left\langle e_1\right \rangle  &= g_1p_a(X_{\rm{edge}})\int p_b Y_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} \\
+        &+ e_{\rm{PSF,1}} p_a(X_{\rm{edge}}) \int p_b Z_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} .
+\end{split}
+\end{equation}
+The multiplicative selection bias and additive selection bias is defined as 
+\begin{equation}
+\begin{split}
+m_{\rm{sel}}&=p_a(X_{\rm{edge}})\int p_b Y_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} \\
+            &=p_a(X_{\rm{edge}}) A_m,\\
+\end{split}
+\end{equation}
+\begin{equation}
+\begin{split}
+a_{\rm{sel}}&=p_a(X_{\rm{edge}}) \int p_b Z_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} \\
+            &=p_a(X_{\rm{edge}}) A_a,
+\end{split}
+\end{equation}
+respectively. We denote the ratio between the multiplicative (additive) bias and partial density function 
+at $X_{\rm{edge}}$ as $A_{m}$ ($A_{a}$).
 
+
+
+
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{selBias_res.eps}
+}
+\caption{
+        }
+\end{figure*}
+
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{selBias_magA10.eps}
+}
+\caption{
+        }
+\end{figure*}
 \section{The Shape Catalog}
 
 
@@ -243,6 +326,76 @@ a \sim (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.96}
 
 
 \appendix
+\section*{Galaxy Selection}
+\begin{table*}
+  \begin{tabular}{ll} \hline
+    Cut & Meaning \\ \hline
+\multicolumn{2}{c}{Basic flag cuts} \\ \hline
+\texttt{i$\_$detect$\_$isprimary} $==$ True & Identify unique detections only \\ \hline
+\texttt{i$\_$deblend$\_$skipped} $==$ False & Deblender skipped this group of objects \\ \hline
+\hmrv{\texttt{i$\_$sdsscentroid$\_$flag} $==$ False} & \hmrv{centroid.sdss measurement failed} \\ \hline
+\texttt{i$\_$pixelflags$\_$edge} $==$ False & Object too close to image boundary for reliable measurements \\ \hline
+\texttt{i$\_$pixelflags$\_$interpolatedcenter} $==$ False & A pixel flagged as interpolated is
+close to object center \\ \hline
+\texttt{i$\_$pixelflags$\_$saturatedcenter} $==$ False & A pixel flagged as saturated is
+close to object center \\ \hline
+\texttt{i$\_$pixelflags$\_$crcenter}$==$ False & A pixel flagged as a cosmic ray hit is
+close to object center \\ \hline
+\texttt{i$\_$pixelflags$\_$bad}$==$ False & A pixel flagged as otherwise bad is
+close to object center \\ \hline
+\texttt{i$\_$pixelflags$\_$suspectcenter} $==$ False & A pixel flagged as near saturation is
+close to object center \\ \hline
+\hmrv{\texttt{i$\_$pixelflags$\_$clipped} $==$ False} & \hmrv{Flagged as source footprint includes clipped pixels} \\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$flag} $==$ False & Error code returned by shape measurement
+code \\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$sigma} $!=$ NaN & Shape measurement uncertainty should not be
+  NaN \\ \hline
+\texttt{i$\_$extendedness$\_$value} $!= 0$ & Extended object \\ \hline
+\multicolumn{2}{c}{Cuts on object properties} \\ \hline
+\texttt{i$\_$cmodel$\_$flux}/\texttt{i$\_$cmodel$\_$fluxerr} $\ge 10$ & Galaxy has high enough $S/N$ in
+$i$ band\\
+\hline
+\texttt{i$\_$hsmshaperegauss$\_$resolution} $\ge 0.3$ & Galaxy is sufficiently resolved \\ \hline
+(\texttt{i$\_$hsmshaperegauss$\_$e1}$^2 + $\texttt{i$\_$hsmshaperegauss$\_$e2}$^2)^{1/2} < 2$ & Total
+\rmrv{distortion} cut \\ \hline
+$0\le $\texttt{i$\_$hsmshaperegauss$\_$sigma}  $\le 0.4$ & Estimated shape measurement error is
+reasonable \\ \hline
+\texttt{i$\_$cmodel$\_$mag} $-$ \texttt{a$\_$i} $\le 24.5$ & Magnitude cut \\ \hline
+\texttt{i$\_$apertureflux$\_$10$\_$mag} $\le 25.5$ & Aperture magnitude cut \\ \hline
+\texttt{i$\_$blendedness$\_$abs} $< 10^{-0.38}$ & Avoid spurious detections and those
+contaminated by blends \\ \hline
+\multicolumn{2}{c}{Require that at least two of the following four cuts be passed (not all)} \\ \hline
+\texttt{g$\_$cmodel$\_$flux}/\texttt{g$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
+$g$ band\\
+\hline
+\texttt{r$\_$cmodel$\_$flux}/\texttt{r$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
+$r$ band\\
+\hline
+\texttt{z$\_$cmodel$\_$flux}/\texttt{z$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
+$z$ band\\
+\hline
+\texttt{y$\_$cmodel$\_$flux}/\texttt{y$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
+$y$ band\\
+\hline
+  \end{tabular}
+  \caption{}
+\end{table*}
 
-\section*{}
+
+\section*{The redshift dependence of intrinsic shape}
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{redshift_dep_s16_vs_s19.eps}
+}
+\caption{The solid line in the left panel shows the redshift dependence of intrinsic shape
+        and the dashed line in the left panel shows the average intrinsic shape. The solid
+        line in the middle panel shows the redshift dependence of responsivity and the dashed
+        line in the middle panel shows the average responsivity. The solid line shows in the
+        right panel shows the multiplicative bias residual due to the redshift dependence of
+        responsivity and the dashed line in the right panel shows the total multiplicative
+        bias residual.
+        }
+\end{figure*}
+
+
 \end{document}

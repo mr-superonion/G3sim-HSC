@@ -2,9 +2,8 @@
 import os
 import glob
 
+import fitsio
 import numpy as np
-import pandas as pd
-import astropy.io.fits as pyfits
 import sim_analysis_utilities as utilities
 
 import lsst.daf.base as dafBase
@@ -110,27 +109,48 @@ class reGaus_sanityTestTask(BatchPoolTask):
         pool.storeSet(anaDir=self.config.anaDir,
             obsname=obsname,photo_z_dep=photo_z_dep)
 
-        indexList=  range(2500)
-        outcomes=   pool.map(self.process,indexList)
-        outcomes=   [x for x in outcomes if x is not None]
-        outFname=   os.path.join(self.config.pltDir,'shear_sanitytest_%s_90rot.npy' %obsname)
+        gfn     =   os.path.join(self.config.anaDir,'*/smallcats/*.fits')
+        fnList  =   glob.glob(gfn)
+        outcomes=   pool.map(self.process,fnList)
+        if photo_z_dep:
+            pltDir='plot/sanityTest_withZ/'
+        else:
+            pltDir='plot/sanityTest/'
+        outFname=   os.path.join(pltDir,'shear_sanitytest_%s_90rot.npy' %obsname)
         np.save(outFname,outcomes)
         return
 
-    def process(self,cache,isim):
+    def process(self,cache,fname):
         # Get catalog
-        inFname =   os.path.join(cache.anaDir,'allSim.h5')
-        try:
-            catalog =   pd.read_hdf(inFname).xs(isim,level='isim').to_records(index=True)
-        except:
-            self.log.info('Do not have sim-%05d' %isim)
+        catalog =   fitsio.read(fname)
+        if len(catalog)<2:
             return None
-        fN      =   catalog[0]['fieldname']
-        self.log.info('Beginning for field: %s, sim: %s' %(fN,isim))
+        self.log.info('Processing file: %s' %(fname))
 
         self.log.info('Applying WL mask')
         obsname =   cache.obsname
-        wlmaskS =   catalog['wlmask_90rot']&(~np.isnan(utilities.get_photo_z(catalog,'mizuki')))
+        max_mag =   24.5
+        max_magA10= 25.5
+        min_res =   0.3
+        min_snr =   10
+        max_snr =   None
+        max_logb=   -0.38
+        max_sigma_e=0.4
+        max_e   =   2.
+
+        wlmaskS    =   utilities.galaxy_selector(
+                        catalog     =   catalog,
+                        min_snr     =   min_snr,    #snr
+                        max_snr     =   max_snr,
+                        max_magA10  =   max_magA10, #magA10
+                        min_res     =   min_res,    #res
+                        max_mag     =   max_mag,    #mag
+                        max_logb    =   max_logb,   #logb
+                        force_90_pair=  True,
+                        max_e       =   max_e,      #absE
+                        max_sigma_e =   max_sigma_e #sigma_e
+                        )
+        wlmaskS &=  (~np.isnan(utilities.get_photo_z(catalog,'mizuki')))
         catalog =   catalog[wlmaskS]
         if len(catalog)<2:
             self.log.info('No satisfactory galaxy in sim-%05d' %isim)

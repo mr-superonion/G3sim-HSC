@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  16 JUL 2020 15:57
+This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  20 JUL 2020 20:49
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -189,90 +189,149 @@ LaTeX Info: Redefining \citep on input line 691.
 LaTeX Info: Redefining \cite on input line 694.
 \c@NAT@ctr=\count97
 )
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+Package: amsmath 2017/09/02 v2.17a AMS math features
+\@mathmargin=\skip51
+
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+Package: amstext 2000/06/29 v2.01 AMS text
+
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty
+File: amsgen.sty 1999/11/30 v2.0 generic functions
+\@emptytoks=\toks16
+\ex@=\dimen113
+))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty
+Package: amsbsy 1999/11/29 v1.2d Bold Symbols
+LaTeX Info: Redefining \boldsymbol on input line 28.
+\pmbraise@=\dimen114
+)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty
+Package: amsopn 2016/03/08 v2.02 operator names
+)
+\inf@bad=\count98
+LaTeX Info: Redefining \frac on input line 213.
+\uproot@=\count99
+\leftroot@=\count100
+LaTeX Info: Redefining \overline on input line 375.
+\classnum@=\count101
+\DOTSCASE@=\count102
+LaTeX Info: Redefining \ldots on input line 472.
+LaTeX Info: Redefining \dots on input line 475.
+LaTeX Info: Redefining \cdots on input line 596.
+\Mathstrutbox@=\box37
+\strutbox@=\box38
+\big@size=\dimen115
+LaTeX Font Info:    Redeclaring font encoding OML on input line 712.
+LaTeX Font Info:    Redeclaring font encoding OMS on input line 713.
+\macc@depth=\count103
+\c@MaxMatrixCols=\count104
+\dotsspace@=\muskip10
+\c@parentequation=\count105
+\dspbrk@lvl=\count106
+\tag@help=\toks17
+\row@=\count107
+\column@=\count108
+\maxfields@=\count109
+\andhelp@=\toks18
+\eqnshift@=\dimen116
+\alignsep@=\dimen117
+\tagshift@=\dimen118
+\tagwidth@=\dimen119
+\totwidth@=\dimen120
+\lineht@=\dimen121
+\@envbody=\toks19
+\multlinegap=\skip52
+\multlinetaggap=\skip53
+\mathdisplay@stack=\toks20
+LaTeX Info: Redefining \[ on input line 2817.
+LaTeX Info: Redefining \] on input line 2818.
+)
 (/usr/share/texlive/texmf-dist/tex/latex/url/url.sty
-\Urlmuskip=\muskip10
+\Urlmuskip=\muskip11
 Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
 ) (./ms.aux)
 \openout1 = `ms.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 13.
-LaTeX Font Info:    ... okay on input line 13.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 13.
-LaTeX Font Info:    ... okay on input line 13.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 13.
-LaTeX Font Info:    ... okay on input line 13.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 13.
-LaTeX Font Info:    ... okay on input line 13.
-LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 13.
-LaTeX Font Info:    ... okay on input line 13.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 13.
-LaTeX Font Info:    ... okay on input line 13.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 13.
-LaTeX Font Info:    ... okay on input line 13.
-LaTeX Font Info:    Try loading font information for TU+ptm on input line 13.
-LaTeX Font Info:    No file TUptm.fd. on input line 13.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Try loading font information for TU+ptm on input line 26.
+LaTeX Font Info:    No file TUptm.fd. on input line 26.
 
 
 LaTeX Font Warning: Font shape `TU/ptm/m/n' undefined
-(Font)              using `TU/lmr/m/n' instead on input line 13.
+(Font)              using `TU/lmr/m/n' instead on input line 26.
 
-LaTeX Font Info:    Try loading font information for TU+phv on input line 26.
-LaTeX Font Info:    No file TUphv.fd. on input line 26.
+LaTeX Font Info:    Try loading font information for TU+phv on input line 39.
+LaTeX Font Info:    No file TUphv.fd. on input line 39.
 
 LaTeX Font Warning: Font shape `TU/phv/m/n' undefined
-(Font)              using `TU/lmr/m/n' instead on input line 26.
+(Font)              using `TU/lmr/m/n' instead on input line 39.
 
 
 LaTeX Font Warning: Font shape `TU/phv/bx/n' undefined
-(Font)              using `TU/phv/m/n' instead on input line 26.
+(Font)              using `TU/phv/m/n' instead on input line 39.
 
-LaTeX Font Info:    Try loading font information for U+msa on input line 27.
+LaTeX Font Info:    Try loading font information for U+msa on input line 40.
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 27.
+LaTeX Font Info:    Try loading font information for U+msb on input line 40.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-LaTeX Font Info:    Try loading font information for U+lasy on input line 27.
+LaTeX Font Info:    Try loading font information for U+lasy on input line 40.
 
 (/usr/share/texlive/texmf-dist/tex/latex/base/ulasy.fd
 File: ulasy.fd 1998/08/17 v2.2e LaTeX symbol font definitions
 )
-LaTeX Font Info:    Calculating math sizes for size <8.5> on input line 27.
+LaTeX Font Info:    Calculating math sizes for size <8.5> on input line 40.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <8.5> not available
-(Font)              size <8> substituted on input line 27.
+(Font)              size <8> substituted on input line 40.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <4.25> not available
-(Font)              size <5> substituted on input line 27.
+(Font)              size <5> substituted on input line 40.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <8.5> not available
-(Font)              size <8> substituted on input line 27.
+(Font)              size <8> substituted on input line 40.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <4.25> not available
-(Font)              size <5> substituted on input line 27.
+(Font)              size <5> substituted on input line 40.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <8.5> not available
-(Font)              size <8> substituted on input line 27.
+(Font)              size <8> substituted on input line 40.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <4.25> not available
-(Font)              size <5> substituted on input line 27.
+(Font)              size <5> substituted on input line 40.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <8.5> not available
-(Font)              size <8> substituted on input line 27.
+(Font)              size <8> substituted on input line 40.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <4.25> not available
-(Font)              size <5> substituted on input line 27.
+(Font)              size <5> substituted on input line 40.
 
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: noiVar2.eps Graphic file (type eps)
@@ -301,7 +360,7 @@ File: absEDis.eps Graphic file (type eps)
 <absEDis.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: galDis2D-final-magA10-25.5-wl.eps Graphic file (type eps)
-<galDis2D-final-magA10-25.5-wl.eps>
+<galDis2D-final-magA10-25.5-wl.eps> [3]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: sigmae_estimated.eps Graphic file (type eps)
 <sigmae_estimated.eps>
@@ -310,14 +369,14 @@ File: intrinsicshape_2d.eps Graphic file (type eps)
 <intrinsicshape_2d.eps>
 
 LaTeX Font Warning: Font shape `TU/ptm/bx/n' undefined
-(Font)              using `TU/ptm/m/n' instead on input line 159.
+(Font)              using `TU/ptm/m/n' instead on input line 184.
 
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: shear_m_2d.eps Graphic file (type eps)
 <shear_m_2d.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: shear_a_2d.eps Graphic file (type eps)
-<shear_a_2d.eps> [3]
+<shear_a_2d.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: weightBias_m_2d.eps Graphic file (type eps)
 <weightBias_m_2d.eps>
@@ -328,18 +387,40 @@ Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: calibration_residual_mizuki_Z.eps Graphic file (type eps)
 <calibration_residual_mizuki_Z.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
-File: calibration_residual_snr.eps Graphic file (type eps)
-<calibration_residual_snr.eps>
+File: calibration_residual_modeled.eps Graphic file (type eps)
+<calibration_residual_modeled.eps>
+Underfull \vbox (badness 3724) has occurred while \output is active []
+
+ [4]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
-File: calibration_residual_res.eps Graphic file (type eps)
-<calibration_residual_res.eps>
+File: calibration_residual_marginalized.eps Graphic file (type eps)
+<calibration_residual_marginalized.eps> [5] [6] [7]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
-File: calibration_residual_mag.eps Graphic file (type eps)
-<calibration_residual_mag.eps>
+File: selBias_res.eps Graphic file (type eps)
+<selBias_res.eps> [8]
+
+LaTeX Warning: Text page 9 contains only floats.
+
+[9]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
-File: calibration_residual_fwhm.eps Graphic file (type eps)
-<calibration_residual_fwhm.eps> (./ms.bbl [4]) [5] [6] [7] [8] [9] [10]
-[11] (./ms.aux)
+File: selBias_magA10.eps Graphic file (type eps)
+<selBias_magA10.eps> (./ms.bbl)
+
+LaTeX Font Warning: Font shape `U/lasy/m/n' in size <6.47496> not available
+(Font)              size <6> substituted on input line 331.
+
+
+Overfull \hbox (43.82692pt too wide) in paragraph at lines 331--381
+[][] 
+ []
+
+
+Underfull \vbox (badness 1205) has occurred while \output is active []
+
+ [10]
+Do not use \includegraphics directly. Use \FigureFile for graphics.
+File: redshift_dep_s16_vs_s19.eps Graphic file (type eps)
+<redshift_dep_s16_vs_s19.eps> [11] [12] [13] (./ms.aux)
 
 LaTeX Font Warning: Size substitutions with differences
 (Font)              up to 0.75pt have occurred.
@@ -349,12 +430,12 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 2482 strings out of 493007
- 30263 string characters out of 6136720
- 151839 words of memory out of 5000000
- 6422 multiletter control sequences out of 15000+600000
- 13716 words of font info for 69 fonts, out of 8000000 for 9000
+ 3110 strings out of 493007
+ 37520 string characters out of 6136720
+ 164318 words of memory out of 5000000
+ 7023 multiletter control sequences out of 15000+600000
+ 15107 words of font info for 81 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 32i,5n,28p,1214b,255s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 32i,17n,28p,1214b,313s stack positions out of 5000i,500n,10000p,200000b,80000s
 
-Output written on ms.pdf (11 pages).
+Output written on ms.pdf (13 pages).
