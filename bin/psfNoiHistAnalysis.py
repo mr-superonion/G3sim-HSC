@@ -98,7 +98,7 @@ def getObsHist(data):
 
 def getSimHist(data):
     #Get the noise variance and psf information
-    data    =   utilities.update_wl_flags_sim(data)
+    data    =   utilities.update_wl_flags(data)
     mask    =   data['weak_lensing_flag']
     data    =   data[mask]
     varNois =   utilities.get_noi_var(data)

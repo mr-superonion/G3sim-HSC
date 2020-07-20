@@ -103,7 +103,7 @@ def getObsGalDis(obsFname):
 def getSimGalDis(simFname):
     #Get the noise variance and psf information
     data    =   fitsio.read(simFname)
-    data    =   utilities.update_wl_flags_sim(data)
+    data    =   utilities.update_wl_flags(data)
     mask    =   data['weak_lensing_flag']
     #mask    =   mask&(utilities.get_snr(data) < 80.)
     data    =   data[mask]
