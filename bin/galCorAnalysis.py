@@ -176,5 +176,6 @@ def main():
         catN    =   treecorr.Catalog(ra=bsCatU['ra'],dec=bsCatU['dec'],ra_units='deg',dec_units='deg')
         cor2PNK(catN,catK,pltDir,min_sep=0.1,max_sep=20.,unit='arcmin',label=label+'-%s'%version)
     return
+
 if __name__=='__main__':
     main()

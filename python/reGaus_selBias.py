@@ -17,9 +17,10 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_selBiasConfig(pexConfig.Config):
     anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask', doc = 'simulation catalogs')
-    pltDir      =   pexConfig.Field(dtype=str, default='plot/selBias/', doc = 'simulation catalogs')
+    pltDir      =   pexConfig.Field(dtype=str, default='plot/selBias-2/', doc = 'simulation catalogs')
     obsname     =   pexConfig.Field(dtype=str, default='mag', doc = 'name of the selection function')
-    nbin_1d     =   pexConfig.Field(dtype=int, default=6, doc = 'number of bins for 1-D parameter space')
+    subname  =   pexConfig.Field(dtype=str, default='mizuki_Z', doc = 'name of the selection function')
+    nbin_1d     =   pexConfig.Field(dtype=int, default=5, doc = 'number of bins for 1-D parameter space')
     force_90_pair     =   pexConfig.Field(dtype=bool, default=True, doc = 'wheter to force 90 degree galaxies')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
@@ -28,7 +29,9 @@ class reGaus_selBiasConfig(pexConfig.Config):
         # Checks that the paths provided are valid
         if not os.path.isdir(self.anaDir):
             raise RuntimeError("Simulation catalog directory %s does not exist "
-                         "or is not a directory" % (self.anaDir))
+                 "or is not a directory" % (self.anaDir))
+        if not os.path.isdir(self.pltDir):
+            os.system('mkdir -p %s' %self.pltDir)
 
 class reGaus_selBiasRunner(TaskRunner):
     @staticmethod
@@ -49,11 +52,9 @@ class reGaus_selBiasTask(BatchPoolTask):
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
                 parentTask=self._parentTask, log=self.log))
 
-    def determineMask(self,data,obsname):
+    def determineMask(self,data,obsname,force_90_pair):
         # Read catalog
         # Apply WL cut for simulations
-        # NOTE: We are using numpy record to do the selection
-        # TODO: Use pandas.DataFrame based in the future
         max_mag =   24.5
         max_magA10= 25.5
         min_res =   0.3
@@ -62,14 +63,16 @@ class reGaus_selBiasTask(BatchPoolTask):
         max_logb=   -0.38
         max_sigma_e=0.4
         max_e   =   2.
-        if obsname=="mag":
-            max_mag =   None
-        elif obsname=="magA10":
-            max_magA10= None
-        elif obsname=="res":
-            min_res =   None
-        elif obsname=="snr":
-            min_snr =   None
+
+        if not force_90_pair:
+            if obsname=="mag":
+                max_mag =   None
+            elif obsname=="magA10":
+                max_magA10= None
+            elif obsname=="res":
+                min_res =   None
+            elif obsname=="snr":
+                min_snr =   None
 
         wlmaskS    =   utilities.galaxy_selector(
                         catalog     =   data,
@@ -85,28 +88,26 @@ class reGaus_selBiasTask(BatchPoolTask):
                         )
         return wlmaskS
 
-    def determineBinMask(self,dataU,obsname,nbin_1d,force_90_pair):
-        assert np.all(dataU[0::2]['ipos']==(dataU['ipos'][1::2]-1))
-        assert np.all(dataU[0::2]['weight']==(dataU['weight'][1::2]))
+    def determineBinMask(self,dataU,subname,nbin_1d):
 
-        if obsname=="mag":
-            max_obs     =   24.5
+        if subname=="mag":
             obs_lowers  =   np.linspace(20,22.5,nbin_1d)
-            return self.getBinNum(dataU,max_obs,obs_lowers,True,obsname,force_90_pair)
-        elif obsname=="magA10":
-            max_obs     =   25.5
+            obs_uppers  =   100.*np.ones(nbin_1d)
+        elif subname=="magA10":
             obs_lowers  =   np.linspace(23,24.5,nbin_1d)
-            return self.getBinNum(dataU,max_obs,obs_lowers,True,obsname,force_90_pair)
-        elif obsname=="res":
-            min_obs     =   0.3
+            obs_uppers     =   100.*np.ones(nbin_1d)
+        elif subname=="res":
+            obs_uppers  =   -1.*np.ones(nbin_1d)
             obs_uppers  =   np.linspace(0.5,1.,nbin_1d)
-            return self.getBinNum(dataU,min_obs,obs_uppers,False,obsname,force_90_pair)
-        elif obsname=="snr":
-            min_obs     =   10.
+        elif subname=="snr":
+            obs_lowers  =   -10.*np.ones(nbin_1d)
             obs_uppers  =   np.linspace(80.,200.,nbin_1d)
-            return self.getBinNum(dataU,min_obs,obs_uppers,False,obsname,force_90_pair)
+        elif subname=="mizuki_Z":
+            obs_lowers  =   np.array([0.0,0.5,1.0,1.5,2.5])
+            obs_uppers  =   np.array([0.5,1.0,1.5,2.5,4.0])
+        return self.getBinNum(dataU,obs_lowers,obs_uppers,subname)
 
-    def getBinNum(self,dataU,cut,cuts,doMag,obsname,force_90_pair):
+    def getBinNum(self,dataU,cut_lower,cut_upper,subname):
         """
         Parameters
         dataU: data after basic wl cut without the cut to test
@@ -114,31 +115,25 @@ class reGaus_selBiasTask(BatchPoolTask):
         cuts:the cuts at the other side (will force_90_pair)
         """
         slide_test_bins =   np.zeros(len(dataU),dtype=np.uint64)
-        if doMag:
-            for iu,ic in enumerate(cuts):
-                tmp_msk     =   (dataU[obsname]>ic)
-                tmp_msk[1::2]=  tmp_msk[0::2]
-                tmp_msk     &=  (dataU[obsname]<cut)
-                if force_90_pair:
-                    tmp_msk[1::2]=  tmp_msk[0::2]
-                slide_test_bins[tmp_msk]=(slide_test_bins[tmp_msk]|np.uint(2**iu))
-        else:
-            for iu,ic in enumerate(cuts):
-                tmp_msk     =   (dataU[obsname]<ic)
-                tmp_msk[1::2]=  tmp_msk[0::2]
-                tmp_msk     &=  (dataU[obsname]>cut)
-                if force_90_pair:
-                    tmp_msk[1::2]=  tmp_msk[0::2]
-                slide_test_bins[tmp_msk]=(slide_test_bins[tmp_msk]|np.uint(2**iu))
+        iu  =   0
+        for lc,uc in zip(cut_lower,cut_upper):
+            tmp_msk     =   (dataU[subname]>=lc)
+            tmp_msk    &=   (dataU[subname]<uc)
+            # force orthogonal to remove selection bias
+            tmp_msk[1::2]=  tmp_msk[0::2]
+            slide_test_bins[tmp_msk]=(slide_test_bins[tmp_msk]|np.uint(2**iu))
+            iu  +=  1
         return slide_test_bins
 
     @abortOnError
     def runDataRef(self,Id):
         obsname =   self.config.obsname
+        subname =   self.config.subname
         pool    =   Pool("reGaus_selBias")
         pool.cacheClear()
         pool.storeSet(anaDir=self.config.anaDir,
-                obsname=obsname,nbin_1d=self.config.nbin_1d,
+                obsname=obsname,subname=subname,
+                nbin_1d=self.config.nbin_1d,
                 force_90_pair=self.config.force_90_pair)
 
         gfn     =   os.path.join(self.config.anaDir,'*/smallcats/*.fits')
@@ -146,9 +141,11 @@ class reGaus_selBiasTask(BatchPoolTask):
         outcomes=   pool.map(self.process,fnList)
         outcomes=   [x for x in outcomes if x is not None]
         if not self.config.force_90_pair:
-            outFname=   os.path.join(self.config.pltDir,'shear_selbias_%s.npy' %obsname)
+            outFname=   os.path.join(self.config.pltDir,'shear_selbias_%s_%s.npy'
+                    %(obsname,subname))
         else:
-            outFname=   os.path.join(self.config.pltDir,'shear_selbias_%s_90rot.npy' %obsname)
+            outFname=   os.path.join(self.config.pltDir,'shear_selbias_%s_%s_90rot.npy'
+                    %(obsname,subname))
         np.save(outFname,outcomes)
         return
 
@@ -161,14 +158,26 @@ class reGaus_selBiasTask(BatchPoolTask):
 
         self.log.info('Applying WL mask')
         obsname =   cache.obsname
+        subname =   cache.subname
         nbin_1d =   cache.nbin_1d
         force_90_pair =   cache.force_90_pair
-        wlmaskS =   self.determineMask(catalog,obsname)
+        wlmaskS =   self.determineMask(catalog,obsname,force_90_pair)
         wlmaskS =   wlmaskS&(~np.isnan(utilities.get_photo_z(catalog,'mizuki')))
         catalog =   catalog[wlmaskS]
-
+        assert np.all(catalog['ipos'][0::2]==catalog['ipos'][1::2]-1)
         self.log.info('Determining bin number')
-        binMsk  =   self.determineBinMask(catalog,obsname,nbin_1d,force_90_pair)
+        binMsk  =   self.determineBinMask(catalog,subname,nbin_1d)
+        if not force_90_pair:
+            if obsname=="mag":
+                maskCut=(catalog["mag"]-catalog['a_i'])<=24.5
+            elif obsname=="magA10":
+                maskCut=catalog["magA10"]<=25.5
+            elif obsname=="res":
+                maskCut=catalog["res"]>=0.3
+            elif obsname=="snr":
+                maskCut=catalog["snr"]>=10.
+            catalog=catalog[maskCut]
+            binMsk=binMsk[maskCut]
 
         # Do a round trip
         model_m =   utilities.get_m_model(catalog,weight_bias=True,photo_z_dep=True)
