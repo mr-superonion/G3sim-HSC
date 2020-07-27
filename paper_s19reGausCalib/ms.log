@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  20 JUL 2020 20:49
+This is XeTeX, Version 3.14159265-2.6-0.99998 (TeX Live 2017/Debian) (preloaded format=xelatex 2019.6.4)  20 JUL 2020 21:37
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -396,31 +396,39 @@ Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: calibration_residual_marginalized.eps Graphic file (type eps)
 <calibration_residual_marginalized.eps> [5] [6] [7]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
-File: selBias_res.eps Graphic file (type eps)
-<selBias_res.eps> [8]
+File: selBias_s16a.eps Graphic file (type eps)
+<selBias_s16a.eps>
+Do not use \includegraphics directly. Use \FigureFile for graphics.
+File: selBias_ratio_s16a.eps Graphic file (type eps)
+<selBias_ratio_s16a.eps> [8]
 
 LaTeX Warning: Text page 9 contains only floats.
 
 [9]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
-File: selBias_magA10.eps Graphic file (type eps)
-<selBias_magA10.eps> (./ms.bbl)
+File: selBias_redshift.eps Graphic file (type eps)
+<selBias_redshift.eps>
+Do not use \includegraphics directly. Use \FigureFile for graphics.
+File: selBias_ratio_redshift.eps Graphic file (type eps)
+<selBias_ratio_redshift.eps>
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <6.47496> not available
-(Font)              size <6> substituted on input line 331.
+(Font)              size <6> substituted on input line 328.
 
 
-Overfull \hbox (43.82692pt too wide) in paragraph at lines 331--381
+Underfull \hbox (badness 10000) in paragraph at lines 340--340
+[][][]
+ []
+
+(./ms.bbl)
+Overfull \hbox (43.82692pt too wide) in paragraph at lines 350--400
 [][] 
  []
 
-
-Underfull \vbox (badness 1205) has occurred while \output is active []
-
- [10]
+[10]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: redshift_dep_s16_vs_s19.eps Graphic file (type eps)
-<redshift_dep_s16_vs_s19.eps> [11] [12] [13] (./ms.aux)
+<redshift_dep_s16_vs_s19.eps> [11] [12] [13] [14] (./ms.aux)
 
 LaTeX Font Warning: Size substitutions with differences
 (Font)              up to 0.75pt have occurred.
@@ -430,12 +438,12 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 3110 strings out of 493007
- 37520 string characters out of 6136720
- 164318 words of memory out of 5000000
- 7023 multiletter control sequences out of 15000+600000
+ 3116 strings out of 493007
+ 37699 string characters out of 6136720
+ 167318 words of memory out of 5000000
+ 7027 multiletter control sequences out of 15000+600000
  15107 words of font info for 81 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 32i,17n,28p,1214b,313s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 32i,17n,28p,1214b,317s stack positions out of 5000i,500n,10000p,200000b,80000s
 
-Output written on ms.pdf (13 pages).
+Output written on ms.pdf (14 pages).

@@ -239,7 +239,7 @@ a \propto (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.96}
 \centering{
 \includegraphics[width=0.9\textwidth]{calibration_residual_modeled.eps}
 }
-\caption{
+\caption{The dependence of calibration residuals the modeled properties.
         }
 \end{figure*}
 
@@ -248,7 +248,7 @@ a \propto (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.96}
 \centering{
 \includegraphics[width=0.9\textwidth]{calibration_residual_marginalized.eps}
 }
-\caption{
+\caption{The dependence of calibration residuals the marginalized properties.
         }
 \end{figure*}
 
@@ -304,22 +304,41 @@ at $X_{\rm{edge}}$ as $A_{m}$ ($A_{a}$).
 
 \begin{figure*}[ht!]
 \centering{
-\includegraphics[width=0.9\textwidth]{selBias_res.eps}
+\includegraphics[width=0.9\textwidth]{selBias_s16a.eps}
+\includegraphics[width=0.9\textwidth]{selBias_ratio_s16a.eps}
 }
 \caption{
         }
 \end{figure*}
+
 
 \begin{figure*}[ht!]
 \centering{
-\includegraphics[width=0.9\textwidth]{selBias_magA10.eps}
+\includegraphics[width=0.9\textwidth]{selBias_redshift.eps}
+\includegraphics[width=0.9\textwidth]{selBias_ratio_redshift.eps}
 }
 \caption{
         }
 \end{figure*}
-\section{The Shape Catalog}
 
-
+\subsection{Outputs}
+\section*{Galaxy Selection}
+\begin{table}
+\centering
+  \begin{tabular}{ll} \hline
+    Output properties & Meaning \\ \hline
+\multicolumn{2}{c}{Optimization} \\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$derived$\_$sigma$\_$e}& Error due to photon noise \\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$derived$\_$rms$\_$e}  & Shape noise\\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$derived$\_$weight}    & weak lensing shape weight\\ \hline
+\multicolumn{2}{c}{Calibration} \\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$derived$\_$bias$\_$m} & multiplicative bias\\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$derived$\_$bias$\_$c1}& the first component of additive bias\\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$derived$\_$bias$\_$c2}& the second component of additive bias\\ \hline
+\hline
+  \end{tabular}
+  \caption{}
+\end{table}
 
 \bibliographystyle{apj}
 \bibliography{weak_lensing,lensCat,cosmoSim,cmbObs,gglens,shearCor,massMap,other}
