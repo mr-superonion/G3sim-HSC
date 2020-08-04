@@ -21,7 +21,6 @@ def main():
         obsFname=   os.path.join(obsDir,'%s.fits' %(fieldname))
         zFname  =   os.path.join(obsDir,'%s_pz.fits' %(fieldname))
         outFname=   os.path.join(outDir,'%s_calibrated.fits' %(fieldname))
-        """
         data    =   Table.read(obsFname)
         zdat    =   Table.read(zFname)
         data['mizuki_photoz_best']      =   zdat['mizuki_photoz_best']
@@ -29,16 +28,13 @@ def main():
         data['mizuki_photoz_conf_best'] =   zdat['mizuki_photoz_conf_best']
         data['mizuki_photoz_err95_min'] =   zdat['mizuki_photoz_err95_min']
         data['mizuki_photoz_err95_max'] =   zdat['mizuki_photoz_err95_max']
+        data    =   utilities.update_wl_flags(data)
+        data    =   data[data['weak_lensing_flag']]
         data    =   utilities.update_reGaus_calibration(data)
         data.write(outFname)
         del data
         del zdat
         gc.collect()
-        """
-        data    =   Table.read(outFname)
-        data    =   utilities.update_wl_flags(data)
-        data    =   data[data['weak_lensing_flag']]
-        data.write(outFname,overwrite=True)
     return
 
 if __name__=='__main__':
