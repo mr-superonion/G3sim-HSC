@@ -5,10 +5,14 @@ import sys
 import time
 import gnupg
 import getpass
-import configparser
 
 import numpy as np
 from astropy.table import Table, join
+
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
 
 field_names = ['XMM',   \
               'GAMA09H',\
@@ -27,17 +31,36 @@ n_blind_cat =   3
 dm_range    =   0.10
 testing     =   True
 if testing:
+    user        =   'surhud'
+    user_info   =   'surhudkicp@gmail.com'
+    """
     user        =   'xiangchong'
     user_info   =   'xiangchong.li@ipmu.jp'
-    binder  =   'xiangchong'
-    hsc_info=   'xiangchong.li@ipmu.jp'
+    """
+    binder      =   'xiangchong'
+    hsc_info    =   'xiangchong.li@ipmu.jp'
 
 inDir   =       './.catalog_obs_reGaus_calibrated/fields/'
 outDir  =       './catalog_obs_reGaus_blinded/%s/' %(user)
 outDir0 =       './catalog_obs_reGaus_blinded/'
-configFname =   os.path.join(outDir,'config.ini')
 
 colname =       'i_hsmshaperegauss_derived_shear_bias_m'
+
+def PGP_to_FITS( message):
+    """
+    Code from Rachel
+    Turns a PGP message into a string that can be stored in a FITS
+    header, by removing the (\n) characters
+    """
+    return message.replace('\n','==c1l==')
+
+def FITS_to_PGP(message):
+    """
+    Code from Rachel
+    Turns a string stored into an FITS comment back into a proper
+    PGP message
+    """
+    return message.replace('==c1l==','\n')
 
 def generate_dm2_values(rand_gen):
     if rand_gen<1./3.:
@@ -80,27 +103,24 @@ def encrypt():
     dm2List =   generate_dm2_values(rand_gen)
 
     # write the encryption info into header
-    config = configparser.ConfigParser()
-    config.add_section('User Blinding')
-    config.set('User Blinding','keyid1', keyid1)
-    config.set('User Blinding','blinder', user)
-    config.add_section('HSC Blinding')
-    config.set('HSC Blinding','keyid2', keyid2)
-    config.set('HSC Blinding','blinder', blinder)
+    meta    =   {}
 
-    seed_cry  =   gpg.encrypt('%d' %seed, keyid2).data.decode('utf8')
-    config.set('HSC Blinding','seed' ,seed_cry)
+    meta.update({'user':user})
+    meta.update({'uid':keyid1})
+    meta.update({'blinder':blinder})
+    meta.update({'bid':keyid2})
+
+    seed_cry  =   PGP_to_FITS(gpg.encrypt('%d' %seed, keyid2).data.decode('utf8'))
+    meta.update({'seed':seed_cry})
 
     for ib in range(n_blind_cat):
         # dm1
-        dm1_cry  =   gpg.encrypt('%.5f' %dm1List[ib], keyid1).data.decode('utf8')
-        config.set('User Blinding','dm1-cat%d' %ib,dm1_cry)
+        dm1_cry =   PGP_to_FITS(gpg.encrypt('%.5f' %dm1List[ib], keyid1).data.decode('utf8'))
+        meta.update({'dm1c%s' %ib:dm1_cry})
         # dm2
-        dm2_cry  =   gpg.encrypt('%.5f' %dm2List[ib], keyid2).data.decode('utf8')
-        config.set('HSC Blinding','dm2-cat%d' %ib,dm2_cry)
+        dm2_cry =   PGP_to_FITS(gpg.encrypt('%.5f' %dm2List[ib], keyid2).data.decode('utf8'))
+        meta.update({'dm2c%s' %ib:dm2_cry})
 
-    with open(configFname,'w') as configfile:
-        config.write(configfile)
 
     for fieldname in field_names:
         inFname =   os.path.join(inDir,'%s_calibrated.fits' %(fieldname))
@@ -113,9 +133,10 @@ def encrypt():
                 print('dm2-cat%d: %.5f: ' %(ib,dm2List[ib]))
                 print('dm-cat%d:  %.5f  ' %(ib,dm))
             columnOut   =   Table([columnIn+dm])
+            columnOut.meta.update(meta)
             outFname=   os.path.join(outDir,'%s_blinded_%d_m.fits' %(fieldname,ib))
             if os.path.isfile(outFname):
-                print('Already have the outcome')
+                print('Already have the blinded catalog m')
                 continue
             columnOut.write(outFname,overwrite=True)
             del columnOut
@@ -129,23 +150,15 @@ def encrypt():
         gc.collect()
     return
 
-def decrypt():
-    assert os.path.isfile(configFname),\
-            'Do not have blinding info file'
-    config = configparser.ConfigParser()
-    config.read(configFname)
-    assert config.has_section('User Blinding'),\
-            "Do not have section for User Blinding"
-    assert config.has_section('HSC Blinding'),\
-            "Do not have section for HSC Blinding"
+def decrypt(header):
     keys    =   gpg.list_keys(secret=True)
     private_fingerprints = [ k['fingerprint'] for k in keys]
-    keyid1  =   config.get('User Blinding','keyid1')
+    keyid1  =   header['uid']
     if keyid1 in private_fingerprints:
         print('Decrypt User Blinding:')
         pwd = getpass.getpass(prompt="Password for %s: " %user_info)
         for ib in range(n_blind_cat):
-            dm1_cry= config.get('User Blinding','dm1-cat%d' %ib)
+            dm1_cry= FITS_to_PGP(header['dm1c%s' %ib])
             dec_s1 = gpg.decrypt(dm1_cry, passphrase=pwd)
             assert dec_s1.ok, "Problem during decryption: %s"%dec_s1.stderr
             dm  =   eval(dec_s1.data)
@@ -153,13 +166,12 @@ def decrypt():
     else:
         print('Cannot find user\'s  fingerprint!!')
 
-    print(private_fingerprints)
-    keyid2  =   config.get('HSC Blinding','keyid2')
+    keyid2  =   header['bid']
     if keyid2 in private_fingerprints:
         print('Decrypt HSC Blinding:')
         pwd = getpass.getpass(prompt="Password for %s: " %hsc_info)
         for ib in range(n_blind_cat):
-            dm2_cry= config.get('HSC Blinding','dm2-cat%d' %ib)
+            dm2_cry= FITS_to_PGP(header['dm2c%s' %ib])
             dec_s2 = gpg.decrypt(dm2_cry, passphrase=pwd)
             assert dec_s2.ok, "Problem during decryption: %s"%dec_s2.stderr
             dm  =   eval(dec_s2.data)
@@ -169,17 +181,22 @@ def decrypt():
     return
 
 def main(argv):
-    if len(argv)>2:
-        print('Too much arguments')
-        return
-    elif len(argv)<2:
-        print('Arguments not enough')
-        print('Please choose from (encrypt / decrypt)' )
-        return
     if argv[1]=='encrypt':
-        encrypt()
+        if len(argv)==2:
+            encrypt()
+        else:
+            print('Wrong number of inputs' )
+
     elif argv[1]=='decrypt':
-        decrypt()
+        if len(argv)==3:
+            if os.path.isfile(argv[2]):
+                decrypt(pyfits.getheader(argv[2],1))
+            else:
+                print('Cannot find the fits file %s' %argv[2])
+        elif len(argv)<3:
+            print('Please input the relative directory of a fits file' )
+        elif len(argv)>3:
+            print('Wrong number of inputs' )
     else:
         print('Do not support argument %s' %argv[1])
         print('Please choose from (encrypt / decrypt)' )
