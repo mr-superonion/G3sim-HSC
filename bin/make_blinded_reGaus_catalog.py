@@ -14,37 +14,31 @@ try:
 except:
     import pyfits
 
+gpgfile     =   "/home/xiangchong.li/.gnupg"  #NOTE: The gpg file of the user
+gpg         =   gnupg.GPG(gnupghome=gpgfile)
+
+testing     =   True
+if not testing:
+    user        =   'xiangchong'
+    user_mail   =   'xiangchong.li@ipmu.jp'
+    blinder     =   'Jim Bosch'
+    hsc_mail    =   'hscblinder@gmail.com'
+else:
+    """
+    user        =   'surhud'
+    user_mail   =   'surhudkicp@gmail.com'
+    """
+    user        =   'xiangchong'
+    user_mail   =   'xiangchong.li@ipmu.jp'
+    blinder      =   'xiangchong'
+    hsc_mail    =   'xiangchong.li@ipmu.jp'
+
 field_names = ['XMM',   \
               'GAMA09H',\
               'WIDE12H',\
               'GAMA15H',\
               'VVDS'   ,\
               'HECTOMAP']
-
-gpg         =   gnupg.GPG(gnupghome="/home/xiangchong.li/.gnupg")
-user        =   'xiangchong'
-user_info   =   'xiangchong.li@ipmu.jp'
-blinder     =   'Jim Bosch'
-hsc_info    =   'hscblinder@gmail.com'
-
-n_blind_cat =   3
-dm_range    =   0.10
-testing     =   True
-if testing:
-    user        =   'surhud'
-    user_info   =   'surhudkicp@gmail.com'
-    """
-    user        =   'xiangchong'
-    user_info   =   'xiangchong.li@ipmu.jp'
-    """
-    binder      =   'xiangchong'
-    hsc_info    =   'xiangchong.li@ipmu.jp'
-
-inDir   =       './.catalog_obs_reGaus_calibrated/fields/'
-outDir  =       './catalog_obs_reGaus_blinded/%s/' %(user)
-outDir0 =       './catalog_obs_reGaus_blinded/'
-
-colname =       'i_hsmshaperegauss_derived_shear_bias_m'
 
 def PGP_to_FITS( message):
     """
@@ -69,58 +63,75 @@ def generate_dm2_values(rand_gen):
         m_blind=[-0.05, 0.00, 0.05]
     elif rand_gen>2./3.:
         m_blind=[ 0.00, 0.05, 0.10]
-    return m_blind
+    return np.array(m_blind)
 
-def generate_dm1_values():
+def generate_dm1_values(n_blind_cat,dm_range):
     m_blind=[]
     for ib in range(n_blind_cat):
        m_blind.append(dm_range*(2.*np.random.rand()-1))
     return m_blind
 
 def encrypt():
+    # paramters
+    n_blind_cat =   3
+    dm_range    =   0.10
+
+    # directory
+    inDir   =       './.catalog_obs_reGaus_calibrated/fields/'
+    outDir  =       './catalog_obs_reGaus_blinded/%s-%dblind/' %(user,n_blind_cat)
+    outDir0 =       './catalog_obs_reGaus_blinded/'
     if not os.path.exists(outDir):
         os.system('mkdir -p %s' %outDir)
-    # Blind random generator
-    seed    =   int(time.time())
-    np.random.seed(seed)
 
+    colname =       'i_hsmshaperegauss_derived_shear_bias_m'
+
+    # get the key ids
     keys    = gpg.list_keys()
     keyid1 = None
     keyid2 = None
     for k in keys:
-        if user_info in k['uids'][0]:
+        if user_mail in k['uids'][0]:
             keyid1  =   k['fingerprint']
-        if hsc_info in k['uids'][0]:
+        if hsc_mail in k['uids'][0]:
             keyid2  =   k['fingerprint']
+
+    # generate dm1 lists
     assert keyid1 is not None, \
-            "Key fingerprint not found for %s" %(user_info)
-    assert keyid2 is not None, \
-            "Key fingerprint not found for %s" %(hsc_info)
-
-    # generate dm lists
-    dm1List =   generate_dm1_values()
-    rand_gen=   np.random.rand()
-    dm2List =   generate_dm2_values(rand_gen)
-
-    # write the encryption info into header
+            "Key fingerprint not found for %s" %(user_mail)
+    dm1List =   generate_dm1_values(n_blind_cat,dm_range)
+    # write the dm1 into header
     meta    =   {}
-
+    meta.update({'ncat':n_blind_cat})
     meta.update({'user':user})
     meta.update({'uid':keyid1})
-    meta.update({'blinder':blinder})
-    meta.update({'bid':keyid2})
 
-    seed_cry  =   PGP_to_FITS(gpg.encrypt('%d' %seed, keyid2).data.decode('utf8'))
-    meta.update({'seed':seed_cry})
+    if n_blind_cat==3:
+        # generate dm2 lists
+        assert keyid2 is not None, \
+                "Key fingerprint not found for %s" %(hsc_mail)
+        # blinding seed
+        seed    =   int(time.time())
+        np.random.seed(seed)
+        seed_cry  =   PGP_to_FITS(gpg.encrypt('%d' %seed, keyid2).data.decode('utf8'))
+        rand_gen=   np.random.rand()
+        dm2List =   generate_dm2_values(rand_gen)
+        # write the dm2 into header
+        meta.update({'blinder':blinder})
+        meta.update({'bid':keyid2})
+        meta.update({'seed':seed_cry})
+        if testing: print('Random seed %d' %seed)
+    else:
+        dm2List =   np.zeros(n_blind_cat)
+
 
     for ib in range(n_blind_cat):
         # dm1
         dm1_cry =   PGP_to_FITS(gpg.encrypt('%.5f' %dm1List[ib], keyid1).data.decode('utf8'))
         meta.update({'dm1c%s' %ib:dm1_cry})
         # dm2
-        dm2_cry =   PGP_to_FITS(gpg.encrypt('%.5f' %dm2List[ib], keyid2).data.decode('utf8'))
-        meta.update({'dm2c%s' %ib:dm2_cry})
-
+        if not np.all(np.abs(dm2List)<1.e-4):
+            dm2_cry =   PGP_to_FITS(gpg.encrypt('%.5f' %dm2List[ib], keyid2).data.decode('utf8'))
+            meta.update({'dm2c%s' %ib:dm2_cry})
 
     for fieldname in field_names:
         inFname =   os.path.join(inDir,'%s_calibrated.fits' %(fieldname))
@@ -151,12 +162,13 @@ def encrypt():
     return
 
 def decrypt(header):
+    n_blind_cat=    header['ncat']
     keys    =   gpg.list_keys(secret=True)
     private_fingerprints = [ k['fingerprint'] for k in keys]
     keyid1  =   header['uid']
     if keyid1 in private_fingerprints:
         print('Decrypt User Blinding:')
-        pwd = getpass.getpass(prompt="Password for %s: " %user_info)
+        pwd = getpass.getpass(prompt="Password for dm1: ")
         for ib in range(n_blind_cat):
             dm1_cry= FITS_to_PGP(header['dm1c%s' %ib])
             dec_s1 = gpg.decrypt(dm1_cry, passphrase=pwd)
@@ -164,12 +176,21 @@ def decrypt(header):
             dm  =   eval(dec_s1.data)
             print('dm1-cat%d: %.5f' %(ib,dm))
     else:
-        print('Cannot find user\'s  fingerprint!!')
+        print('Cannot find user\'s  fingerprint to decrypt dm1!!')
 
+    if n_blind_cat!=3:
+        print('Do not have HSC level blinding')
+        return
     keyid2  =   header['bid']
     if keyid2 in private_fingerprints:
-        print('Decrypt HSC Blinding:')
-        pwd = getpass.getpass(prompt="Password for %s: " %hsc_info)
+        print('\nDecrypt HSC Blinding:')
+        pwd = getpass.getpass(prompt="Password for dm2: ")
+
+        seed_cry=   FITS_to_PGP(header['seed'])
+        dec_s2  =   gpg.decrypt(seed_cry, passphrase=pwd)
+        assert dec_s2.ok, "Problem during decryption: %s"%dec_s2.stderr
+        seed    =   eval(dec_s2.data)
+        print('Random seed is: %d' %seed)
         for ib in range(n_blind_cat):
             dm2_cry= FITS_to_PGP(header['dm2c%s' %ib])
             dec_s2 = gpg.decrypt(dm2_cry, passphrase=pwd)
@@ -177,7 +198,7 @@ def decrypt(header):
             dm  =   eval(dec_s2.data)
             print('dm2-cat%d: %.5f' %(ib,dm))
     else:
-        print('Cannot find hsc\'s  fingerprint!!')
+        print('Cannot find hsc\'s  fingerprint for dm2!!')
     return
 
 def main(argv):
@@ -186,7 +207,6 @@ def main(argv):
             encrypt()
         else:
             print('Wrong number of inputs' )
-
     elif argv[1]=='decrypt':
         if len(argv)==3:
             if os.path.isfile(argv[2]):
