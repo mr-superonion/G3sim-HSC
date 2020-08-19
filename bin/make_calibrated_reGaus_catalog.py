@@ -5,6 +5,11 @@ import numpy as np
 from astropy.table import Table, vstack
 import sim_analysis_utilities as utilities
 
+del_columns = [
+    'i_hsmshaperegauss_derived_bias_m',
+    'i_hsmshaperegauss_derived_bias_c1',
+    'i_hsmshaperegauss_derived_bias_c2']
+
 outDir  =   './catalog_obs_reGaus_calibrated/fields/'
 if not os.path.exists(outDir):
     os.system('mkdir -p %s' %outDir)
@@ -13,7 +18,6 @@ obsDir  =   '../../database/s19-Hironao-2/fields/'
 if not os.path.isdir(obsDir):
     raise RuntimeError("Data catalog directory %s does not exist "
         "or is not a directory" % (obsDir))
-
 
 def main():
     for fieldname in utilities.field_names:
@@ -29,8 +33,15 @@ def main():
         data['mizuki_photoz_err95_min'] =   zdat['mizuki_photoz_err95_min']
         data['mizuki_photoz_err95_max'] =   zdat['mizuki_photoz_err95_max']
         data    =   utilities.update_wl_flags(data)
-        data    =   data[data['weak_lensing_flag']]
+        mask    =   data['weak_lensing_flag']
+        mask    &=  (~np.isnan(data['i_hsmshaperegauss_derived_shear_bias_c1']))
+        mask    &=  (~np.isnan(data['i_hsmshaperegauss_derived_shear_bias_c2']))
+        mask    &=  (~np.isnan(data['i_hsmshaperegauss_derived_shear_bias_m']))
+        data    =   data[mask]
         data    =   utilities.update_reGaus_calibration(data)
+        # delete unnecessary columns
+        for entry in del_columns:
+            del data[entry]
         data.write(outFname)
         del data
         del zdat

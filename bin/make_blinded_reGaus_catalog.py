@@ -17,10 +17,10 @@ except:
 gpgfile     =   "/home/xiangchong.li/.gnupg"  #NOTE: The gpg file of the user
 gpg         =   gnupg.GPG(gnupghome=gpgfile)
 
-testing     =   True
+testing     =   False
 if not testing:
-    user        =   'xiangchong'
-    user_mail   =   'xiangchong.li@ipmu.jp'
+    user        =   'masamune'
+    user_mail   =   'masamune.oguri@ipmu.jp'
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
 else:
@@ -42,19 +42,37 @@ field_names = ['XMM',   \
 
 def PGP_to_FITS( message):
     """
-    Code from Rachel
     Turns a PGP message into a string that can be stored in a FITS
-    header, by removing the (\n) characters
+    header, by removing the header and footer of the message as well
+    as any \n characters
     """
-    return message.replace('\n','==c1l==')
+    s = ""
+    for st in message.split("\n"):
+        if len(st) > 0 and "PGP MESSAGE" not in st and "GnuPG" not in st:
+            s += st
+    return s
 
 def FITS_to_PGP(message):
     """
-    Code from Rachel
     Turns a string stored into an FITS comment back into a proper
     PGP message
     """
-    return message.replace('==c1l==','\n')
+    s = "-----BEGIN PGP MESSAGE-----\n\n"
+    s += message
+    s += "\n-----END PGP MESSAGE-----\n"
+    return s
+
+"""
+def PGP_to_FITS(message):
+    #Turns a PGP message into a string that can be stored in a FITS
+    #header, by removing the (\n) characters
+    return message.replace('\n','=c1l=c1l=c1l=')
+
+def FITS_to_PGP(message):
+    #Turns a string stored into an FITS comment back into a proper
+    #PGP message
+    return message.replace('=c1l=c1l=c1l=','\n')
+"""
 
 def generate_dm2_values(rand_gen):
     if rand_gen<1./3.:
@@ -73,15 +91,18 @@ def generate_dm1_values(n_blind_cat,dm_range):
 
 def encrypt():
     # paramters
-    n_blind_cat =   3
+    n_blind_cat =   1
     dm_range    =   0.10
 
     # directory
     inDir   =       './.catalog_obs_reGaus_calibrated/fields/'
-    outDir  =       './catalog_obs_reGaus_blinded/%s-%dblind/' %(user,n_blind_cat)
-    outDir0 =       './catalog_obs_reGaus_blinded/'
+    if testing:
+        outDir  =       './catalog_obs_reGaus_blinded_m/%s-%dblind-test/' %(user,n_blind_cat)
+    else:
+        outDir  =       './catalog_obs_reGaus_blinded_m/%s-%dblind/' %(user,n_blind_cat)
     if not os.path.exists(outDir):
         os.system('mkdir -p %s' %outDir)
+    outDir0 =       './catalog_obs_reGaus_no_m/'
 
     colname =       'i_hsmshaperegauss_derived_shear_bias_m'
 
@@ -108,11 +129,13 @@ def encrypt():
     if n_blind_cat==3:
         # generate dm2 lists
         assert keyid2 is not None, \
-                "Key fingerprint not found for %s" %(hsc_mail)
+            "Key fingerprint not found for %s" %(hsc_mail)
         # blinding seed
         seed    =   int(time.time())
         np.random.seed(seed)
-        seed_cry  =   PGP_to_FITS(gpg.encrypt('%d' %seed, keyid2).data.decode('utf8'))
+        seedtmp =   gpg.encrypt('%d' %seed, keyid2).data.decode('utf8')
+        #assert '=c1l=c1l=c1l=' not in seedtmp
+        seed_cry  =   PGP_to_FITS(seedtmp)
         rand_gen=   np.random.rand()
         dm2List =   generate_dm2_values(rand_gen)
         # write the dm2 into header
@@ -126,11 +149,15 @@ def encrypt():
 
     for ib in range(n_blind_cat):
         # dm1
-        dm1_cry =   PGP_to_FITS(gpg.encrypt('%.5f' %dm1List[ib], keyid1).data.decode('utf8'))
+        dmtmp   =   gpg.encrypt('%.5f' %dm1List[ib], keyid1).data.decode('utf8')
+        #assert '=c1l=c1l=c1l=' not in dmtmp
+        dm1_cry =   PGP_to_FITS(dmtmp)
         meta.update({'dm1c%s' %ib:dm1_cry})
         # dm2
         if not np.all(np.abs(dm2List)<1.e-4):
-            dm2_cry =   PGP_to_FITS(gpg.encrypt('%.5f' %dm2List[ib], keyid2).data.decode('utf8'))
+            dmtmp   =  gpg.encrypt('%.5f' %dm2List[ib], keyid2).data.decode('utf8')
+            #assert '=c1l=c1l=c1l=' not in dmtmp
+            dm2_cry =   PGP_to_FITS(dmtmp)
             meta.update({'dm2c%s' %ib:dm2_cry})
 
     for fieldname in field_names:
@@ -156,7 +183,7 @@ def encrypt():
         outNmFname=os.path.join(outDir0,'%s_no_m.fits' %(fieldname))
         if not os.path.isfile(outNmFname):
             del data[colname]
-            data.write(outDir0)
+            data.write(outNmFname)
         del data
         gc.collect()
     return
