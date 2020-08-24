@@ -240,6 +240,7 @@ LEFT JOIN s19a_wide.meas3 as meas3 using (object_id)
 LEFT JOIN s19a_wide.meas4 as meas4 using (object_id)
 LEFT JOIN s19a_wide.forced as forced using (object_id)
 LEFT JOIN s19a_wide.forced2 as forced2 using (object_id)
+LEFT JOIN s18a_wide.forced3 as forced3 using (object_id)
 LEFT JOIN s19a_wide.masks as masks using (object_id)
 
 WHERE
