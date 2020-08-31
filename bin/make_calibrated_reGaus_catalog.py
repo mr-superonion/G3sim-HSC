@@ -10,7 +10,7 @@ del_columns = [
     'i_hsmshaperegauss_derived_bias_c1',
     'i_hsmshaperegauss_derived_bias_c2']
 
-outDir  =   './catalog_obs_reGaus_calibrated/fields/'
+outDir  =   './.catalog_obs_reGaus_calibrated/fields/'
 if not os.path.exists(outDir):
     os.system('mkdir -p %s' %outDir)
 

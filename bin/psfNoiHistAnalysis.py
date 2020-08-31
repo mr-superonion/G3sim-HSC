@@ -37,7 +37,6 @@ var_bin     =   np.linspace(0.001,0.01,nbin1)
 var_bin_0   =   var_bin[:-1]
 var_bin_1   =   var_bin[1:]
 gridNoi     =   (var_bin_0+var_bin_1)/2.
-colors      =   ['blue','red']
 
 def main():
     for fname in utilities.field_keys.values():

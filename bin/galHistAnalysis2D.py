@@ -19,7 +19,6 @@ import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 
 version =   's19'
-matver  =   's16'
 anaDir  =   'anaCat_newS19Mask'
 # Checks that the paths provided are valid
 if not os.path.isdir(anaDir):
@@ -36,8 +35,6 @@ obsAname=   os.path.join(obsDir,'smallcat-wl-s19-2-2.fits')
 pltDir2 =   'plot/galDis2D/'
 if not os.path.exists(pltDir2):
     os.system('mkdir -p %s' %pltDir2)
-
-datanames   =   ['res','snr','mag','absE','logb','weight']
 
 def main():
     allSim,allObs=getAllDat()
