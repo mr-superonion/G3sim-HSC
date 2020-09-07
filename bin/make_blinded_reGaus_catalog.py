@@ -19,8 +19,12 @@ gpg         =   gnupg.GPG(gnupghome=gpgfile)
 
 testing     =   False
 if not testing:
+    """
     user        =   'masamune'
     user_mail   =   'masamune.oguri@ipmu.jp'
+    """
+    user        =   'wenting'
+    user_mail   =   'wenting.wang@sjtu.edu.cn'
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
 else:
