@@ -39,9 +39,9 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class prepareSimAnalysisConfig(pexConfig.Config):
-    anaDir  =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask', doc = 'output catalogs')
+    anaDir  =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut', doc = 'output catalogs')
     simDir  =   pexConfig.Field(dtype=str, default='outcomeHSM', doc = 'input catalogs')
-    infoName=   pexConfig.Field(dtype=str, default='info_newS19Mask_sim.csv', doc = 'input catalogs')
+    infoName=   pexConfig.Field(dtype=str, default='info_newS19Mask_fd001_sim.csv', doc = 'input catalogs')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):

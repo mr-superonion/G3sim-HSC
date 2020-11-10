@@ -23,8 +23,8 @@ if not testing:
     user        =   'masamune'
     user_mail   =   'masamune.oguri@ipmu.jp'
     """
-    user        =   'wenting'
-    user_mail   =   'wenting.wang@sjtu.edu.cn'
+    user        =   'Wentao Luo'
+    user_mail   =   'wentao.luo@ipmu.jp'
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
 else:
@@ -101,9 +101,9 @@ def encrypt():
     # directory
     inDir   =       './.catalog_obs_reGaus_calibrated/fields/'
     if testing:
-        outDir  =       './catalog_obs_reGaus_blinded_m/%s-%dblind-test/' %(user,n_blind_cat)
+        outDir  =       './catalog_obs_reGaus_blinded_m/%s-%dblind-test/' %(user.replace(' ','_'),n_blind_cat)
     else:
-        outDir  =       './catalog_obs_reGaus_blinded_m/%s-%dblind/' %(user,n_blind_cat)
+        outDir  =       './catalog_obs_reGaus_blinded_m/%s-%dblind/' %(user.replace(' ','_'),n_blind_cat)
     if not os.path.exists(outDir):
         os.system('mkdir -p %s' %outDir)
     outDir0 =       './catalog_obs_reGaus_no_m/'

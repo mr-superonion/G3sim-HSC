@@ -14,10 +14,10 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_shearCalibConfig(pexConfig.Config):
-    anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask', doc = 'simulation catalogs')
-    pltDir      =   pexConfig.Field(dtype=str, default='plot/reGausCalib', doc = 'simulation catalogs')
+    anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut', doc = 'simulation catalogs')
+    pltDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut/plot/reGausCalib', doc = 'simulation catalogs')
     nbin_1d     =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
-    force_weight=   pexConfig.Field(dtype=bool, default=False, doc = 'for weight bias')
+    force_weight=   pexConfig.Field(dtype=bool, default=True, doc = 'for weight bias')
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
