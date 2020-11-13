@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import astropy.io.ascii as ascii
 import sim_analysis_utilities as utilities
 
 import lsst.daf.base as dafBase
@@ -17,7 +18,7 @@ class reGaus_shearCalibConfig(pexConfig.Config):
     anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut', doc = 'simulation catalogs')
     pltDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut/plot/reGausCalib', doc = 'simulation catalogs')
     nbin_1d     =   pexConfig.Field(dtype=int, default=8, doc = 'number of bins for 1-D parameter space')
-    force_weight=   pexConfig.Field(dtype=bool, default=True, doc = 'for weight bias')
+    force_weight=   pexConfig.Field(dtype=bool, default=False, doc = 'for weight bias')
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
@@ -59,7 +60,10 @@ class reGaus_shearCalibTask(BatchPoolTask):
         inFname =   os.path.join(self.config.anaDir,'allSim.h5')
         dataF   =   pd.read_hdf(inFname)
         dataF   =   dataF[dataF['wlmask_90rot']]
-        indexList=  dataF.index.levels[1]
+        indexS=  dataF.index.levels[1]
+        indexList= ascii.read('info_newS19Mask_fd001_sim.csv')['num']
+        mask=np.in1d(indexList,indexS)
+        indexList=indexList[mask]
         pool    =   Pool("reGaus_shearCalib")
         pool.cacheClear()
         pool.storeSet(anaDir=self.config.anaDir,

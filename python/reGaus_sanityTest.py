@@ -15,10 +15,9 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_sanityTestConfig(pexConfig.Config):
-    anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask', doc = 'simulation catalogs')
-    pltDir      =   pexConfig.Field(dtype=str, default='plot/sanityTest_withZ/', doc = 'simulation catalogs')
-    obsname     =   pexConfig.Field(dtype=str, default='mag', doc = 'name of the selection function')
-    photo_z_dep =   pexConfig.Field(dtype=bool, default=True, doc = 'weather model photo-z dependence?')
+    anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut/', doc = 'simulation catalogs directory')
+    obsname     =   pexConfig.Field(dtype=str, default='dnn_Z', doc = 'name of the selection function')
+    photo_z_dep =   pexConfig.Field(dtype=bool,default= True, doc = 'weather model photo-z dependence?')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
@@ -26,7 +25,7 @@ class reGaus_sanityTestConfig(pexConfig.Config):
         # Checks that the paths provided are valid
         if not os.path.isdir(self.anaDir):
             raise RuntimeError("Simulation catalog directory %s does not exist "
-                         "or is not a directory" % (self.anaDir))
+                 "or is not a directory" % (self.anaDir))
 
 class reGaus_sanityTestRunner(TaskRunner):
     @staticmethod
@@ -80,6 +79,9 @@ class reGaus_sanityTestTask(BatchPoolTask):
         elif obsname=="mizuki_Z":
             obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.5,4.])
             nbin_1d     =   len(obs_bounds)-1
+        elif obsname=="dnn_Z":
+            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.5,4.])
+            nbin_1d     =   len(obs_bounds)-1
         elif obsname=="COSMOS_Mag":
             min_obs=21.5
             max_obs=24.5
@@ -113,9 +115,11 @@ class reGaus_sanityTestTask(BatchPoolTask):
         fnList  =   glob.glob(gfn)
         outcomes=   pool.map(self.process,fnList)
         if photo_z_dep:
-            pltDir='plot/sanityTest_withZ/'
+            pltDir= 'anaCat_newS19Mask_fdeltacut/plot/sanityTest_withZ/'
         else:
-            pltDir='plot/sanityTest/'
+            pltDir= 'anaCat_newS19Mask_fdeltacut/plot/sanityTest/'
+        if not os.path.isdir(pltDir):
+            os.mkdir(pltDir)
         outFname=   os.path.join(pltDir,'shear_sanitytest_%s_90rot.npy' %obsname)
         np.save(outFname,outcomes)
         return

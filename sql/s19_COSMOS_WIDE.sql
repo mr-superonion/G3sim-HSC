@@ -76,7 +76,6 @@ SELECT
 , forced.y_cmodel_fluxerr   as forced_y_cmodel_fluxerr
 , forced.y_cmodel_flag      as forced_y_cmodel_flag
 
-
 ,meas2.i_psfflux_mag
 ,meas2.i_psfflux_magerr
 
@@ -130,6 +129,24 @@ SELECT
 , mizuki.photoz_err95_min as mizuki_photoz_err95_min
 , mizuki.photoz_err95_max as mizuki_photoz_err95_max
 
+, mizukiv2.photoz_best as mizukiv2_photoz_best
+, mizukiv2.photoz_conf_best as mizukiv2_photoz_conf_best
+, mizukiv2.photoz_std_best as mizukiv2_photoz_std_best
+, mizukiv2.photoz_err95_min as mizukiv2_photoz_err95_min
+, mizukiv2.photoz_err95_max as mizukiv2_photoz_err95_max
+
+, dempv2.photoz_best as dempv2_photoz_best
+, dempv2.photoz_conf_best as dempv2_photoz_conf_best
+, dempv2.photoz_std_best as dempv2_photoz_std_best
+, dempv2.photoz_err95_min as dempv2_photoz_err95_min
+, dempv2.photoz_err95_max as dempv2_photoz_err95_max
+
+, dnnzv2.photoz_best as dnnzv2_photoz_best
+, dnnzv2.photoz_conf_best as dnnzv2_photoz_conf_best
+, dnnzv2.photoz_std_best as dnnzv2_photoz_std_best
+, dnnzv2.photoz_err95_min as dnnzv2_photoz_err95_min
+, dnnzv2.photoz_err95_max as dnnzv2_photoz_err95_max
+
 FROM
 s19a_wide.meas as meas
 LEFT JOIN s19a_wide.meas2 as meas2 using (object_id)
@@ -137,6 +154,9 @@ LEFT JOIN s19a_wide.meas3 as meas3 using (object_id)
 LEFT JOIN s19a_wide.forced as forced using (object_id)
 LEFT JOIN s19a_wide.masks as masks using (object_id)
 LEFT JOIN s19a_wide.photoz_mizuki as mizuki using (object_id)
+LEFT JOIN s19a_wide.photoz_v2_mizuki as mizukiv2 using (object_id)
+LEFT JOIN s19a_wide.photoz_v2_dnnz as dnnzv2 using (object_id)
+LEFT JOIN s19a_wide.photoz_v2_demp as dempv2 using (object_id)
 
 WHERE
 meas.tract  IN  (9570,9571,9812,9813,9814,10054,10055,10056) AND
