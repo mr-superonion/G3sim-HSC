@@ -17,7 +17,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 class reGaus_sanityTestConfig(pexConfig.Config):
     anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut/', doc = 'simulation catalogs directory')
     obsname     =   pexConfig.Field(dtype=str, default='dnn_Z', doc = 'name of the selection function')
-    photo_z_dep =   pexConfig.Field(dtype=bool,default= True, doc = 'weather model photo-z dependence?')
+    photo_z_dep =   pexConfig.Field(dtype=bool,default= True, doc = 'whether model photo-z dependence?')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
@@ -80,6 +80,9 @@ class reGaus_sanityTestTask(BatchPoolTask):
             obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.5,4.])
             nbin_1d     =   len(obs_bounds)-1
         elif obsname=="dnn_Z":
+            obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.5,4.])
+            nbin_1d     =   len(obs_bounds)-1
+        elif obsname=="demp_Z":
             obs_bounds  =   np.array([0.0,0.5,1.0,1.5,2.5,4.])
             nbin_1d     =   len(obs_bounds)-1
         elif obsname=="COSMOS_Mag":
