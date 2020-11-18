@@ -14,17 +14,24 @@ try:
 except:
     import pyfits
 
+anaDir      =   "anaCat_newS19Mask_fdeltacut"
 gpgfile     =   "/home/xiangchong.li/.gnupg"  #NOTE: The gpg file of the user
 gpg         =   gnupg.GPG(gnupghome=gpgfile)
 
 testing     =   False
 if not testing:
     """
+    user        =   'masato'
+    user_mail   =   'masato.shirasaki@gmail.com'
+    user        =   'wentao'
+    user_mail   =   'wentao.luo@ipmu.jp'
+    user        =   'wenting'
+    user_mail   =   'wenting.wang@sjtu.edu.cn'
     user        =   'masamune'
     user_mail   =   'masamune.oguri@ipmu.jp'
+    user        =   'masato'
+    user_mail   =   'masato.shirasaki@gmail.com'
     """
-    user        =   'Wentao Luo'
-    user_mail   =   'wentao.luo@ipmu.jp'
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
 else:
@@ -99,14 +106,16 @@ def encrypt():
     dm_range    =   0.10
 
     # directory
-    inDir   =       './.catalog_obs_reGaus_calibrated/fields/'
+    inDir   =       os.path.join(anaDir,'catalog_obs_reGaus_calibrated')
     if testing:
-        outDir  =       './catalog_obs_reGaus_blinded_m/%s-%dblind-test/' %(user.replace(' ','_'),n_blind_cat)
+        outDir  =       os.path.join(anaDir,'catalog_obs_reGaus_blinded_m/%s-%dblind-test/' %(user.replace(' ','_'),n_blind_cat))
     else:
-        outDir  =       './catalog_obs_reGaus_blinded_m/%s-%dblind/' %(user.replace(' ','_'),n_blind_cat)
+        outDir  =       os.path.join(anaDir,'catalog_obs_reGaus_blinded_m/%s-%dblind/' %(user.replace(' ','_'),n_blind_cat))
     if not os.path.exists(outDir):
         os.system('mkdir -p %s' %outDir)
-    outDir0 =       './catalog_obs_reGaus_no_m/'
+    outDir0 =       os.path.join(anaDir,'catalog_obs_reGaus_no_m/')
+    if not os.path.isdir(outDir0):
+        os.system('mkdir -p outDir0')
 
     colname =       'i_hsmshaperegauss_derived_shear_bias_m'
 
@@ -149,7 +158,6 @@ def encrypt():
         if testing: print('Random seed %d' %seed)
     else:
         dm2List =   np.zeros(n_blind_cat)
-
 
     for ib in range(n_blind_cat):
         # dm1

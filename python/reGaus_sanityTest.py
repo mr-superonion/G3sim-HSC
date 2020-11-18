@@ -17,7 +17,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 class reGaus_sanityTestConfig(pexConfig.Config):
     anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut/', doc = 'simulation catalogs directory')
     obsname     =   pexConfig.Field(dtype=str, default='dnn_Z', doc = 'name of the selection function')
-    photo_z_dep =   pexConfig.Field(dtype=bool,default= True, doc = 'whether model photo-z dependence?')
+    photo_z_dep =   pexConfig.Field(dtype=bool,default= False, doc = 'whether model photo-z dependence?')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):

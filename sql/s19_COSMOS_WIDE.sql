@@ -22,12 +22,10 @@ SELECT
 ,meas3.i_apertureflux_15_flux
 ,meas3.i_apertureflux_15_fluxerr
 
-
 ,meas3.i_apertureflux_10_mag
 ,meas3.i_apertureflux_10_magerr
 ,meas3.i_apertureflux_15_mag
 ,meas3.i_apertureflux_15_magerr
-
 
 ,meas2.i_hsmpsfmoments_shape11
 ,meas2.i_hsmpsfmoments_shape22
@@ -43,7 +41,6 @@ SELECT
 , forced.a_i
 , forced.a_z
 , forced.a_y
-
 
 -- forced CModel magnitudes and fluxes
 , forced.g_cmodel_mag       as forced_g_cmodel_mag
@@ -163,7 +160,6 @@ meas.tract  IN  (9570,9571,9812,9813,9814,10054,10055,10056) AND
 boxSearch(coord, 149, 151, 1.5, 3.0)        AND
 NOT meas.i_deblend_skipped                  AND
 NOT meas2.i_sdsscentroid_flag               AND
-
 
 meas.i_detect_isprimary                     AND
 NOT meas2.i_hsmshaperegauss_flag            AND

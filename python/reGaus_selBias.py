@@ -16,12 +16,13 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 class reGaus_selBiasConfig(pexConfig.Config):
-    anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask', doc = 'simulation catalogs')
-    pltDir      =   pexConfig.Field(dtype=str, default='plot/selBias-2/', doc = 'simulation catalogs')
+    anaDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut', doc = 'simulation catalogs')
+    pltDir      =   pexConfig.Field(dtype=str, default='anaCat_newS19Mask_fdeltacut/plot/selBias/',
+                        doc = 'simulation catalogs')
     obsname     =   pexConfig.Field(dtype=str, default='mag', doc = 'name of the selection function')
-    subname  =   pexConfig.Field(dtype=str, default='mizuki_Z', doc = 'name of the selection function')
+    subname     =   pexConfig.Field(dtype=str, default='mizuki_Z', doc = 'name of the selection function')
     nbin_1d     =   pexConfig.Field(dtype=int, default=5, doc = 'number of bins for 1-D parameter space')
-    force_90_pair     =   pexConfig.Field(dtype=bool, default=True, doc = 'wheter to force 90 degree galaxies')
+    force_90_pair     =   pexConfig.Field(dtype=bool, default=False, doc = 'wheter to force 90 degree galaxies')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
@@ -89,7 +90,6 @@ class reGaus_selBiasTask(BatchPoolTask):
         return wlmaskS
 
     def determineBinMask(self,dataU,subname,nbin_1d):
-
         if subname=="mag":
             obs_lowers  =   np.linspace(20,22.5,nbin_1d)
             obs_uppers  =   100.*np.ones(nbin_1d)
@@ -97,7 +97,7 @@ class reGaus_selBiasTask(BatchPoolTask):
             obs_lowers  =   np.linspace(23,24.5,nbin_1d)
             obs_uppers     =   100.*np.ones(nbin_1d)
         elif subname=="res":
-            obs_uppers  =   -1.*np.ones(nbin_1d)
+            obs_lowers  =   -1.*np.ones(nbin_1d)
             obs_uppers  =   np.linspace(0.5,1.,nbin_1d)
         elif subname=="snr":
             obs_lowers  =   -10.*np.ones(nbin_1d)
