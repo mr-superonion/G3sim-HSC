@@ -18,7 +18,7 @@ anaDir      =   "anaCat_newS19Mask_fdeltacut"
 gpgfile     =   "/home/xiangchong.li/.gnupg"  #NOTE: The gpg file of the user
 gpg         =   gnupg.GPG(gnupghome=gpgfile)
 
-testing     =   False
+testing     =   True
 if not testing:
     """
     user        =   'masato'
@@ -27,11 +27,11 @@ if not testing:
     user_mail   =   'wentao.luo@ipmu.jp'
     user        =   'wenting'
     user_mail   =   'wenting.wang@sjtu.edu.cn'
-    user        =   'masamune'
-    user_mail   =   'masamune.oguri@ipmu.jp'
     user        =   'masato'
     user_mail   =   'masato.shirasaki@gmail.com'
     """
+    user        =   'masamune'
+    user_mail   =   'masamune.oguri@ipmu.jp'
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
 else:
@@ -176,18 +176,18 @@ def encrypt():
         inFname =   os.path.join(inDir,'%s_calibrated.fits' %(fieldname))
         data    =   Table.read(inFname)
         columnIn=   data[colname].copy()
+        colId   =   data['object_id'].copy()
         for ib in range(n_blind_cat):
             dm  =   dm2List[ib]+dm1List[ib]
             if testing and fieldname=='VVDS':
                 print('dm1-cat%d: %.5f: ' %(ib,dm1List[ib]))
                 print('dm2-cat%d: %.5f: ' %(ib,dm2List[ib]))
                 print('dm-cat%d:  %.5f  ' %(ib,dm))
-            columnOut   =   Table([columnIn+dm])
+            columnOut   =   Table([colId,columnIn+dm])
             columnOut.meta.update(meta)
             outFname=   os.path.join(outDir,'%s_blinded_%d_m.fits' %(fieldname,ib))
             if os.path.isfile(outFname):
-                print('Already have the blinded catalog m')
-                continue
+                print('Already have the blinded catalog m; overwriting')
             columnOut.write(outFname,overwrite=True)
             del columnOut
             gc.collect()
