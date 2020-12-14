@@ -1,0 +1,205 @@
+%!TeX program = xelatex
+\documentclass[useamsfonts]{pasj01}
+\draft
+\usepackage{latexsym}%,amssymb}
+\usepackage{natbib,amssymb}
+\usepackage{amsmath}
+
+\usepackage{url}
+
+\newcommand \redColor{}%\color{red}}
+\newcommand \bColor{}%\color{blue}}
+\newcommand \oColor{}%\color{orange}}
+\renewcommand\labelenumi{(\roman{enumi})}
+\renewcommand\theenumi\labelenumi
+\renewcommand{\vec}[1]{\boldsymbol{#1}}
+
+\newcommand{\galsim}{\texttt{GalSim}}
+\newcommand{\sersic}{{S\'ersic}}
+\newcommand{\res}{\mathcal {R}}
+
+\newcommand{\mtrv}[1]{#1}
+\newcommand{\rmrv}[1]{#1}
+\newcommand{\hmrv}[1]{#1}
+\newcommand{\smrv}[1]{#1}
+
+
+\begin{document}
+
+
+\title{}
+\author{}%
+\altaffiltext{}{}
+\email{}
+
+\KeyWords{Cosmology, Weak Gravitational Lensing, Image Processing}
+
+\maketitle
+
+
+\begin{abstract}
+\end{abstract}
+
+\section{Introduction}
+\label{sec:Intro}
+
+\section{HSC Data and Pipeline}
+\label{sec:DataPipe}
+\begin{enumerate}
+    \item seeing maps
+    \item Nexp maps: check the difference between Nexp from FDFC and that from countInput.
+    \item residual size maps
+    \item residual size vs seeing
+    \item seeing distributions: S16A vs S19A
+    \item number density map (together with positions of PSFs used for image simulations, we should mention the bad visit in GAMA09H).
+    \item weighted number density map
+    \item number density vs seeing
+%    \item maps of the S16A and the S19A star mask
+\end{enumerate}
+
+\subsection{S19A data release}
+\subsubsection{Selections}
+
+\subsubsection{FDFC cut}
+
+\subsubsection{5 dither vs 6 dither}
+
+\subsection{HSC pipline 7}
+\subsubsection{Warping}
+
+\subsubsection{Bright star mask}
+
+\subsubsection{Background subtraction}
+
+\subsubsection{reGaussianization shear estimator}
+
+
+\section{Requirement}
+\label{sec:Requirement}
+
+\subsection{Covariance}
+
+\subsection{Galaxy-galaxy Lensing}
+
+\subsection{Cosmic Shear}
+
+
+\section{PSF Model Test}
+\label{sec:psftest}
+\begin{enumerate}
+    \item magnitude distribution of PSF stars and non PSF stars
+    \item residual size distribution of PSF stars and non-PSF stars
+    \item residual size vs magnitude: PSF stars vs non-PSF stars
+    \item residual size vs binned seeing
+    \item residual size correlation
+    \item residual shape distributions
+    \item rho statistics
+\end{enumerate}
+\subsection{Median vs Mean}
+
+\subsection{PSF stars vs Non-PSF stars}
+% Eli's star catalog
+
+\input{calibration.tex}
+\section{Calibration}
+
+\section{Blinding}
+\label{sec:blind}
+
+\section{Null Tests (galaxy shape tests)}
+\label{sec:nullTest}
+\begin{enumerate}
+    \item shear around random points
+    \item shear around stars
+    \item x shear around CMASS galaxies
+    \item g1 vs (cmodel SN, cmodel, resolution, PSF FWHM): Ask Oguri-san to compute this again with the updated catalog
+    \item star-star correlations, star-galaxy correlations, and shear-shear correlations: Ask Hamana-san to compute this again with the updated catalog
+    \item mass maps
+\end{enumerate}
+
+\section{Other tests}
+\subsection{contamination by stars}
+Just repeat the same test with the S19A catalog.
+
+\section{Summary}
+\label{sec:summary}
+
+
+\bibliographystyle{apj}
+\bibliography{citation}
+
+
+\appendix
+\section*{Galaxy Selection}
+\label{App:select}
+\begin{table*}
+  \begin{tabular}{ll} \hline
+    Cut & Meaning \\ \hline
+\multicolumn{2}{c}{Basic flag cuts} \\ \hline
+\texttt{i$\_$detect$\_$isprimary} $==$ True & Identify unique detections only \\ \hline
+\texttt{i$\_$deblend$\_$skipped} $==$ False & Deblender skipped this group of objects \\ \hline
+\hmrv{\texttt{i$\_$sdsscentroid$\_$flag} $==$ False} & \hmrv{centroid.sdss measurement failed} \\ \hline
+\texttt{i$\_$pixelflags$\_$edge} $==$ False & Object too close to image boundary for reliable measurements \\ \hline
+\texttt{i$\_$pixelflags$\_$interpolatedcenter} $==$ False & A pixel flagged as interpolated is
+close to object center \\ \hline
+\texttt{i$\_$pixelflags$\_$saturatedcenter} $==$ False & A pixel flagged as saturated is
+close to object center \\ \hline
+\texttt{i$\_$pixelflags$\_$crcenter}$==$ False & A pixel flagged as a cosmic ray hit is
+close to object center \\ \hline
+\texttt{i$\_$pixelflags$\_$bad}$==$ False & A pixel flagged as otherwise bad is
+close to object center \\ \hline
+\texttt{i$\_$pixelflags$\_$suspectcenter} $==$ False & A pixel flagged as near saturation is
+close to object center \\ \hline
+\hmrv{\texttt{i$\_$pixelflags$\_$clipped} $==$ False} & \hmrv{Flagged as source footprint includes clipped pixels} \\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$flag} $==$ False & Error code returned by shape measurement
+code \\ \hline
+\texttt{i$\_$hsmshaperegauss$\_$sigma} $!=$ NaN & Shape measurement uncertainty should not be
+  NaN \\ \hline
+\texttt{i$\_$extendedness$\_$value} $!= 0$ & Extended object \\ \hline
+\multicolumn{2}{c}{Cuts on object properties} \\ \hline
+\texttt{i$\_$cmodel$\_$flux}/\texttt{i$\_$cmodel$\_$fluxerr} $\ge 10$ & Galaxy has high enough $S/N$ in
+$i$ band\\
+\hline
+\texttt{i$\_$hsmshaperegauss$\_$resolution} $\ge 0.3$ & Galaxy is sufficiently resolved \\ \hline
+(\texttt{i$\_$hsmshaperegauss$\_$e1}$^2 + $\texttt{i$\_$hsmshaperegauss$\_$e2}$^2)^{1/2} < 2$ & Total
+\rmrv{distortion} cut \\ \hline
+$0\le $\texttt{i$\_$hsmshaperegauss$\_$sigma}  $\le 0.4$ & Estimated shape measurement error is
+reasonable \\ \hline
+\texttt{i$\_$cmodel$\_$mag} $-$ \texttt{a$\_$i} $\le 24.5$ & Magnitude cut \\ \hline
+\texttt{i$\_$apertureflux$\_$10$\_$mag} $\le 25.5$ & Aperture magnitude cut \\ \hline
+\texttt{i$\_$blendedness$\_$abs} $< 10^{-0.38}$ & Avoid spurious detections and those
+contaminated by blends \\ \hline
+\multicolumn{2}{c}{Require that at least two of the following four cuts be passed (not all)} \\ \hline
+\texttt{g$\_$cmodel$\_$flux}/\texttt{g$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
+$g$ band\\
+\hline
+\texttt{r$\_$cmodel$\_$flux}/\texttt{r$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
+$r$ band\\
+\hline
+\texttt{z$\_$cmodel$\_$flux}/\texttt{z$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
+$z$ band\\
+\hline
+\texttt{y$\_$cmodel$\_$flux}/\texttt{y$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
+$y$ band\\
+\hline
+  \end{tabular}
+  \caption{}
+\end{table*}
+
+\end{document}
+
+\section*{The redshift dependence of intrinsic shape}
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{redshift_dep_s16_vs_s19.eps}
+}
+\caption{The solid line in the left panel shows the redshift dependence of
+    intrinsic shape and the dashed line in the left panel shows the average
+    intrinsic shape. The solid line in the middle panel shows the redshift
+    dependence of responsivity and the dashed line in the middle panel shows
+    the average responsivity. The solid line shows in the right panel shows the
+    multiplicative bias residual due to the redshift dependence of responsivity
+    and the dashed line in the right panel shows the total multiplicative bias
+    residual.
+    }
+\end{figure*}
