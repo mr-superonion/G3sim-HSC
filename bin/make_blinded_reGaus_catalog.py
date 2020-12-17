@@ -38,7 +38,7 @@ if not testing:
     user        =   'surhud'
     user_mail   =   'surhudkicp@gmail.com'
     """
-    user        =   'InonChiu'
+    user        =   'INonChiu'
     user_mail   =   'inchiu@asiaa.sinica.edu.tw'
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
