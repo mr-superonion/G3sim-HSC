@@ -15,34 +15,44 @@ except:
     import pyfits
 
 anaDir      =   "anaCat_newS19Mask_fdeltacut"
-gpgfile     =   "/home/xiangchong.li/.gnupg"  #NOTE: The gpg file of the user
+# NOTE: Make sure it is the gpg directory
+# And the gpg contains the private key
+gpgfile     =   os.path.join(os.environ['HOME'],".gnupg")
 gpg         =   gnupg.GPG(gnupghome=gpgfile)
 
-testing     =   True
+testing     =   False
 if not testing:
     """
     user        =   'masato'
     user_mail   =   'masato.shirasaki@gmail.com'
-    user        =   'wentao'
-    user_mail   =   'wentao.luo@ipmu.jp'
-    user        =   'wenting'
-    user_mail   =   'wenting.wang@sjtu.edu.cn'
     user        =   'masato'
     user_mail   =   'masato.shirasaki@gmail.com'
-    """
     user        =   'masamune'
     user_mail   =   'masamune.oguri@ipmu.jp'
+    user        =   'wenting'
+    user_mail   =   'wenting.wang@sjtu.edu.cn'
+    user        =   'Andres Plazas'     #
+    user_mail   =   'plazasmalagon@gmail.com'
+    user        =   'wentao'
+    user_mail   =   'wentao.luo@ipmu.jp'
+    user        =   'surhud'
+    user_mail   =   'surhudkicp@gmail.com'
+    """
+    user        =   'INonChiu'
+    user_mail   =   'inchiu@asiaa.sinica.edu.tw'
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
 else:
     """
     user        =   'surhud'
     user_mail   =   'surhudkicp@gmail.com'
+    blinder      =   'xiangchong'
+    hsc_mail    =   'xiangchong.li@ipmu.jp'
     """
     user        =   'xiangchong'
     user_mail   =   'xiangchong.li@ipmu.jp'
-    blinder      =   'xiangchong'
-    hsc_mail    =   'xiangchong.li@ipmu.jp'
+    blinder     =   'Jim Bosch'
+    hsc_mail    =   'hscblinder@gmail.com'
 
 field_names = ['XMM',   \
               'GAMA09H',\
@@ -102,7 +112,7 @@ def generate_dm1_values(n_blind_cat,dm_range):
 
 def encrypt():
     # paramters
-    n_blind_cat =   1
+    n_blind_cat =   3
     dm_range    =   0.10
 
     # directory
@@ -115,7 +125,7 @@ def encrypt():
         os.system('mkdir -p %s' %outDir)
     outDir0 =       os.path.join(anaDir,'catalog_obs_reGaus_no_m/')
     if not os.path.isdir(outDir0):
-        os.system('mkdir -p outDir0')
+        os.system('mkdir %s' %outDir0)
 
     colname =       'i_hsmshaperegauss_derived_shear_bias_m'
 
@@ -180,9 +190,9 @@ def encrypt():
         for ib in range(n_blind_cat):
             dm  =   dm2List[ib]+dm1List[ib]
             if testing and fieldname=='VVDS':
-                print('dm1-cat%d: %.5f: ' %(ib,dm1List[ib]))
-                print('dm2-cat%d: %.5f: ' %(ib,dm2List[ib]))
-                print('dm-cat%d:  %.5f  ' %(ib,dm))
+                print('dm1-cat%d: %.5f' %(ib,dm1List[ib]))
+                print('dm2-cat%d: %.5f' %(ib,dm2List[ib]))
+                print('dm-cat%d:  %.5f' %(ib,dm))
             columnOut   =   Table([colId,columnIn+dm])
             columnOut.meta.update(meta)
             outFname=   os.path.join(outDir,'%s_blinded_%d_m.fits' %(fieldname,ib))
