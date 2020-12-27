@@ -5,3 +5,5 @@ work/*
 work
 *wrkDir
 paper_*
+*-checkpoint.ipynb
+
