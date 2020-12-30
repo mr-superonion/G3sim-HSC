@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.999992 (TeX Live 2020/Arch Linux) (preloaded format=xelatex 2020.11.11)  13 DEC 2020 20:54
+This is XeTeX, Version 3.14159265-2.6-0.999992 (TeX Live 2020/Arch Linux) (preloaded format=xelatex 2020.11.11)  30 DEC 2020 16:39
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -313,7 +313,10 @@ Underfull \vbox (badness 10000) has occurred while \output is active []
  [1
 
 
-] (./calibration.tex [2]
+] (./calibration.tex
+Do not use \includegraphics directly. Use \FigureFile for graphics.
+File: densityMap.eps Graphic file (type eps)
+<densityMap.eps> [2]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: noiVar_reCheck_recut.eps Graphic file (type eps)
 <noiVar_reCheck_recut.eps>
@@ -373,28 +376,22 @@ File: selBias_ratio_res_magA10.eps Graphic file (type eps)
 <selBias_ratio_res_magA10.eps>
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <6.47496> not available
-(Font)              size <6> substituted on input line 263.
+(Font)              size <6> substituted on input line 273.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 275--275
+Underfull \hbox (badness 10000) in paragraph at lines 285--285
 [][][]
  []
 
 ) [6]
 Underfull \vbox (badness 1642) has occurred while \output is active []
 
- [7] (./ms.bbl
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [8]
-Overfull \vbox (9.14177pt too high) has occurred while \output is active []
-
- [9])
+ [7] (./ms.bbl)
 Overfull \hbox (43.82692pt too wide) in paragraph at lines 136--186
 [][] 
  []
 
-[10] [11] [12] [13] (./ms.aux)
+[8] [9] [10] [11] [12] [13] [14] (./ms.aux)
 
 LaTeX Font Warning: Size substitutions with differences
 (Font)              up to 0.75pt have occurred.
@@ -404,12 +401,12 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 3491 strings out of 479284
- 44318 string characters out of 5886219
- 351284 words of memory out of 5000000
- 21081 multiletter control sequences out of 15000+600000
+ 3495 strings out of 479284
+ 44387 string characters out of 5886219
+ 355282 words of memory out of 5000000
+ 21084 multiletter control sequences out of 15000+600000
  543805 words of font info for 91 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
  38i,12n,35p,1214b,336s stack positions out of 5000i,500n,10000p,200000b,80000s
 
-Output written on ms.xdv (13 pages, 129172 bytes).
+Output written on ms.xdv (14 pages, 130992 bytes).

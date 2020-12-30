@@ -1,6 +1,9 @@
-prefix="$homeSys/code/G3sim-s18a/"
-export PYTHONPATH="$prefix/python/":$PYTHONPATH
-export PATH="$prefix/bin/":$PATH
+# Change the Dir variable to the current directory
 
-prefixBase="$homeSys/code/FPFS_Private/FPFSBASE/"
-export PYTHONPATH="$prefixBase/python/":$PYTHONPATH
+Dir="$homeSys/code/G3sim-s18a/"
+
+export PYTHONPATH="$Dir/python/":$PYTHONPATH
+export PATH="$Dir/bin/":$PATH
+
+DirBase="$homeSys/code/FPFS_Private/FPFSBASE/"
+export PYTHONPATH="$DirBase/python/":$PYTHONPATH

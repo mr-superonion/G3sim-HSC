@@ -1,16 +1,16 @@
 # Fdb version 3
-["bibtex ms"] 1607845471 "ms.aux" "ms.bbl" "ms" 1607845965
+["bibtex ms"] 1609313965 "ms.aux" "ms.bbl" "ms" 1609313970
   "./apj.bst" 1607807704 32355 08fa4c1b251f9f43284a88535960c618 ""
   "citation.bib" 0 -1 0 ""
-  "ms.aux" 1607845961 6668 f94421abf723ed06ae04e5cc92772e09 "xelatex"
+  "ms.aux" 1609313965 6665 bd1ba0bfafbf6f167677a4afbc3959c3 "xelatex"
   (generated)
   "ms.blg"
   "ms.bbl"
-["xdvipdfmx"] 1607845961 "ms.xdv" "ms.pdf" "ms" 1607845965
-  "ms.xdv" 1607845961 129172 e919041f228f24ec2a1d1833c21a060d "xelatex"
+["xdvipdfmx"] 1609313965 "ms.xdv" "ms.pdf" "ms" 1609313970
+  "ms.xdv" 1609313965 130992 133273590b72b2842a43af8617c8af41 "xelatex"
   (generated)
   "ms.pdf"
-["xelatex"] 1607845960 "ms.tex" "ms.xdv" "ms" 1607845965
+["xelatex"] 1609313965 "ms.tex" "ms.xdv" "ms" 1609313970
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1591545468 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1591545468 1004 54797486969f23fa377b128694d548df ""
   "/usr/share/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex8.tfm" 1591545468 988 bdf658c3bfc2d96d3c8b02cfc1c94c20 ""
@@ -68,14 +68,15 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1591545468 33301 a3134070eacafb10b1f371612ce2650d ""
   "/var/lib/texmf/web2c/xetex/xelatex.fmt" 1605058448 5164745 d93b3a7195fba794617cc5610195f48f ""
   "absEDis_reCheck.eps" 1607807704 135111 2a74466fb1b83f39c2115a9c0a7bc878 ""
-  "calibration.tex" 1607845959 11245 c319083e6d841d23d09cdc5ad420b2f1 ""
+  "calibration.tex" 1609313962 11509 82bf1f744dec4610db9bd8bcd0cb8856 ""
   "calibration_residual_marginalized.eps" 1607807704 125642 5190cd543c1aad8f5b572832c66c56b5 ""
   "calibration_residual_modeled.eps" 1607807704 126225 19cc5fa74df77300b4bd5dfef01cca96 ""
   "calibration_residual_redshfits.eps" 1607807704 130165 f961156e3f4b39b8154d511a1a3fcdba ""
+  "densityMap.eps" 1609313856 2546936 36b4fb5f4a300775fc48603b0fcb91ae ""
   "galDis2D-final_reCheck.eps" 1607807704 861323 7af0adb87cdd7b6a0515092bcda250f5 ""
   "intrinsicshape_2d.eps" 1607807704 359018 4acf5b0b6f8b64f899f12aed2e7a0146 ""
   "magDis_reCheck.eps" 1607807704 133961 ecf3f918cadc83b5e1b5cac6bdd73044 ""
-  "ms.aux" 1607845961 6668 f94421abf723ed06ae04e5cc92772e09 "xelatex"
+  "ms.aux" 1609313965 6665 bd1ba0bfafbf6f167677a4afbc3959c3 "xelatex"
   "ms.bbl" 1607840662 2272 1ca15bf60867fbbdebd8257cde6493ee "bibtex ms"
   "ms.tex" 1607845855 6919 d3aa0ec08655d3dad6e265fe110bc3f7 ""
   "noiVar_reCheck_recut.eps" 1607807704 134088 09f442c1b76b29b690e8165cde91b176 ""
@@ -91,6 +92,6 @@
   "weightBias_a_2d.eps" 1607807704 179020 2495fbea7367e7d92de07b9e50405a1e ""
   "weightBias_m_2d.eps" 1607807704 180568 f26b1125d8b7c68f50d02264f93d9a31 ""
   (generated)
+  "ms.aux"
   "ms.xdv"
   "ms.log"
-  "ms.aux"

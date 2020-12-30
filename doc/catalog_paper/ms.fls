@@ -105,6 +105,8 @@ INPUT /usr/share/texmf-dist/fonts/tfm/public/latex-fonts/lasy10.tfm
 OUTPUT ms.xdv
 INPUT calibration.tex
 INPUT calibration.tex
+INPUT densityMap.eps
+INPUT densityMap.eps
 INPUT noiVar_reCheck_recut.eps
 INPUT noiVar_reCheck_recut.eps
 INPUT psfFWHM_reCheck_recut.eps
