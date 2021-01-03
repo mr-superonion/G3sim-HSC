@@ -1,43 +1,55 @@
 #!/usr/bin/env python
-import json
-import argparse
-import urllib.request, urllib.error, urllib.parse
-import time
+# Based on
+# https://hsc-gitlab.mtk.nao.ac.jp/ssp-software/data-access-tools/-/blob/master/dr3/catalogQuery/hscSspQuery3.py
+import os
 import sys
 import csv
+import json
+import time
+import astropy.io.fits as pyfits
 import getpass
-import os
-import re
-import ssl
-import fitsio
+import argparse
+import urllib.request, urllib.error, urllib.parse
 import astropy.io.ascii as ascii
-from sim_analysis_utilities import chunkNList
 
 version =   20190924.1
 args    =   None
-doUnzip =   True
 doDownload  =   True
-diffver =   ''
+doUnzip =   True
+diffver =   '-photoz'
+
+def chunkNList(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+    return out
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--user', '-u', required=True,
                         help='specify your STARS account')
-    parser.add_argument('--format', '-f', dest='out_format', default='fits', choices=['csv', 'csv.gz', 'sqlite3', 'fits'],
+    parser.add_argument('--delete-job', '-D', action='store_true',
+                        help='delete job after your downloading')
+    parser.add_argument('--format', '-f', dest='out_format', default='fits',
+                        choices=['csv', 'csv.gz', 'sqlite3', 'fits'],
                         help='specify output format')
     parser.add_argument('--nomail', '-M', action='store_true',
                         help='suppress email notice')
-    parser.add_argument('--release_year', '-r', choices='s15 s16 s17 s18 s19'.split(), required=True,
+    parser.add_argument('--release_year', '-r',
+                        choices='s15 s16 s17 s18 s19'.split(),
+                        required=True,
                         help='the release year')
-    parser.add_argument('--delete-job', '-D', action='store_true',
-                        help='delete the job you submitted after your downloading')
     parser.add_argument('--password-env', default='HSC_SSP_CAS_PASSWORD',
-                        help='specify the environment variable that has STARS password as its content')
+                        help='environment variable for STARS')
     parser.add_argument('--preview', '-p', action='store_true',
                         help='quick mode (short timeout)')
     parser.add_argument('--skip-syntax-check', '-S', action='store_true',
                         help='skip syntax check')
-    parser.add_argument('--api-url', default='https://hscdata.mtk.nao.ac.jp/datasearch/api/catalog_jobs/',
+    parser.add_argument('--api-url',
+                        default='https://hscdata.mtk.nao.ac.jp/datasearch/api/catalog_jobs/',
                         help='for developers')
     parser.add_argument('sql-file', type=argparse.FileType('r'),
                         help='SQL file')
@@ -52,27 +64,22 @@ def main():
     if not os.path.exists(prefix2):
         os.system('mkdir -p %s' %prefix2)
 
-    elif 's17' in release_year:
+    print(release_year)
+    if 's17' in release_year:
         release_version =   'dr2'
         ngroups =   5
-        tractname='./prepare2/fieldTractInfoS16.csv'
+        tractname='fieldTractInfoS16.csv'
     elif 's18' in release_year:
         release_version =   'dr2'
         ngroups =   10
-        tractname='./prepare2/fieldTractInfo.csv'
+        tractname='fieldTractInfoS18.csv'
     elif 's19' in release_year:
         release_version =   'dr3'
-        ngroups =   10
-        tractname='./prepare2/fieldTractInfo.csv'
+        ngroups =   20
+        tractname=  'fieldTractInfoS19.csv'
 
     global sql
     sql         =   args.__dict__['sql-file'].read()
-    """
-    codeDir     =   os.environ['codeDir']
-    sqlfname    =   os.path.join(codeDir,'sql','%sWL%s.sql' %(release_year,diffver))
-    sql         =   open(sqlfname).read()
-    """
-
     tracts      =   ascii.read(tractname)['tract']
     tracts2     =   chunkNList(tracts,ngroups)
     if doDownload:
@@ -94,7 +101,7 @@ def separateTracts(ig,tractL):
     if not os.path.exists(infname):
         print('Does not have input file')
         return
-    fitsAll     =   fitsio.read(infname)
+    fitsAll     =   pyfits.getdata(infname)
     print('read %s galaxies' %len(fitsAll))
 
     for tract in tractL:
@@ -105,7 +112,7 @@ def separateTracts(ig,tractL):
             continue
         fits        =   fitsAll[fitsAll['tract']==tract]
         if len(fits)>10:
-            fitsio.write(outfname,fits)
+            pyfits.writeto(outfname,fits)
         del fits
     return
 
@@ -138,10 +145,12 @@ def downloadTracts(ig,tractL):
 
 class QueryError(Exception):
     pass
+
 def httpJsonPost(url, data):
     data['clientVersion'] = version
     postData = json.dumps(data)
     return httpPost(url, postData, {'Content-type': 'application/json'})
+
 def httpPost(url, postData, headers):
     req = urllib.request.Request(url, postData.encode('utf-8'), headers)
     res = urllib.request.urlopen(req)
