@@ -37,9 +37,11 @@ if not testing:
     user_mail   =   'wentao.luo@ipmu.jp'
     user        =   'surhud'
     user_mail   =   'surhudkicp@gmail.com'
-    """
     user        =   'INonChiu'
     user_mail   =   'inchiu@asiaa.sinica.edu.tw'
+    """
+    user        =   'chiaki'
+    user_mail   =   'chia.hikage@gmail.com'
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
 else:
