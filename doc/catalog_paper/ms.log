@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.999992 (TeX Live 2020/Arch Linux) (preloaded format=xelatex 2020.11.11)  30 DEC 2020 16:39
+This is XeTeX, Version 3.14159265-2.6-0.999992 (TeX Live 2020/Arch Linux) (preloaded format=xelatex 2020.11.11)  12 JAN 2021 21:12
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -257,75 +257,76 @@ LaTeX Font Warning: Font shape `TU/phv/m/n' undefined
 LaTeX Font Warning: Font shape `TU/phv/b/n' undefined
 (Font)              using `TU/phv/m/n' instead on input line 40.
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 41.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 42.
 (/usr/share/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 41.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 42.
  (/usr/share/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-LaTeX Font Info:    Trying to load font information for U+lasy on input line 41.
+LaTeX Font Info:    Trying to load font information for U+lasy on input line 42.
  (/usr/share/texmf-dist/tex/latex/base/ulasy.fd
 File: ulasy.fd 1998/08/17 v2.2e LaTeX symbol font definitions
 )
-LaTeX Font Info:    Calculating math sizes for size <8.5> on input line 41.
+LaTeX Font Info:    Calculating math sizes for size <8.5> on input line 57.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <8.5> not available
-(Font)              size <8> substituted on input line 41.
+(Font)              size <8> substituted on input line 57.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <4.25> not available
-(Font)              size <5> substituted on input line 41.
+(Font)              size <5> substituted on input line 57.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <8.5> not available
-(Font)              size <8> substituted on input line 41.
+(Font)              size <8> substituted on input line 57.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <4.25> not available
-(Font)              size <5> substituted on input line 41.
+(Font)              size <5> substituted on input line 57.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <8.5> not available
-(Font)              size <8> substituted on input line 41.
+(Font)              size <8> substituted on input line 57.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <4.25> not available
-(Font)              size <5> substituted on input line 41.
+(Font)              size <5> substituted on input line 57.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <8.5> not available
-(Font)              size <8> substituted on input line 41.
+(Font)              size <8> substituted on input line 57.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <4.25> not available
-(Font)              size <5> substituted on input line 41.
+(Font)              size <5> substituted on input line 57.
 
 
-LaTeX Font Warning: Font shape `TU/ptm/b/n' undefined
-(Font)              using `TU/ptm/m/n' instead on input line 61.
-
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
+Underfull \vbox (badness 3690) has occurred while \output is active []
 
  [1
 
 
-] (./calibration.tex
+]
+
+LaTeX Font Warning: Font shape `TU/ptm/b/n' undefined
+(Font)              using `TU/ptm/m/n' instead on input line 77.
+
+(./calibration.tex
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: densityMap.eps Graphic file (type eps)
-<densityMap.eps> [2]
+<densityMap.eps>
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [2] [3]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: noiVar_reCheck_recut.eps Graphic file (type eps)
 <noiVar_reCheck_recut.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: psfFWHM_reCheck_recut.eps Graphic file (type eps)
-<psfFWHM_reCheck_recut.eps> [3]
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [4]
+<psfFWHM_reCheck_recut.eps> [4]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: snrDis_reCheck.eps Graphic file (type eps)
 <snrDis_reCheck.eps>
@@ -341,6 +342,9 @@ File: absEDis_reCheck.eps Graphic file (type eps)
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: galDis2D-final_reCheck.eps Graphic file (type eps)
 <galDis2D-final_reCheck.eps>
+Underfull \vbox (badness 7595) has occurred while \output is active []
+
+ [5]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: sigmae_estimated.eps Graphic file (type eps)
 <sigmae_estimated.eps>
@@ -352,7 +356,7 @@ File: shear_m_2d.eps Graphic file (type eps)
 <shear_m_2d.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: shear_a_2d.eps Graphic file (type eps)
-<shear_a_2d.eps> [5]
+<shear_a_2d.eps>
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: weightBias_m_2d.eps Graphic file (type eps)
 <weightBias_m_2d.eps>
@@ -368,6 +372,9 @@ File: calibration_residual_modeled.eps Graphic file (type eps)
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: calibration_residual_marginalized.eps Graphic file (type eps)
 <calibration_residual_marginalized.eps>
+Underfull \vbox (badness 3386) has occurred while \output is active []
+
+ [6]
 Do not use \includegraphics directly. Use \FigureFile for graphics.
 File: selBias_res_magA10.eps Graphic file (type eps)
 <selBias_res_magA10.eps>
@@ -383,15 +390,21 @@ Underfull \hbox (badness 10000) in paragraph at lines 285--285
 [][][]
  []
 
-) [6]
-Underfull \vbox (badness 1642) has occurred while \output is active []
+) [7]
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
- [7] (./ms.bbl)
-Overfull \hbox (43.82692pt too wide) in paragraph at lines 136--186
+ [8] (./ms.bbl
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [9]
+Overfull \vbox (9.14177pt too high) has occurred while \output is active []
+
+ [10])
+Overfull \hbox (43.82692pt too wide) in paragraph at lines 152--202
 [][] 
  []
 
-[8] [9] [10] [11] [12] [13] [14] (./ms.aux)
+[11] [12] [13] [14] (./ms.aux)
 
 LaTeX Font Warning: Size substitutions with differences
 (Font)              up to 0.75pt have occurred.
@@ -403,10 +416,10 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 Here is how much of TeX's memory you used:
  3495 strings out of 479284
  44387 string characters out of 5886219
- 355282 words of memory out of 5000000
+ 351285 words of memory out of 5000000
  21084 multiletter control sequences out of 15000+600000
  543805 words of font info for 91 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
  38i,12n,35p,1214b,336s stack positions out of 5000i,500n,10000p,200000b,80000s
 
-Output written on ms.xdv (14 pages, 130992 bytes).
+Output written on ms.xdv (14 pages, 141876 bytes).

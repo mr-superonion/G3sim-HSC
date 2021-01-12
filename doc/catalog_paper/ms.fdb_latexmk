@@ -1,16 +1,16 @@
 # Fdb version 3
-["bibtex ms"] 1609313965 "ms.aux" "ms.bbl" "ms" 1609313970
+["bibtex ms"] 1610450822 "ms.aux" "ms.bbl" "ms" 1610453570
   "./apj.bst" 1607807704 32355 08fa4c1b251f9f43284a88535960c618 ""
   "citation.bib" 0 -1 0 ""
-  "ms.aux" 1609313965 6665 bd1ba0bfafbf6f167677a4afbc3959c3 "xelatex"
+  "ms.aux" 1610453565 6671 8ae9d393b6cefb034046de00916f6731 "xelatex"
   (generated)
-  "ms.blg"
   "ms.bbl"
-["xdvipdfmx"] 1609313965 "ms.xdv" "ms.pdf" "ms" 1609313970
-  "ms.xdv" 1609313965 130992 133273590b72b2842a43af8617c8af41 "xelatex"
+  "ms.blg"
+["xdvipdfmx"] 1610453565 "ms.xdv" "ms.pdf" "ms" 1610453570
+  "ms.xdv" 1610453565 141876 81f01f3884a2061c2385cd4baed9e6ff "xelatex"
   (generated)
   "ms.pdf"
-["xelatex"] 1609313965 "ms.tex" "ms.xdv" "ms" 1609313970
+["xelatex"] 1610453565 "ms.tex" "ms.xdv" "ms" 1610453570
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1591545468 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1591545468 1004 54797486969f23fa377b128694d548df ""
   "/usr/share/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex8.tfm" 1591545468 988 bdf658c3bfc2d96d3c8b02cfc1c94c20 ""
@@ -76,9 +76,9 @@
   "galDis2D-final_reCheck.eps" 1607807704 861323 7af0adb87cdd7b6a0515092bcda250f5 ""
   "intrinsicshape_2d.eps" 1607807704 359018 4acf5b0b6f8b64f899f12aed2e7a0146 ""
   "magDis_reCheck.eps" 1607807704 133961 ecf3f918cadc83b5e1b5cac6bdd73044 ""
-  "ms.aux" 1609313965 6665 bd1ba0bfafbf6f167677a4afbc3959c3 "xelatex"
+  "ms.aux" 1610453565 6671 8ae9d393b6cefb034046de00916f6731 "xelatex"
   "ms.bbl" 1607840662 2272 1ca15bf60867fbbdebd8257cde6493ee "bibtex ms"
-  "ms.tex" 1607845855 6919 d3aa0ec08655d3dad6e265fe110bc3f7 ""
+  "ms.tex" 1610453564 8063 c0ee5931a8a2aeecf3525f1307026df0 ""
   "noiVar_reCheck_recut.eps" 1607807704 134088 09f442c1b76b29b690e8165cde91b176 ""
   "pasj01.cls" 1607807704 173197 c6dc9d93237853faffc2031c58febe49 ""
   "psfFWHM_reCheck_recut.eps" 1607807704 128139 593f5c3961f1b42fb9438ee8cdceeaad ""
@@ -93,5 +93,5 @@
   "weightBias_m_2d.eps" 1607807704 180568 f26b1125d8b7c68f50d02264f93d9a31 ""
   (generated)
   "ms.aux"
-  "ms.xdv"
   "ms.log"
+  "ms.xdv"
