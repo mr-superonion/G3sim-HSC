@@ -1,6 +1,4 @@
-%!TeX program = xelatex
 \documentclass[useamsfonts]{pasj01}
-\draft
 \usepackage{latexsym}%,amssymb}
 \usepackage{natbib,amssymb}
 \usepackage{amsmath}
@@ -40,102 +38,53 @@ SSP Survey}
 \begin{abstract}
     We present the HSM galaxy shape catalog that will be used for cosmology
     weak lensing measurements in the $i$-band Wide layer of the second-year
-    Hyper Suprime-Cam survey (HSC).  The catalog covers an area of $\rm{deg}^2$
-    that are split into six fields with a mean seeing of . With conservative
-    galaxy selection criteria, the unweighted and weighted source number
-    density are , respectively.
-    We define the requirements for cosmological weak lensing science using this
-    catalog.
-    The shapes are calibrated with realistic image simulations downgrading the
-    galaxy images from Hubble Space Telescope to the HSC observing conditions.
-    The calibration removes the galaxy property-dependent shear estimation bias
-    with the inclusion of redshift-dependent bias and the selection bias due to
-    the correlation of the selection criteria with the lensing shear.
-    We then focus on characterizing potential systematics in the catalog using
-    a series of internal null tests for problems with point-spread function
-    modeling, shear estimation.
+    Hyper Suprime-Cam survey (HSC).  The catalog covers an area of $433.48
+    ~\rm{deg}^2$ that are split into six fields with a mean seeing of . With
+    conservative galaxy selection criteria, the galaxy source number density
+    are $22.94 ~ \rm{arcmin}^{-2}$.  We define the requirements for cosmological
+    weak lensing science using this catalog.  The shapes are calibrated with
+    realistic image simulations downgrading the galaxy images from Hubble Space
+    Telescope to the HSC observing conditions.  The calibration removes the
+    galaxy property-dependent shear estimation bias with the inclusion of
+    redshift-dependent bias and the selection bias due to the correlation of
+    the selection criteria with the lensing shear.  We then focus on
+    characterizing potential systematics in the catalog using a series of
+    internal null tests for problems with point-spread function modeling and
+    shear estimation.
 \end{abstract}
 
 \section{Introduction}
 \label{sec:Intro}
+\clearpage
 
 \section{HSC Data and Pipeline}
-\label{sec:DataPipe}
-\begin{enumerate}
-    \item seeing maps
-    \item Nexp maps: check the difference between Nexp from FDFC and that from countInput.
-    \item residual size maps
-    \item residual size vs seeing
-    \item seeing distributions: S16A vs S19A
-    \item number density map (together with positions of PSFs used for image simulations, we should mention the bad visit in GAMA09H).
-    \item weighted number density map
-    \item number density vs seeing
-%    \item maps of the S16A and the S19A star mask
-\end{enumerate}
-
-\subsection{S19A data release}
-\subsubsection{Selections}
-
-\subsubsection{FDFC cut}
-
-\subsubsection{5 dither vs 6 dither}
-
-\subsection{HSC pipline 7}
-\subsubsection{Warping}
-
-\subsubsection{Bright star mask}
-
-\subsubsection{Background subtraction}
-
-\subsubsection{reGaussianization shear estimator}
-
+\label{sec:dataPipe}
+\input{dataPipe.tex}
+\clearpage
 
 \section{Requirement}
 \label{sec:Requirement}
-
-\subsection{Covariance}
-
-\subsection{Galaxy-galaxy Lensing}
-
-\subsection{Cosmic Shear}
-
+\input{requirement}
+\clearpage
 
 \section{PSF Model Test}
 \label{sec:psftest}
-\begin{enumerate}
-    \item magnitude distribution of PSF stars and non PSF stars
-    \item residual size distribution of PSF stars and non-PSF stars
-    \item residual size vs magnitude: PSF stars vs non-PSF stars
-    \item residual size vs binned seeing
-    \item residual size correlation
-    \item residual shape distributions
-    \item rho statistics
-\end{enumerate}
-\subsection{Median vs Mean}
+\input{PSF.tex}
+\clearpage
 
-\subsection{PSF stars vs Non-PSF stars}
-% Eli's star catalog
-
-\input{calibration.tex}
-\section{Calibration}
+\section{HSM Shape Catalog}
+\input{catalog.tex}
+\clearpage
 
 \section{Blinding}
 \label{sec:blind}
+\input{blind.tex}
+\clearpage
 
-\section{Null Tests (galaxy shape tests)}
+\section{Null Test}
 \label{sec:nullTest}
-\begin{enumerate}
-    \item shear around random points
-    \item shear around stars
-    \item x shear around CMASS galaxies
-    \item g1 vs (cmodel SN, cmodel, resolution, PSF FWHM): Ask Oguri-san to compute this again with the updated catalog
-    \item star-star correlations, star-galaxy correlations, and shear-shear correlations: Ask Hamana-san to compute this again with the updated catalog
-    \item mass maps
-\end{enumerate}
-
-\section{Other tests}
-\subsection{contamination by stars}
-Just repeat the same test with the S19A catalog.
+\input{nullTest.tex}
+\clearpage
 
 \section{Summary}
 \label{sec:summary}
@@ -144,78 +93,5 @@ Just repeat the same test with the S19A catalog.
 \bibliographystyle{apj}
 \bibliography{citation}
 
-
 \appendix
-\section*{Galaxy Selection}
-\label{App:select}
-\begin{table*}
-  \begin{tabular}{ll} \hline
-    Cut & Meaning \\ \hline
-\multicolumn{2}{c}{Basic flag cuts} \\ \hline
-\texttt{i$\_$detect$\_$isprimary} $==$ True & Identify unique detections only \\ \hline
-\texttt{i$\_$deblend$\_$skipped} $==$ False & Deblender skipped this group of objects \\ \hline
-\hmrv{\texttt{i$\_$sdsscentroid$\_$flag} $==$ False} & \hmrv{centroid.sdss measurement failed} \\ \hline
-\texttt{i$\_$pixelflags$\_$edge} $==$ False & Object too close to image boundary for reliable measurements \\ \hline
-\texttt{i$\_$pixelflags$\_$interpolatedcenter} $==$ False & A pixel flagged as interpolated is
-close to object center \\ \hline
-\texttt{i$\_$pixelflags$\_$saturatedcenter} $==$ False & A pixel flagged as saturated is
-close to object center \\ \hline
-\texttt{i$\_$pixelflags$\_$crcenter}$==$ False & A pixel flagged as a cosmic ray hit is
-close to object center \\ \hline
-\texttt{i$\_$pixelflags$\_$bad}$==$ False & A pixel flagged as otherwise bad is
-close to object center \\ \hline
-\texttt{i$\_$pixelflags$\_$suspectcenter} $==$ False & A pixel flagged as near saturation is
-close to object center \\ \hline
-\hmrv{\texttt{i$\_$pixelflags$\_$clipped} $==$ False} & \hmrv{Flagged as source footprint includes clipped pixels} \\ \hline
-\texttt{i$\_$hsmshaperegauss$\_$flag} $==$ False & Error code returned by shape measurement
-code \\ \hline
-\texttt{i$\_$hsmshaperegauss$\_$sigma} $!=$ NaN & Shape measurement uncertainty should not be
-  NaN \\ \hline
-\texttt{i$\_$extendedness$\_$value} $!= 0$ & Extended object \\ \hline
-\multicolumn{2}{c}{Cuts on object properties} \\ \hline
-\texttt{i$\_$cmodel$\_$flux}/\texttt{i$\_$cmodel$\_$fluxerr} $\ge 10$ & Galaxy has high enough $S/N$ in
-$i$ band\\
-\hline
-\texttt{i$\_$hsmshaperegauss$\_$resolution} $\ge 0.3$ & Galaxy is sufficiently resolved \\ \hline
-(\texttt{i$\_$hsmshaperegauss$\_$e1}$^2 + $\texttt{i$\_$hsmshaperegauss$\_$e2}$^2)^{1/2} < 2$ & Total
-\rmrv{distortion} cut \\ \hline
-$0\le $\texttt{i$\_$hsmshaperegauss$\_$sigma}  $\le 0.4$ & Estimated shape measurement error is
-reasonable \\ \hline
-\texttt{i$\_$cmodel$\_$mag} $-$ \texttt{a$\_$i} $\le 24.5$ & Magnitude cut \\ \hline
-\texttt{i$\_$apertureflux$\_$10$\_$mag} $\le 25.5$ & Aperture magnitude cut \\ \hline
-\texttt{i$\_$blendedness$\_$abs} $< 10^{-0.38}$ & Avoid spurious detections and those
-contaminated by blends \\ \hline
-\multicolumn{2}{c}{Require that at least two of the following four cuts be passed (not all)} \\ \hline
-\texttt{g$\_$cmodel$\_$flux}/\texttt{g$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
-$g$ band\\
-\hline
-\texttt{r$\_$cmodel$\_$flux}/\texttt{r$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
-$r$ band\\
-\hline
-\texttt{z$\_$cmodel$\_$flux}/\texttt{z$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
-$z$ band\\
-\hline
-\texttt{y$\_$cmodel$\_$flux}/\texttt{y$\_$cmodel$\_$fluxerr} $\ge 5$ & Galaxy has high enough $S/N$ in
-$y$ band\\
-\hline
-  \end{tabular}
-  \caption{}
-\end{table*}
-
-\end{document}
-
-\section*{The redshift dependence of intrinsic shape}
-\begin{figure*}[ht!]
-\centering{
-\includegraphics[width=0.9\textwidth]{redshift_dep_s16_vs_s19.eps}
-}
-\caption{The solid line in the left panel shows the redshift dependence of
-    intrinsic shape and the dashed line in the left panel shows the average
-    intrinsic shape. The solid line in the middle panel shows the redshift
-    dependence of responsivity and the dashed line in the middle panel shows
-    the average responsivity. The solid line shows in the right panel shows the
-    multiplicative bias residual due to the redshift dependence of responsivity
-    and the dashed line in the right panel shows the total multiplicative bias
-    residual.
-    }
-\end{figure*}
+\input{appendix.tex}

@@ -1,17 +1,9 @@
+\subsection{reGaussianization}
+
 \subsection{Simulation}
 \label{sec:Sim}
 
 \subsubsection{Noise and PSF}
-
-
-\begin{figure*}[ht!]
-\centering{
-\includegraphics[width=0.9\textwidth]{densityMap.eps}
-}
-\caption{The galaxy number density map of the second year HSC shape catalog.
-    The red scatters are the sampling positions of PSFs and noise variances.
-    }
-\end{figure*}
 
 Our simulation is divided into $2500$ sub-samples and each sub-sample contains
 $10^4$ postage-stamps with $64\times 64$ pixels. The pixel size is set to
@@ -95,7 +87,6 @@ galaxies with HSC deblender to define a sample of sources. Subsequently, the
 HSC pipeline is used to perform magnitude and shape measurements on the
 detected sources.
 
-
 \begin{figure*}[ht!]
 \centering{
 \includegraphics[width=0.9\textwidth]{snrDis_reCheck.eps}
@@ -147,8 +138,6 @@ detected sources.
 \end{figure*}
 
 
-\subsection{Analysis}
-\label{sec:Ana}
 \begin{figure*}[ht!]
 \centering{
 \includegraphics[width=0.9\textwidth]{galDis2D-final_reCheck.eps}
@@ -163,7 +152,7 @@ detected sources.
 
 
 
-\subsubsection{Optimization}
+\subsection{Optimization}
 \begin{equation}
 \sigma_e = 0.277 (\frac{\rm{SNR}}{20})^{-0.962} (\frac{\rm{res}}{0.5})^{-1.002}
 \end{equation}
@@ -181,7 +170,7 @@ detected sources.
     }
 \end{figure*}
 
-\subsubsection{Calibration Factors}
+\subsection{Calibration}
 
 \subsubsection{Shear Bias}
 
@@ -268,7 +257,7 @@ a \propto (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.94}
         }
 \end{figure*}
 
-\begin{table}
+\begin{table*}
 \centering
   \begin{tabular}{ll} \hline
     Output properties & Meaning \\ \hline
@@ -283,4 +272,21 @@ a \propto (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.94}
 \hline
   \end{tabular}
   \caption{}
-\end{table}
+\end{table*}
+
+\subsection{Characterization}
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{wsMap.eps}
+}
+\caption{The galaxy number density map of the second year HSC shape catalog.
+    The red scatters are the sampling positions of PSFs and noise variances.
+    }
+\end{figure*}
+
+
+
+\begin{enumerate}
+    \item star contamination
+    \item seeing density relation
+\end{enumerate}
