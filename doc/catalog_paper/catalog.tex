@@ -1,7 +1,46 @@
-\subsection{reGaussianization}
+% Xiangchong
+\subsection{Shear estimation}
+
+\subsubsection{Re-Gaussianization}
+Galaxy shapes are estimated with the $\galsim$ implementation  of the
+re-Gaussianization PSF correction method \citep{Regaussianization}.  The
+outputs of the this moment-based PSF correction method are two components of
+the ellipticity:
+\begin{equation}
+    (e_1,e_2)=\frac{1-(b/a)^2}{1+(b/a)^2} (\cos 2\phi,\sin 2\phi),
+\end{equation}
+where $b/a$ is the axis ratio and $\phi$ is the position angle of the major
+axis with respect to the equatorial coordinate system.  The resolution factor
+$R_2$, which is defined with the trace of the moment matrix of the PSF $T_P$
+and of the observed galaxy image $T_I$ as
+\begin{equation}
+    R_2=1-\frac{T_P}{T_I},
+\end{equation}
+is used to quantify how well-resolved the galaxy is compare to the PSF.
+
+The shear estimator is defined as
+\begin{equation}
+    (\hat{g_1},\hat{g_2}) = \frac{1}{2\res}\left\langle (e_1,e_2) \right\rangle,
+\end{equation}
+where the `shear responsivity' $\res$ is the response of the distortion to a
+small shear. The responsivity for the source population is estimated as
+\begin{equation}
+    \res=1-\frac{\sum_i w_i e^2_{\rm{rms}}}{\sum_i w_i},
+\end{equation}
+where $e_{\rm{rms}}$ is the $\texttt{RMS}$ intrinsic distortion per component.
+The shape weights $w_i$ are defined as
+\begin{equation}
+    w_i=\frac{1}{\sigma_e^2+e_{\rm{rms}}^2},
+\end{equation}
+where $\sigma_e$ is the estimate of the per-component shape measurement error
+due to pixel noise.
+
+
+
+\subsubsection{Calibration}
 
 \subsection{Simulation}
-\label{sec:Sim}
+\label{subsec:Sim}
 
 \subsubsection{Noise and PSF}
 
@@ -73,7 +112,7 @@ coadds with different seeing values which are 0.5\arcsec, 0.7\arcsec and
 1.0\arcsec. We use the training sample with the best seeing as our input galaxy
 sample since it has the largest number of galaxies.
 
-\galsim \citep{Galsim}, which is an open-source package for galaxy image
+$\galsim$ \citep{Galsim}, which is an open-source package for galaxy image
 simulation, is used to simulate the HSC-like postage-stamps from the COSMOS HST
 postage-stamp. The PSF is deconvolved from each input postage-stamp and then
 the postage-stamp is convolved with an assigned HSC PSF model. The original
@@ -277,14 +316,22 @@ a \propto (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.94}
 \subsection{Characterization}
 \begin{figure*}[ht!]
 \centering{
-\includegraphics[width=0.9\textwidth]{wsMap.eps}
+\includegraphics[width=0.9\textwidth]{densityMap.eps}
 }
-\caption{The galaxy number density map of the second year HSC shape catalog.
-    The red scatters are the sampling positions of PSFs and noise variances.
+\caption{The unweighted galaxy number density map of the second year HSC shape
+    catalog. The pixel scale is one arcmin.
     }
 \end{figure*}
 
+\begin{figure*}[ht!]
+\centering{
+\includegraphics[width=0.9\textwidth]{wsMap.eps}
+}
 
+\caption{The weighted galaxy number density map of the second year HSC shape
+    catalog. The pixel scale is one arcmin.
+    }
+\end{figure*}
 
 \begin{enumerate}
     \item star contamination
