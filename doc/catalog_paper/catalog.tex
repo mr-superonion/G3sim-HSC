@@ -1,7 +1,7 @@
 % Xiangchong
 \subsection{Shear estimation}
 \subsubsection{Re-Gaussianization}
-Galaxy shapes are estimated with the $\galsim$ implementation  of the
+Galaxy shapes are estimated with the $\galsim$ implementation of the
 re-Gaussianization PSF correction method \citep{Regaussianization}.  The
 outputs are two components of the ellipticity:
 \begin{equation}
@@ -36,6 +36,31 @@ The responsivity for the source population is estimated as
 \end{equation}
 
 \subsubsection{Bias modeling}
+Following \citet{HSC1-GREAT3Sim}, the relation between the estimated shear
+and true shape is
+\begin{equation}
+    \hat{g}_{1,2}=(1+m)g_{1,2}+a g^{\rm{PSF}}_{1,2},
+\end{equation}
+where $m$ is the multiplicative bias, $c_{1,2}\equiv a g^{\rm{PSF}}_{1,2}$ is
+the additive bias, and $a$ is the the fractional additive bias which quantify
+the fraction of the PSF anisotropy that leaks into the shear estimation.
+
+We model the multiplicative bias and additive bias as functions of galaxy
+properties and estimate the biases for each galaxy.
+The multiplicative bias and fractional additive bias for galaxy with index $i$
+is denoted as $m_i$ and $a_i$, respectively. The biases for the catalog is
+defined as
+\begin{equation}
+\begin{split}
+    \hat{m}&=\frac{\sum_i w_i m_i}{\sum_i w_i},\\
+    \hat{c}_{1,2}&=\frac{\sum_i w_i a_i e^{\rm{PSF}}_{i;1,2}}{\sum_i w_i}.
+\end{split}
+\end{equation}
+Finally, the calibrated shear estimator is
+\begin{equation}
+    \hat{g}_{1,2}=\frac{\sum_i w_i e_{i;1,2}}{2\res(1+\hat{m})\sum_i w_i}
+    -\frac{\hat{c}_{1,2}}{1+\hat{m}}
+\end{equation}
 
 
 \subsection{Simulation}
