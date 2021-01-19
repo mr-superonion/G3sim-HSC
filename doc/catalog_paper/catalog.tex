@@ -3,7 +3,7 @@
 \subsubsection{Re-Gaussianization}
 Galaxy shapes are estimated with the $\galsim$ implementation of the
 re-Gaussianization PSF correction method \citep{Regaussianization}.  The
-outputs are two components of the ellipticity:
+output of the estimator is the galaxy ellipticity:
 \begin{equation}
     (e_1,e_2)=\frac{1-(b/a)^2}{1+(b/a)^2} (\cos 2\phi,\sin 2\phi),
 \end{equation}
@@ -23,45 +23,51 @@ with weighted average ellipticity of galaxies in the ensemble:
 \end{equation}
 where the `shear responsivity' $\res$ is the response of the ellipticity to a
 small shear.
-The ensemble average is weighted with $w_i$, which is defined as
+The ensemble average is weighted with the galaxy shape weight $w$, which is
+defined as
 \begin{equation}
-    w_i=\frac{1}{\sigma_e^2+e_{\rm{rms}}^2},
+    w=\frac{1}{\sigma_e^2+e_{\rm{rms}}^2},
 \end{equation}
 where $e_{\rm{rms}}$ is the root-mean-square ($\texttt{RMS}$) of intrinsic
-ellipticity per component. The estimation of $e_{\rm{RMS}}$ and $\sigma_e$
-using image simulation is shown in section \ref{subsec:optimal}.
+ellipticity per component. $e_{\rm{RMS}}$ and $\sigma_e$ are modeled and
+estimated for each galaxy using the image simulation, which will be shown in
+section \ref{subsec:optimal}.
 The responsivity for the source population is estimated as
 \begin{equation}
-    \res=1-\frac{\sum_i w_i e^2_{\rm{rms},i}}{\sum_i w_i}.
+    \res=1-\frac{\sum_i w_i e^2_{\rm{rms};i}}{\sum_i w_i},
 \end{equation}
+where $i$ is the galaxy index in the ensemble.
 
 \subsubsection{Bias modeling}
 Following \citet{HSC1-GREAT3Sim}, the relation between the estimated shear
-and true shape is
+and the true shear is
 \begin{equation}
-    \hat{g}_{1,2}=(1+m)g_{1,2}+a g^{\rm{PSF}}_{1,2},
+    \hat{g}_{1,2}=(1+m)g_{1,2}+a e^{\rm{PSF}}_{1,2},
 \end{equation}
-where $m$ is the multiplicative bias, $c_{1,2}\equiv a g^{\rm{PSF}}_{1,2}$ is
-the additive bias, and $a$ is the the fractional additive bias which quantify
-the fraction of the PSF anisotropy that leaks into the shear estimation.
+where $m$ is the multiplicative bias, $c_{1,2}\equiv a e^{\rm{PSF}}_{1,2}$ are
+the additive bias, $e^{\rm{PSF}}_{1,2}$ is the PSF ellipticity, and $a$ is the
+the fractional additive bias that quantifies the fraction of the PSF anisotropy
+that leaks into the shear estimation.
 
-We model the multiplicative bias and additive bias as functions of galaxy
-properties and estimate the biases for each galaxy.
-The multiplicative bias and fractional additive bias for galaxy with index $i$
-is denoted as $m_i$ and $a_i$, respectively. The biases for the catalog is
-defined as
+We model the multiplicative bias and the additive bias as functions of galaxy
+properties (including SNR, $R_2$ and galaxy redshift) and estimate the biases
+for each galaxy. The multiplicative bias and fractional additive bias for
+galaxy with index $i$ is denoted as $m_i$ and $a_i$, respectively. The modeling
+and estimation of the biases are shown in section \ref{subsec:calib}.
+
+The multiplicative bias and the additive bias for the galaxy ensemble are:
 \begin{equation}
 \begin{split}
     \hat{m}&=\frac{\sum_i w_i m_i}{\sum_i w_i},\\
-    \hat{c}_{1,2}&=\frac{\sum_i w_i a_i e^{\rm{PSF}}_{i;1,2}}{\sum_i w_i}.
+    \hat{c}_{1,2}&=\frac{\sum_i w_i a_i e^{\rm{PSF}}_{1,2;i}}{\sum_i w_i},
 \end{split}
 \end{equation}
+respectively.
 Finally, the calibrated shear estimator is
 \begin{equation}
-    \hat{g}_{1,2}=\frac{\sum_i w_i e_{i;1,2}}{2\res(1+\hat{m})\sum_i w_i}
+    \hat{g}_{1,2}=\frac{\sum_i w_i e_{1,2;i}}{2\res(1+\hat{m})\sum_i w_i}
     -\frac{\hat{c}_{1,2}}{1+\hat{m}}
 \end{equation}
-
 
 \subsection{Simulation}
 \label{subsec:Sim}
@@ -93,7 +99,7 @@ field. The seeing histograms and noise variance histograms of the observation
 and simulation are shown in Figure \ref{fig:noiHist} and Figure
 \ref{fig:fwhmHist}.
 
-\begin{figure*}[ht!]
+\begin{figure*}[ht]
 \centering{
 \includegraphics[width=0.9\textwidth]{noiVar_reCheck_recut.eps}
 }
@@ -107,7 +113,7 @@ and simulation are shown in Figure \ref{fig:noiHist} and Figure
 \label{fig:noiHist}
 \end{figure*}
 
-\begin{figure*}[ht!]
+\begin{figure*}[ht]
 \centering{
 \includegraphics[width=0.9\textwidth]{psfFWHM_reCheck_recut.eps}
 }
@@ -235,6 +241,7 @@ detected sources.
 \end{figure*}
 
 \subsection{Calibration}
+\label{subsec:calib}
 
 \subsubsection{Shear Bias}
 
@@ -340,22 +347,32 @@ a \propto (\rm{res}-0.61)(\frac{\rm{snr}}{20})^{-0.94}
 
 \subsection{Characterization}
 \begin{figure*}[ht!]
-\centering{
+\centering
 \includegraphics[width=0.9\textwidth]{densityMap.eps}
-}
-\caption{The unweighted galaxy number density map of the second year HSC shape
+\caption{The raw galaxy number density map of the second year HSC shape
     catalog. The pixel scale is one arcmin.
-    }
+    }\label{fig:numMap}
 \end{figure*}
+
+The catalog covers an area of $433.48 ~\rm{deg}^2$ that are split into six
+fields with a mean seeing of $0.59\arcsec$. The average galaxy source number
+density are $22.94 ~ \rm{arcmin}^{-2}$, and the galaxy number density map
+is shown in Fig. \ref{fig:numMap}.
+
+The effective galaxy number density which is defined as
+\citep{WLsurvey-neffective-Chang2013}
+\begin{equation}
+    n_{\rm{eff}}=\sum_i \frac{e_{\rm{rms};i}^2}{\sigma_{e;i}^2+e_{\rm{rms};i}^2}.
+\end{equation}
 
 \begin{figure*}[ht!]
 \centering{
 \includegraphics[width=0.9\textwidth]{wsMap.eps}
 }
-
-\caption{The weighted galaxy number density map of the second year HSC shape
+\caption{The effective galaxy number density map of the second year HSC shape
     catalog. The pixel scale is one arcmin.
-    }
+    }\label{fig:effMap}
+
 \end{figure*}
 
 \begin{enumerate}
