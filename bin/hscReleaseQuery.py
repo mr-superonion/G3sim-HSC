@@ -16,7 +16,7 @@ version =   20190924.1
 args    =   None
 doDownload  =   True
 doUnzip =   True
-diffver =   '-photoz'
+diffver =   '-colorterm'
 
 def chunkNList(seq, num):
     avg = len(seq) / float(num)
