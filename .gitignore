@@ -3,7 +3,7 @@
 *.swo
 work/*
 work
-*wrkDir
+*Dir
 paper_*
 *-checkpoint.ipynb
 *.aux
