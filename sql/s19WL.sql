@@ -1,6 +1,8 @@
 SELECT
   meas.object_id
 , meas.parent_id
+, meas.tract
+, meas.patch
 , meas.i_ra
 , meas.i_dec
 , meas.i_variance_value
@@ -192,8 +194,6 @@ SELECT
 (meas.i_cmodel_mag - forced.a_i < 24.5) as weak_lensing_flag
 
 -- columns which can be used for selection
-, meas.tract
-, meas.patch
 , meas.merge_peak_g
 , meas.merge_peak_r
 , meas.merge_peak_r2
