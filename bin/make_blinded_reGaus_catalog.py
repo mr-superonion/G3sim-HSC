@@ -22,6 +22,8 @@ gpg         =   gnupg.GPG(gnupghome=gpgfile)
 
 testing     =   False
 if not testing:
+    blinder     =   'Jim Bosch'
+    hsc_mail    =   'hscblinder@gmail.com'
     """
     user        =   'masato'
     user_mail   =   'masato.shirasaki@gmail.com'
@@ -39,13 +41,13 @@ if not testing:
     user_mail   =   'surhudkicp@gmail.com'
     user        =   'INonChiu'
     user_mail   =   'inchiu@asiaa.sinica.edu.tw'
-    user        =   'chiaki'
-    user_mail   =   'chia.hikage@gmail.com'
-    """
     user        =   'lalitwadee'
     user_mail   =   'kawinwanichakij@g.ecc.u-tokyo.ac.jp'
-    blinder     =   'Jim Bosch'
-    hsc_mail    =   'hscblinder@gmail.com'
+    user        =   'nobuhiro'
+    user_mail   =   'okabe@hiroshima-u.ac.jp'
+    """
+    user        =   'chiaki'
+    user_mail   =   'chia.hikage@gmail.com'
 else:
     """
     user        =   'surhud'
@@ -116,7 +118,7 @@ def generate_dm1_values(n_blind_cat,dm_range):
 
 def encrypt():
     # paramters
-    n_blind_cat =   1
+    n_blind_cat =   3
     dm_range    =   0.10
 
     # directory
@@ -178,6 +180,9 @@ def encrypt():
         dmtmp   =   gpg.encrypt('%.5f' %dm1List[ib], keyid1).data.decode('utf8')
         #assert '=c1l=c1l=c1l=' not in dmtmp
         dm1_cry =   PGP_to_FITS(dmtmp)
+        #print(keyid1)
+        #print(gpg.encrypt('abc', keyid1))
+        #print(dmtmp,dm1_cry)
         meta.update({'dm1c%s' %ib:dm1_cry})
         # dm2
         if not np.all(np.abs(dm2List)<1.e-4):
