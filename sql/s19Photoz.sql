@@ -3,6 +3,8 @@ SELECT
 , meas.parent_id
 , meas.i_ra
 , meas.i_dec
+, meas.tract
+, meas.patch
 
 , mizuki.photoz_mean as mizuki_photoz_mean
 , mizuki.photoz_mode as mizuki_photoz_mode
