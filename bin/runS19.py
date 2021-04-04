@@ -3,20 +3,20 @@ import os
 import argparse
 import numpy as np
 
-#HOWTOUSE: runS18Sim.py --exe rgcSimBatchRun.py --minG 2 --maxG 16 --ndiv 8 --nodes 5 --procs 20
+#HOWTOUSE: runS19.py --exe rgcSimBatchRun.py --minG 2 --maxG 16 --ndiv 8 --nodes 5 --procs 20
 
 def main(exe,ndiv,nodes,procs,minG,maxG):
-    nt  =   maxG-minG
-    per =   nt//ndiv+1
     if nodes==1:
         qq='mini'
     if nodes>1:
         qq='small'
     if nodes>9:
         qq='large'
+
+    groupB= np.linspace(minG,maxG,ndiv+1,dtype=int)
     for i in range(ndiv):
-        begin   =   i*per+minG
-        end     =   min((i+1)*per,nt)+minG
+        begin   =   groupB[i]
+        end     =   groupB[i+1]
         if end<= begin:
             continue
         command =   '%s $s19w --output ./ --batch-type=pbs --nodes %d --procs %d --time 100000000 --job s19G3-%d --queue %s  --minGroup %d --maxGroup %d --clobber-versions ' %(exe,nodes,procs,i,qq,begin,end)
