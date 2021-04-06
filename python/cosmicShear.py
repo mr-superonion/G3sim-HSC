@@ -42,7 +42,6 @@ import lsst.obs.subaru.filterFraction
 class cosmicShearConfig(pexConfig.Config):
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-
 class cosmicShearRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
@@ -80,61 +79,73 @@ class cosmicShearTask(BatchPoolTask):
         pool.map(self.process,rotList)
         return
 
+    def prepareData(self,isim,irot,outDir):
+        wDir    =   'anaCat_newS19Mask_fdeltacut/catalog_compressed/'
+        fname   =   'mock_nres13_r%03d_rotmat%d_shear_catalog.fits' %(isim,irot)
+        dataG   =   []
+        for fieldname in catutil.field_names:
+            catFname=   'anaCat_newS19Mask_fdeltacut/catalog_mock/shape/%s/%s' %(fieldname,fname)
+            data    =   fitsio.read(os.path.join(catFname))
+            zdat    =   fitsio.read(os.path.join(wDir,'%s_dnnz.fits' %fieldname))
+            assert np.all(zdat['object_id']==data['object_id'])
+            zz      =   zdat['dnnz_photoz_best']
+            # selection
+            mask    =   zz>0.3
+            mask    =   mask&(zz<1.5)
+            mask    =   mask&(data['e1_mock']**2.+data['e2_mock']**2.<10.)
+            data    =   data[mask]
+            dataG.append(data)
+            del data,mask,catFname
+            gc.collect()
+        dataG=  np.hstack(dataG)
+        return dataG
+
     def process(self,cache,irot):
         isim    =   cache.isim
         outDir  =   cache.outDir
-        fname   =   'mock_nres13_r%03d_rotmat%d_shear_catalog.fits' %(isim,irot)
-        wDir    =   'anaCat_newS19Mask_fdeltacut/catalog_compressed/'
-        fname   =   'mock_nres13_r003_rotmat12_shear_catalog.fits'
-        dataG   =   []
-        wG      =   []
-        for fieldname in catutil.field_names:
-            wFname=os.path.join(wDir,'%s_weights.fits' %fieldname)
-            weights=   fitsio.read(wFname)
-            catFname=   'anaCat_newS19Mask_fdeltacut/catalog_mock/shape/%s/%s' %(fieldname,fname)
-            data   =   fitsio.read(os.path.join(catFname))
-            assert np.all(data['object_id']==weights['object_id'])
-            # selection
-            mask   =   data['z_source_mock']>0.3
-            mask   =   mask&(data['z_source_mock']<1.5)
-            mask   =   mask&(data['e1_mock']**2.+data['e2_mock']**2.<10.)
-            data   =   data[mask]
-            weights=   weights[mask]['i_hsmshaperegauss_derived_weight']
-            dataG.append(data)
-            wG.append(weights)
-            del data,mask
-            gc.collect()
-        dataG=  np.hstack(dataG)
-        wG  =   np.hstack(wG)
-
+        dataG   =   self.prepareData(isim,irot,outDir)
+        if os.path.isfile(os.path.join(outDir,'rotmat%d_corG.csv' %irot)):
+            return
+        wG      =   dataG['weight']
         ra      =   dataG['ra_mock']
         dec     =   dataG['dec_mock']
+
+        # correlations
+        catE1   =   treecorr.Catalog(g1=dataG['e1_mock'],g2=dataG['e2_mock'],w=wG,ra=ra,dec=dec,ra_units='deg',dec_units='deg')
+        corE1   =   treecorr.GGCorrelation(nbins=30,min_sep=0.281838293,max_sep=354.8133892,sep_units='arcmin')
+        corE1.process(catE1)
+        corE1.write(os.path.join(outDir,'rotmat%d_corE1.csv' %irot))
+        del corE1,catE1
+        gc.collect()
+
         eI1     =   dataG['noise1_int']+dataG['noise1_mea']
         eI2     =   dataG['noise2_int']+dataG['noise2_mea']
-        # define catalog (e,e_noi,g)
         catE0   =   treecorr.Catalog(g1=eI1,g2=eI2,ra=ra,dec=dec,w=wG,ra_units='deg',dec_units='deg')
-        catE1   =   treecorr.Catalog(g1=dataG['e1_mock'],g2=dataG['e2_mock'],w=wG,ra=ra,dec=dec,ra_units='deg',dec_units='deg')
-        catG    =   treecorr.Catalog(g1=dataG['shear1_sim'],g2=dataG['shear2_sim'],w=wG,ra=ra,dec=dec,ra_units='deg',dec_units='deg')
-        # correlations
+        del eI1,eI2
+        gc.collect()
+
         corE0   =   treecorr.GGCorrelation(nbins=30,min_sep=0.281838293,max_sep=354.8133892,sep_units='arcmin')
         corE0.process(catE0)
         corE0.write(os.path.join(outDir,'rotmat%d_corE0.csv' %irot))
+        del corE0
+        gc.collect()
 
-        corG    =   treecorr.GGCorrelation(nbins=30,min_sep=0.281838293,max_sep=354.8133892,sep_units='arcmin')
-        corG.process(catG)
-        corG.write(os.path.join(outDir,'rotmat%d_corG.csv' %irot))
+        catG=   treecorr.Catalog(g1=dataG['shear1_sim'],g2=dataG['shear2_sim'],w=wG,ra=ra,dec=dec,ra_units='deg',dec_units='deg')
+        del dataG,wG,ra,dec
+        gc.collect()
 
         corGE0  =   treecorr.GGCorrelation(nbins=30,min_sep=0.281838293,max_sep=354.8133892,sep_units='arcmin')
         corGE0.process(catG,catE0)
         corGE0.write(os.path.join(outDir,'rotmat%d_corGE0.csv' %irot))
-
-        corE1   =   treecorr.GGCorrelation(nbins=30,min_sep=0.281838293,max_sep=354.8133892,sep_units='arcmin')
-        corE1.process(catE1)
-        corE1.write(os.path.join(outDir,'rotmat%d_corE1.csv' %irot))
-
-        del dataG,catG,catE0,catE1
-        del corE0,corG,corGE0,corE1
+        del corGE0,catE0
         gc.collect()
+
+        corG    =   treecorr.GGCorrelation(nbins=30,min_sep=0.281838293,max_sep=354.8133892,sep_units='arcmin')
+        corG.process(catG)
+        corG.write(os.path.join(outDir,'rotmat%d_corG.csv' %irot))
+        del corG,catG
+        gc.collect()
+
         self.log.info('finish irot: %02d' %(irot))
         return
 
