@@ -70,7 +70,7 @@ class cosmicShearTask(BatchPoolTask):
             os.mkdir(outDir)
         self.log.info('beginning isim: %03d' %(isim))
         # 108 sims x 13 rotations
-        rotList =  range(13)
+        rotList =  range(7)
         # Prepare the pool
         pool    =   Pool("cosmicShear")
         pool.cacheClear()
@@ -80,18 +80,17 @@ class cosmicShearTask(BatchPoolTask):
         return
 
     def prepareData(self,isim,irot,outDir):
+        nameList=   ['ra_mock','dec_mock','noise1_int','noise2_int','noise1_mea','noise2_mea',\
+                     'shear1_sim','shear2_sim','e1_mock','e2_mock','weight']
         wDir    =   'anaCat_newS19Mask_fdeltacut/catalog_compressed/'
         fname   =   'mock_nres13_r%03d_rotmat%d_shear_catalog.fits' %(isim,irot)
         dataG   =   []
         for fieldname in catutil.field_names:
-            catFname=   'anaCat_newS19Mask_fdeltacut/catalog_mock/shape/%s/%s' %(fieldname,fname)
-            data    =   fitsio.read(os.path.join(catFname))
-            zdat    =   fitsio.read(os.path.join(wDir,'%s_dnnz.fits' %fieldname))
-            assert np.all(zdat['object_id']==data['object_id'])
-            zz      =   zdat['dnnz_photoz_best']
             # selection
-            mask    =   zz>0.3
-            mask    =   mask&(zz<1.5)
+            mask    =   fitsio.read(os.path.join(wDir,'%s_zmask.fits' %fieldname))['mask']
+            gc.collect()
+            catFname=   'anaCat_newS19Mask_fdeltacut/catalog_mock/shape/%s/%s' %(fieldname,fname)
+            data    =   fitsio.read(os.path.join(catFname))[nameList]
             mask    =   mask&(data['e1_mock']**2.+data['e2_mock']**2.<10.)
             data    =   data[mask]
             dataG.append(data)
@@ -106,12 +105,10 @@ class cosmicShearTask(BatchPoolTask):
         dataG   =   self.prepareData(isim,irot,outDir)
         if os.path.isfile(os.path.join(outDir,'rotmat%d_corG.csv' %irot)):
             return
-        wG      =   dataG['weight']
-        ra      =   dataG['ra_mock']
-        dec     =   dataG['dec_mock']
 
         # correlations
-        catE1   =   treecorr.Catalog(g1=dataG['e1_mock'],g2=dataG['e2_mock'],w=wG,ra=ra,dec=dec,ra_units='deg',dec_units='deg')
+        catE1   =   treecorr.Catalog(g1=dataG['e1_mock'],g2=-dataG['e2_mock'],w=dataG['weight'],\
+                ra=dataG['ra_mock'],dec=dataG['dec_mock'],ra_units='deg',dec_units='deg')
         corE1   =   treecorr.GGCorrelation(nbins=30,min_sep=0.281838293,max_sep=354.8133892,sep_units='arcmin')
         corE1.process(catE1)
         corE1.write(os.path.join(outDir,'rotmat%d_corE1.csv' %irot))
@@ -120,7 +117,8 @@ class cosmicShearTask(BatchPoolTask):
 
         eI1     =   dataG['noise1_int']+dataG['noise1_mea']
         eI2     =   dataG['noise2_int']+dataG['noise2_mea']
-        catE0   =   treecorr.Catalog(g1=eI1,g2=eI2,ra=ra,dec=dec,w=wG,ra_units='deg',dec_units='deg')
+        catE0   =   treecorr.Catalog(g1=eI1,g2=-eI2,w=dataG['weight'],\
+                ra=dataG['ra_mock'],dec=dataG['dec_mock'],ra_units='deg',dec_units='deg')
         del eI1,eI2
         gc.collect()
 
@@ -130,8 +128,9 @@ class cosmicShearTask(BatchPoolTask):
         del corE0
         gc.collect()
 
-        catG=   treecorr.Catalog(g1=dataG['shear1_sim'],g2=dataG['shear2_sim'],w=wG,ra=ra,dec=dec,ra_units='deg',dec_units='deg')
-        del dataG,wG,ra,dec
+        catG=   treecorr.Catalog(g1=dataG['shear1_sim'],g2=-dataG['shear2_sim'],w=dataG['weight'],\
+                ra=dataG['ra_mock'],dec=dataG['dec_mock'],ra_units='deg',dec_units='deg')
+        del dataG
         gc.collect()
 
         corGE0  =   treecorr.GGCorrelation(nbins=30,min_sep=0.281838293,max_sep=354.8133892,sep_units='arcmin')
@@ -145,7 +144,6 @@ class cosmicShearTask(BatchPoolTask):
         corG.write(os.path.join(outDir,'rotmat%d_corG.csv' %irot))
         del corG,catG
         gc.collect()
-
         self.log.info('finish irot: %02d' %(irot))
         return
 
@@ -157,7 +155,7 @@ class cosmicShearTask(BatchPoolTask):
                         default=0,
                         help='minimum group number')
         parser.add_argument('--maxGroup', type= int,
-                        default=108,
+                        default=9,
                         help='maximum group number')
         return parser
     def writeConfig(self, butler, clobber=False, doBackup=False):
