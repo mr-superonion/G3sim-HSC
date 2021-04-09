@@ -11,6 +11,7 @@ default_datDir='wrkDir/s19/s19-1/anaCat_newS19Mask_fdeltacut/cosmicShear/covaria
 class cs_covariance():
     def __init__(self,datDir=default_datDir):
         self.datDir=datDir
+        self.names=['r_nom','meanr','meanlogr','xip','xim','xip_im','xim_im','sigma_xip','sigma_xim','weight','npairs']
 
     # pend in ['G','E0','E1','GE0']
     def getAve(self,pend):
@@ -33,7 +34,7 @@ class cs_covariance():
             xip_ave=xip_ave/n
             xim_ave=xim_ave/n
             data=ascii.read(fname)
-            rnom=data['R_nom']
+            rnom=data[data.colnames[0]]
             out=astTab.Table([rnom,xip_ave,xim_ave],names=['R_nom','xip','xim'])
             out.write(outFname)
         else:
@@ -45,7 +46,7 @@ class cs_covariance():
 
     # check the histgram of c-c_ave
     def getPlotHist(self,pend):
-        xip_ave,xim_ave=getAve(pend)
+        xip_ave,xim_ave=self.getAve(pend)[1:]
         xipAll=[]
         ximAll=[]
         for isim in range(108):
@@ -69,7 +70,7 @@ class cs_covariance():
             xim_cov=np.zeros((30,30))
             xic_cov=np.zeros((30,30))
 
-            xip_ave,xim_ave=getAve(pend)
+            xip_ave,xim_ave=self.getAve(pend)[1:]
             xip_ave=xip_ave.data
             xim_ave=xim_ave.data
             n=0
