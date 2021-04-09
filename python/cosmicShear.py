@@ -70,7 +70,7 @@ class cosmicShearTask(BatchPoolTask):
             os.mkdir(outDir)
         self.log.info('beginning isim: %03d' %(isim))
         # 108 sims x 13 rotations
-        rotList =  range(7)
+        rotList =  range(13)
         # Prepare the pool
         pool    =   Pool("cosmicShear")
         pool.cacheClear()
@@ -88,10 +88,9 @@ class cosmicShearTask(BatchPoolTask):
         for fieldname in catutil.field_names:
             # selection
             mask    =   fitsio.read(os.path.join(wDir,'%s_zmask.fits' %fieldname))['mask']
-            gc.collect()
             catFname=   'anaCat_newS19Mask_fdeltacut/catalog_mock/shape/%s/%s' %(fieldname,fname)
             data    =   fitsio.read(os.path.join(catFname))[nameList]
-            mask    =   mask&(data['e1_mock']**2.+data['e2_mock']**2.<10.)
+            mask    =   mask&(data['e1_mock']**2.+data['e2_mock']**2.<4.)
             data    =   data[mask]
             dataG.append(data)
             del data,mask,catFname
@@ -102,9 +101,9 @@ class cosmicShearTask(BatchPoolTask):
     def process(self,cache,irot):
         isim    =   cache.isim
         outDir  =   cache.outDir
-        dataG   =   self.prepareData(isim,irot,outDir)
         if os.path.isfile(os.path.join(outDir,'rotmat%d_corG.csv' %irot)):
             return
+        dataG   =   self.prepareData(isim,irot,outDir)
 
         # correlations
         catE1   =   treecorr.Catalog(g1=dataG['e1_mock'],g2=-dataG['e2_mock'],w=dataG['weight'],\
@@ -115,12 +114,9 @@ class cosmicShearTask(BatchPoolTask):
         del corE1,catE1
         gc.collect()
 
-        eI1     =   dataG['noise1_int']+dataG['noise1_mea']
-        eI2     =   dataG['noise2_int']+dataG['noise2_mea']
-        catE0   =   treecorr.Catalog(g1=eI1,g2=-eI2,w=dataG['weight'],\
+        catE0   =   treecorr.Catalog(g1=(dataG['noise1_int']+dataG['noise1_mea']),\
+                g2=-(dataG['noise2_int']+dataG['noise2_mea']),w=dataG['weight'],\
                 ra=dataG['ra_mock'],dec=dataG['dec_mock'],ra_units='deg',dec_units='deg')
-        del eI1,eI2
-        gc.collect()
 
         corE0   =   treecorr.GGCorrelation(nbins=30,min_sep=0.281838293,max_sep=354.8133892,sep_units='arcmin')
         corE0.process(catE0)
