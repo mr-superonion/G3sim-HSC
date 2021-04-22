@@ -7,6 +7,7 @@ SELECT
 , meas.i_footprintarea_value
 , meas.i_deblend_parenttoobig
 , meas.i_extendedness_value
+, meas.tract
 
 -- unforced CModel magnitudes
 , meas.i_cmodel_mag
