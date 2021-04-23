@@ -87,65 +87,7 @@ class cgcSimTask(pipeBase.CmdLineTask):
         # Get the shear information
         g1          =   0.02
         g2          =   0.
-        fwhm        =   noiseHead['fwhm']*0.168
-        variance    =   noiseHead['varPlane']/varRatio#1.78
 
-        # Get the PSF
-        psfFname    =   os.path.join(self.config.psfPre,'psf-%05d.fits'%(ifield))
-        psfImg      =   galsim.fits.read(psfFname)
-        noiseHead   =   pyfits.getheader(psfFname)
-        psfInt      =   galsim.InterpolatedImage(psfImg,scale=scale,flux = 1.)
-
-        self.log.info('Adding correlated noise')
-        """
-        Simulate the original noise on image uniform
-        """
-        rng = galsim.BaseDeviate(ihpix)
-        max_variance=   np.max(var_image.array)
-        var_image   =   max_variance - var_image
-        vn          =   galsim.VariableGaussianNoise(rng,var_image)
-        gal_image.addNoise(vn)
-
-        """
-        Make noise correlated and match to the input variance
-        """
-        corFname    =   os.path.join(self.config.corPre,'corGroup-%02d.fits' %group)
-        corNoise    =   galsim.getCOSMOSNoise(file_name=corFname,rng=rng,cosmos_scale=scale,variance=variance)
-        corNoise.applyTo(gal_image)
-
-        """
-        Generate the image
-        """
-        exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
-        exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance*varRatio#1.78
-        del gal_image
-        del var_image
-        #Set the PSF
-        psfArray    =   psfImg.array
-        ngridPsf    =   psfArray.shape[0]
-        psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
-        psfLsst.getArray()[:,:]= psfArray
-        psfLsst     =   psfLsst.convertD()
-        kernel      =   afwMath.FixedKernel(psfLsst)
-        kernelPSF   =   meaAlg.KernelPsf(kernel)
-        exposure.setPsf(kernelPSF)
-        #prepare the wcs
-        #Rotation
-        cdelt   =   (0.168*afwGeom.arcseconds)
-        CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
-        #wcs
-        crval   =   afwGeom.SpherePoint(afwGeom.Angle(0.,afwGeom.degrees),afwGeom.Angle(0.,afwGeom.degrees))
-        crpix   =   afwGeom.Point2D(0.0, 0.0)
-        dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
-        exposure.setWcs(dataWcs)
-
-        #prepare the frc
-        dataCalib = afwImg.makePhotoCalibFromCalibZeroPoint(63095734448.0194)
-        exposure.setPhotoCalib(dataCalib)
-        self.log.info('writing exposure')
-        exposure.writeFits(outFname)
-        del exposure
         t = Table(rows=data_rows, names=('ipos','COSMOS_INDEX','IDENT','RA','DEC','COSMOS_MAG','a_i','parent_seeing'))
         catPreName  =   os.path.join(self.config.catPre,'catalog-%05d.fits' %(ihpix))
         t.write(catPreName,overwrite=True)
