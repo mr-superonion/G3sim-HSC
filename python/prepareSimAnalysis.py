@@ -28,7 +28,7 @@
 import sys
 import os
 from astropy.table import Table, vstack
-import sim_analysis_utilities as utilities
+import catutil as utilities
 
 import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
@@ -77,7 +77,7 @@ class prepareSimAnalysisTask(BatchPoolTask):
     def runDataRef(self,fieldKey):
         fieldname   =   utilities.field_keys[fieldKey]
         self.log.info('Processing field: %s' %(fieldname))
-        outFname    =   os.path.join(self.config.anaDir,fieldname,'%s.fits'%(fieldname))
+        outFname    =   os.path.join(self.config.anaDir,fieldname,'%s_undet.fits'%(fieldname))
         if os.path.exists(outFname):
             self.log.info('already have output file for filed: %s' %outFname)
             return

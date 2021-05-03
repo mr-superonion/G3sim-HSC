@@ -28,7 +28,7 @@ def get_psf_ellip(catalog):
     return (psf_mxx - psf_myy) / (psf_mxx + psf_myy), 2. * \
         psf_mxy / (psf_mxx + psf_myy)
 
-def get_bias(weight,magA10,res):
+def get_sel_bias(weight,magA10,res):
     """
     This utility gets the selection bias (multiplicative and additive)
 
@@ -60,12 +60,11 @@ def get_bias(weight,magA10,res):
     wSum    =   np.sum(weight)
 
     bin_magA=   0.025
-    # magA10  =   get_imag_A10(data)
     pedgeM  =   np.sum(weight[(magA10>= 25.5-bin_magA)])/wSum/bin_magA
 
     bin_res =   0.01
-    # res     =   get_ires(data)
     pedgeR  =   np.sum(weight[(res<= 0.3+bin_res)])/wSum/bin_res
+
     m_sel   =   -0.059*pedgeM+0.019*pedgeR
     a_sel   =   0.0064*pedgeM+0.0063*pedgeR
 
