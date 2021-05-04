@@ -5,7 +5,6 @@ import astropy.io.fits as pyfits
 
 
 """
-#Note
 This subroutine is only for FPFS and not for reGauss
 """
 
