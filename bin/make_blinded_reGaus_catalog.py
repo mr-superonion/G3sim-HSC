@@ -47,9 +47,11 @@ if not testing:
     user_mail   =   'okabe@hiroshima-u.ac.jp'
     user        =   'chiaki'
     user_mail   =   'chia.hikage@gmail.com'
-    """
     user        =   'Tomomi'
     user_mail   =   'sunayama.tomomi@d.mbox.nagoya-u.ac.jp'
+    """
+    user        =   'xiangchong'
+    user_mail   =   'xiangchong.li@ipmu.jp'
 else:
     """
     user        =   'surhud'
@@ -57,10 +59,10 @@ else:
     blinder      =   'xiangchong'
     hsc_mail    =   'xiangchong.li@ipmu.jp'
     """
+    blinder     =   'xiangchong'
+    hsc_mail    =   'xiangchong.li@ipmu.jp'
     user        =   'xiangchong'
     user_mail   =   'xiangchong.li@ipmu.jp'
-    blinder     =   'Jim Bosch'
-    hsc_mail    =   'hscblinder@gmail.com'
 
 field_names = ['XMM',   \
               'GAMA09H',\
@@ -120,7 +122,7 @@ def generate_dm1_values(n_blind_cat,dm_range):
 
 def encrypt():
     # paramters
-    n_blind_cat =   1
+    n_blind_cat =   3
     dm_range    =   0.10
 
     # directory
