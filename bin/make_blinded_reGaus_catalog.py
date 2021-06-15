@@ -122,7 +122,7 @@ def generate_dm1_values(n_blind_cat,dm_range):
 
 def encrypt():
     # paramters
-    n_blind_cat =   3
+    n_blind_cat =   1
     dm_range    =   0.10
 
     # directory
