@@ -64,7 +64,6 @@ def main():
     if not os.path.exists(prefix2):
         os.system('mkdir -p %s' %prefix2)
 
-    print(release_year)
     if 's17' in release_year:
         release_version =   'dr2'
         ngroups =   5
