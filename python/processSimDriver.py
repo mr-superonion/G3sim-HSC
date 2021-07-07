@@ -22,7 +22,6 @@
 #
 # python lib
 import os
-import galsim
 import numpy as np
 from astropy.table import Table
 import astropy.io.fits as pyfits
@@ -65,7 +64,7 @@ class processSimTask(pipeBase.CmdLineTask):
 
     @pipeBase.timeMethod
     def runDataRef(self,isim):
-        info        =   Table.read('../s19-pre/info.csv')
+        info        =   Table.read('info.csv')
         ifield      =   int(info[isim]['num'])
         self.log.info('begining for field %05d' %(ifield))
         inputdir    =  'expDir/'
@@ -74,13 +73,7 @@ class processSimTask(pipeBase.CmdLineTask):
         if not os.path.exists(inFname):
             self.log.info('Cannot find the input exposure')
             return
-        dataStruct  =  self.readDataSim.readData('-%05d' %ifield)
-        if dataStruct is None:
-            self.log.info('failed to read data')
-            return
-        else:
-            self.log.info('successed in reading data')
-
+        self.readDataSim.readData('-%05d' %ifield)
         return
 
     @classmethod
@@ -106,17 +99,16 @@ class processSimDriverConfig(pexConfig.Config):
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-
 class processSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         minGroup    =  parsedCmd.minGroup
         maxGroup    =  parsedCmd.maxGroup
         return [(ref, kwargs) for ref in range(minGroup,maxGroup)]
-
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
+
 
 class processSimDriverTask(BatchPoolTask):
     ConfigClass = processSimDriverConfig
