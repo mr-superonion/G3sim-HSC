@@ -43,28 +43,15 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 import lsst.obs.subaru.filterFraction
-from fpfsBase import fpfsBaseTask
 from readDataSim import readDataSimTask
 
 class processSimConfig(pexConfig.Config):
     "config"
 
-    doFPFS   = pexConfig.Field(
-        dtype=bool,
-        default=False,
-        doc="Whether do FPFS shape measurement",
-    )
-
     readDataSim= pexConfig.ConfigurableField(
         target  = readDataSimTask,
-        doc     = "Subtask to run measurement of fpfs method"
+        doc     = "Subtask to run measurement"
     )
-
-    fpfsBase = pexConfig.ConfigurableField(
-        target = fpfsBaseTask,
-        doc = "Subtask to run measurement of fpfs method"
-    )
-
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
@@ -74,7 +61,6 @@ class processSimTask(pipeBase.CmdLineTask):
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
-        self.makeSubtask('fpfsBase', schema=self.schema)
         self.makeSubtask("readDataSim",schema=self.schema)
 
     @pipeBase.timeMethod
@@ -82,9 +68,9 @@ class processSimTask(pipeBase.CmdLineTask):
         info        =   Table.read('../s19-pre/info.csv')
         ifield      =   int(info[isim]['num'])
         self.log.info('begining for field %05d' %(ifield))
-        inputdir=  './expDir/'
+        inputdir    =  'expDir/'
 
-        inFname    =   os.path.join(inputdir,'image-%05d.fits' %(ifield))
+        inFname     =   os.path.join(inputdir,'image-%05d.fits' %(ifield))
         if not os.path.exists(inFname):
             self.log.info('Cannot find the input exposure')
             return
@@ -95,17 +81,6 @@ class processSimTask(pipeBase.CmdLineTask):
         else:
             self.log.info('successed in reading data')
 
-        if self.config.doFPFS:
-            assert dataStruct.noiPows != None,\
-                    self.log.info('do not have noiPows')
-            self.fpfsBase.runDataRef(dataStruct)
-            outputdir   =  './outcomeFPFS/'
-            outFname    =   'src-%05d.fits'  %(ifield)
-            outFname    =   os.path.join(outputdir,outFname)
-            if os.path.exists(outFname):
-                self.log.info('Already have the output file')
-                return
-            dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
         return
 
     @classmethod
@@ -123,14 +98,12 @@ class processSimTask(pipeBase.CmdLineTask):
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
 
-
 class processSimDriverConfig(pexConfig.Config):
     perGroup =   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
     processSim = pexConfig.ConfigurableField(
         target = processSimTask,
         doc = "processSim task to run on multiple cores"
     )
-
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
@@ -148,7 +121,7 @@ def unpickle(factory, args, kwargs):
 class processSimDriverTask(BatchPoolTask):
     ConfigClass = processSimDriverConfig
     RunnerClass = processSimRunner
-    _DefaultName = "processSimDriver"
+    _DefaultName= "processSimDriver"
 
     def __reduce__(self):
         """Pickler"""

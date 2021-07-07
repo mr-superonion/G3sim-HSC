@@ -195,7 +195,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         corNoise.applyTo(gal_image)
 
         """
-        Generate the image
+        Generate the HSC image
         """
         exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
         exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
