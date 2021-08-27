@@ -27,8 +27,6 @@ if not testing:
     """
     user        =   'masato'
     user_mail   =   'masato.shirasaki@gmail.com'
-    user        =   'masato'
-    user_mail   =   'masato.shirasaki@gmail.com'
     user        =   'masamune'
     user_mail   =   'masamune.oguri@ipmu.jp'
     user        =   'wenting'
@@ -49,9 +47,11 @@ if not testing:
     user_mail   =   'chia.hikage@gmail.com'
     user        =   'Tomomi'
     user_mail   =   'sunayama.tomomi@d.mbox.nagoya-u.ac.jp'
-    """
     user        =   'xiangchong'
     user_mail   =   'xiangchong.li@ipmu.jp'
+    """
+    user        =   'MasatoGfarm'
+    user_mail   =   'masato.shirasaki@nao.ac.jp'
 else:
     """
     user        =   'surhud'
