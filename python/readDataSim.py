@@ -106,8 +106,8 @@ class readDataSimConfig(pexConfig.Config):
         self.detection.thresholdValue   =   5.0
 
         self.deblend.propagateAllPeaks  =   True
-        self.deblend.maxFootprintArea   =   64*64
-        self.deblend.maxFootprintSize   =   64
+        self.deblend.maxFootprintArea   =   250*250
+        self.deblend.maxFootprintSize   =   400
 
         self.measurement.load(os.path.join(getPackageDir("obs_subaru"), "config", "hsm.py"))
         self.load(os.path.join(getPackageDir("obs_subaru"), "config", "cmodel.py"))
