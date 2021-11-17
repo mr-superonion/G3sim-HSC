@@ -49,9 +49,11 @@ if not testing:
     user_mail   =   'sunayama.tomomi@d.mbox.nagoya-u.ac.jp'
     user        =   'xiangchong'
     user_mail   =   'xiangchong.li@ipmu.jp'
-    """
     user        =   'MasatoGfarm'
     user_mail   =   'masato.shirasaki@nao.ac.jp'
+    """
+    user        =   'hironao'
+    user_mail   =   'miyatake@kmi.nagoya-u.ac.jp'
 else:
     """
     user        =   'surhud'
@@ -122,7 +124,7 @@ def generate_dm1_values(n_blind_cat,dm_range):
 
 def encrypt():
     # paramters
-    n_blind_cat =   1
+    n_blind_cat =   3
     dm_range    =   0.10
 
     # directory
