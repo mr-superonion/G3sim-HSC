@@ -2,8 +2,8 @@
 import gc
 import os
 import numpy as np
-from astropy.table import Table, vstack
-import sim_analysis_utilities as utilities
+from astropy.table import Table
+import catutil as utilities
 
 del_columns = [
     'i_hsmshaperegauss_derived_bias_m',

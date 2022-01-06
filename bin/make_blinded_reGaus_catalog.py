@@ -52,7 +52,7 @@ if not testing:
     user        =   'MasatoGfarm'
     user_mail   =   'masato.shirasaki@nao.ac.jp'
     """
-    user        =   'hironao'
+    user        =   'hironao2'
     user_mail   =   'miyatake@kmi.nagoya-u.ac.jp'
 else:
     """
@@ -71,7 +71,9 @@ field_names = ['XMM',   \
               'WIDE12H',\
               'GAMA15H',\
               'VVDS'   ,\
-              'HECTOMAP']
+              'HECTOMAP',\
+              'AEGIS',
+              ]
 
 def PGP_to_FITS( message):
     """
@@ -118,7 +120,7 @@ def generate_dm2_values(rand_gen):
 
 def generate_dm1_values(n_blind_cat,dm_range):
     m_blind=[]
-    for ib in range(n_blind_cat):
+    for _ in range(n_blind_cat):
        m_blind.append(dm_range*(2.*np.random.rand()-1))
     return m_blind
 
