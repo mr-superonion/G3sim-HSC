@@ -24,6 +24,8 @@ testing     =   False
 if not testing:
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
+    user        =   'KenOsato '
+    user_mail   =   'ken.osato@yukawa.kyoto-u.ac.jp'
     """
     user        =   'masato'
     user_mail   =   'masato.shirasaki@gmail.com'
@@ -51,9 +53,9 @@ if not testing:
     user_mail   =   'xiangchong.li@ipmu.jp'
     user        =   'MasatoGfarm'
     user_mail   =   'masato.shirasaki@nao.ac.jp'
-    """
     user        =   'hironao2'
     user_mail   =   'miyatake@kmi.nagoya-u.ac.jp'
+    """
 else:
     """
     user        =   'surhud'
