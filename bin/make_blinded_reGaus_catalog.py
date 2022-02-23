@@ -24,7 +24,7 @@ testing     =   False
 if not testing:
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
-    user        =   'KenOsato '
+    user        =   'KenOsato'
     user_mail   =   'ken.osato@yukawa.kyoto-u.ac.jp'
     """
     user        =   'masato'
