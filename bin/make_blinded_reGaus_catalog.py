@@ -7,12 +7,8 @@ import gnupg
 import getpass
 
 import numpy as np
+import astropy.io.fits as pyfits
 from astropy.table import Table, join
-
-try:
-    import astropy.io.fits as pyfits
-except:
-    import pyfits
 
 anaDir      =   "anaCat_newS19Mask_fdeltacut"
 # NOTE: Make sure it is the gpg directory
@@ -24,9 +20,11 @@ testing     =   False
 if not testing:
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
+    user        =   'RoohiDalal'
+    user_mail   =   'roohidalal@gmail.com'
+    """
     user        =   'KenOsato'
     user_mail   =   'ken.osato@yukawa.kyoto-u.ac.jp'
-    """
     user        =   'masato'
     user_mail   =   'masato.shirasaki@gmail.com'
     user        =   'masamune'
