@@ -20,9 +20,13 @@ testing     =   False
 if not testing:
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
+    user        =   'noriaki'
+    user_mail   =   'nakasawa.noriaki.a9@s.mail.nagoya-u.ac.jp'
+    """
+    user        =   'Tam'
+    user_mail   =   'sutieng8110@gmail.com'
     user        =   'RoohiDalal'
     user_mail   =   'roohidalal@gmail.com'
-    """
     user        =   'KenOsato'
     user_mail   =   'ken.osato@yukawa.kyoto-u.ac.jp'
     user        =   'masato'
@@ -43,8 +47,6 @@ if not testing:
     user_mail   =   'kawinwanichakij@g.ecc.u-tokyo.ac.jp'
     user        =   'nobuhiro'
     user_mail   =   'okabe@hiroshima-u.ac.jp'
-    user        =   'chiaki'
-    user_mail   =   'chia.hikage@gmail.com'
     user        =   'Tomomi'
     user_mail   =   'sunayama.tomomi@d.mbox.nagoya-u.ac.jp'
     user        =   'xiangchong'
@@ -126,7 +128,7 @@ def generate_dm1_values(n_blind_cat,dm_range):
 
 def encrypt():
     # paramters
-    n_blind_cat =   3
+    n_blind_cat =   1
     dm_range    =   0.10
 
     # directory

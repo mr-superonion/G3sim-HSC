@@ -39,7 +39,7 @@ def main():
     parser.add_argument('--nomail', '-M', action='store_true',
                         help='suppress email notice')
     parser.add_argument('--release_year', '-r',
-                        choices='s15 s16 s17 s18 s19'.split(),
+                        choices='s15 s16 s17 s18 s19 s20 s21'.split(),
                         required=True,
                         help='the release year')
     parser.add_argument('--password-env', default='HSC_SSP_CAS_PASSWORD',
