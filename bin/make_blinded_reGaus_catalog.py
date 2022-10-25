@@ -20,9 +20,11 @@ testing     =   False
 if not testing:
     blinder     =   'Jim Bosch'
     hsc_mail    =   'hscblinder@gmail.com'
+    user        =   'kfchen'
+    user_mail   =   'kfchen@mit.edu'
+    """
     user        =   'amitk'
     user_mail   =   'amitk@iucaa.in'
-    """
     user        =   'noriaki'
     user_mail   =   'nakasawa.noriaki.a9@s.mail.nagoya-u.ac.jp'
     user        =   'Tam'
@@ -130,7 +132,7 @@ def generate_dm1_values(n_blind_cat,dm_range):
 
 def encrypt():
     # paramters
-    n_blind_cat =   1
+    n_blind_cat =   3
     dm_range    =   0.10
 
     # directory
